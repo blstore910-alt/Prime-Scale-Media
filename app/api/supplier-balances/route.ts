@@ -24,6 +24,7 @@ import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { NextResponse } from "next/server";
 import { fetchRockadsWallets } from "@/lib/integrations/rockads-api";
 import { fetchWiseBalances } from "@/lib/integrations/wise-api";
+import { fetchSlashBalances } from "@/lib/integrations/slash-api";
 import {
   getSupplier1Adapter,
   readLiveSupplier1Balance,
@@ -205,6 +206,60 @@ async function wise(): Promise<SupplierHolding> {
   }
 }
 
+// ── SLASH, DE BANK ACHTER ZANEL ───────────────────────────────────
+//
+// Tweede bank naast Wise, en op dezelfde voet: ons eigen geld, dus
+// `kind: "bank"` en buiten het leverancierstotaal.
+//
+// De adapter doet twee verzoeken (rekeningen voor de valuta, dan het
+// saldo per rekening) omdat de saldo-endpoint geen valuta teruggeeft.
+// Zie lib/integrations/slash-api.ts.
+async function slash(): Promise<SupplierHolding> {
+  const base = { supplier: "Slash", kind: "bank" } as const;
+  if (!process.env.SLASH_API_KEY) {
+    return { ...base, status: "off", error: null, readAt: null, lines: [] };
+  }
+  try {
+    const { balances, error } = await fetchSlashBalances();
+    // Een deelantwoord is geen storing maar ook geen heel getal: als
+    // er saldi zijn EN een fout, tonen we wat er is met de melding
+    // erbij. Is er niets, dan is het een storing.
+    if (!balances.length) {
+      return {
+        ...base,
+        status: "error",
+        error: error ?? "Slash returned nothing.",
+        readAt: new Date().toISOString(),
+        lines: [],
+      };
+    }
+    return {
+      ...base,
+      status: "ok",
+      error,
+      readAt: new Date().toISOString(),
+      lines: (balances.some((b) => Math.abs(b.amount) > 0.004)
+        ? balances.filter((b) => Math.abs(b.amount) > 0.004)
+        : balances
+      ).map((b) => ({
+        currency: b.currency,
+        total: b.amount,
+        available: null,
+        heldBack: null,
+        parts: [],
+      })),
+    };
+  } catch (err) {
+    return {
+      ...base,
+      status: "error",
+      error: safeErrorMessage(err),
+      readAt: new Date().toISOString(),
+      lines: [],
+    };
+  }
+}
+
 export async function GET() {
   const { error, profile } = await apiRequireAdmin();
   if (error) return error;
@@ -238,8 +293,8 @@ export async function GET() {
   // Neither of these rejects — both resolve to a status — but allSettled
   // guarantees that even a throw inside the guard clauses cannot turn
   // one slow supplier into a 500 for both.
-  const names = ["RockAds", "SeamX", "Wise"];
-  const settled = await Promise.allSettled([rockads(), seamx(), wise()]);
+  const names = ["RockAds", "SeamX", "Wise", "Slash"];
+  const settled = await Promise.allSettled([rockads(), seamx(), wise(), slash()]);
   const suppliers: SupplierHolding[] = settled.map((s, i) =>
     s.status === "fulfilled"
       ? s.value

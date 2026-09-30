@@ -147,6 +147,28 @@ export default function InviteSignUpForm({
       heard_from: "",
     },
     resolver: zodResolver(inviteSignUpSchema),
+    // ── ZEG HET VOORDAT HIJ OP JOIN DRUKT ──────────────────────────
+    //
+    // De eigenaar, 30-09, met het aanmeldscherm voor zich: "wanneer
+    // pass niet matched krijg ik geen melding ofzo?"
+    //
+    // Klopte. Zonder `mode` valideert react-hook-form pas bij
+    // SUBMIT. De regel "Passwords do not match" stond er wel, maar
+    // verscheen pas na de klik op Join -- terwijl de sterktebalk
+    // eronder wel live meeliep, dus het scherm leek te reageren.
+    //
+    // `onBlur`, niet `onChange`: bij elke toetsaanslag "komen niet
+    // overeen" roepen terwijl iemand nog aan het typen is, is erger
+    // dan zwijgen. Zodra hij het veld verlaat is het een eerlijk
+    // moment. `reValidateMode: onChange` haalt de melding daarna weg
+    // zodra hij hem herstelt, zonder dat hij opnieuw hoeft te
+    // klikken.
+    //
+    // Dit is dezelfde instelling als components/sign-up-form.tsx
+    // ernaast al had -- alleen dit formulier, dat ELKE nieuwe klant
+    // doorloopt, was hem vergeten.
+    mode: "onBlur",
+    reValidateMode: "onChange",
   });
 
   const password = watch("password") ?? "";
