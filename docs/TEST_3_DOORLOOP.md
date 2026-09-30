@@ -183,6 +183,32 @@ database gelegd.
 
 ---
 
+## EEN VRAAG DIE UIT DE EERSTE WANDELING KWAM
+
+De allereerste abonnementsfactuur vervalt na **3 dagen**; elke
+volgende na **7**. Dat is geen fout maar een keuze: de trigger
+`_invoice_first_subscription_due_date` doet het met zoveel woorden.
+
+Maar die keuze en de route om te betalen passen niet op elkaar. Een
+verse klant moet, in deze volgorde:
+
+1. bedrijfsgegevens invullen -- tot dan is opwaarderen geblokkeerd
+   ("Add your company details first", staat zo op zijn dashboard);
+2. een bankoverboeking doen -- een tot twee werkdagen;
+3. wachten tot een admin die verifieert -- met de hand.
+
+Dat past niet in drie dagen. En sinds plak 160 blijft hij daarna
+netjes in `past_due` staan en wordt hij aangemaand -- dus een klant
+die niets fout deed krijgt op dag drie een bericht dat hij achterloopt.
+Vóór plak 160 viel hij stil uit de boeken, wat erger was maar minder
+zichtbaar.
+
+**Vraag aan de eigenaar:** moet die eerste factuur ook 7 dagen
+krijgen (dan is het één regel in de trigger), of moet de klok pas
+gaan lopen zodra hij zijn bedrijfsgegevens heeft ingevuld?
+
+---
+
 ## Logboek
 
 Eén regel per scherm. `gemeten` is wat er OP het scherm stond;
@@ -194,7 +220,7 @@ gelijk geeft.
 |---|---|---|---|---|
 | — | laag 1 vooraf | ochtend 12/12 op 0 (op factuur 131 na, historisch); rondje 18 regels, **niets op FOUT**, twee op KIJKEN (8 topups >7 dagen in de wachtrij, 1 klant achter met DST -- allebei werkvoorraad) | alles op 0 | **SCHOON — laag 2 mag beginnen** |
 | T3-A | uitnodiging verstuurd | `t3a-3009@robustq.com`, Advertiser, plan **Prime** (EUR200/mo · 2 accounts · 3%), geen referrer, TURLIT. Dialoog: alle vier de plannen en allebei de valuta geopend voor ik koos. Database 21:35 `pending`. | 1 pending invite | **VERSTUURD — wacht op signup** |
-| T3-A | dashboard | | | |
+| T3-A | dashboard (390px) | wallet EUR 0,00 / USD 0,00 · openstaand EUR 200,00 due 3 okt · 0 ad-accounts · plan Unpaid · 3 stappen te gaan | wallet 0/0 · factuur 142 EUR 200 unpaid, gemaakt 30-09 07:41 vervalt 03-10 07:41 · 0 accounts · 0 bedrijf | **KLOPT, alles.** Maar zie de vraag hieronder over die 3 dagen. |
 | T3-A | wallet | | | |
 | T3-A | wallet opwaarderen (alle takken) | | | |
 | T3-A | top-ups | | | |
