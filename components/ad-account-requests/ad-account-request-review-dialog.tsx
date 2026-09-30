@@ -7,7 +7,6 @@ import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -140,12 +139,33 @@ export default function AdAccountRequestReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90dvh] w-[calc(100vw-1rem)] mx-auto flex-col overflow-hidden sm:max-w-3xl">
-        <DialogHeader>
+      {/* ── DE VERHOUDING, NIET DE HOOGTE ─────────────────────────────
+          De eigenaar, 30-09: "review request modal zeer onhandig, veel
+          scrollen en scroll part klein en buttons zeer groot."
+
+          Precies dat, en het was rekenkundig: op een telefoon nam de
+          kop ~90px (titel plus een regel uitleg), stapelde DialogFooter
+          drie knoppen volle breedte à ~44px plus tussenruimte tot ~180px,
+          en wat er van 90dvh overbleef was het scrollvak -- rond de
+          180px voor een formulier van twintig regels.
+
+          Drie keer ruimte teruggehaald in plaats van de dialoog hoger
+          te maken:
+            * de ondertitel eruit. "Review the request details and
+              choose the next action" staat boven een scherm dat
+              "Review Ad Account Request" heet; hij herhaalt de titel en
+              kost een regel.
+            * 95dvh in plaats van 90.
+            * de voet als RASTER van twee kolommen op een telefoon, met
+              lagere knoppen. Drie knoppen naast elkaar in twee rijen is
+              ~92px waar stapelen ~180px kostte.
+
+          Samen ongeveer honderd pixels erbij voor het deel dat je
+          werkelijk moet lezen -- het scrollvak wordt bijna twee keer zo
+          hoog zonder dat de dialoog groeit. */}
+      <DialogContent className="flex max-h-[95dvh] w-[calc(100vw-1rem)] mx-auto flex-col overflow-hidden sm:max-w-3xl">
+        <DialogHeader className="space-y-0.5">
           <DialogTitle>Review Ad Account Request</DialogTitle>
-          <DialogDescription>
-            Review the request details and choose the next action.
-          </DialogDescription>
         </DialogHeader>
 
         {/* flex-1 min-h-0, NOT min-h-[360px].
@@ -301,7 +321,7 @@ export default function AdAccountRequestReviewDialog({
         </div>
 
         {data && (
-          <DialogFooter className="shrink-0 gap-2 sm:gap-2 sm:space-x-0">
+          <DialogFooter className="grid shrink-0 grid-cols-2 gap-2 sm:flex sm:gap-2 sm:space-x-0 [&>button]:h-9 [&>button]:w-full sm:[&>button]:h-10 sm:[&>button]:w-auto">
             {/* ── AN EMPTY ACTION BAR IS NOT AN ANSWER ────────────────
                 For a completed or rejected request every control above
                 is false, and this footer still rendered: a grey bar with
@@ -310,14 +330,14 @@ export default function AdAccountRequestReviewDialog({
                 request deserves the one sentence that says it is
                 finished. */}
             {!canReject && !showCreateInvoice && !showCreateAdAccount && (
-              <p className="mr-auto self-center text-xs text-muted-foreground">
+              <p className="col-span-2 mr-auto self-center text-xs text-muted-foreground">
                 {statusValue === "rejected"
                   ? "This request was refused — the reason is above. Nothing left to do here."
                   : "This request is finished. Nothing left to do here."}
               </p>
             )}
             {!hasAdvertiser && (showCreateInvoice || showCreateAdAccount) && (
-              <p className="mr-auto self-center text-xs text-muted-foreground">
+              <p className="col-span-2 mr-auto self-center text-xs text-muted-foreground">
                 Create actions are unavailable until an advertiser is attached.
               </p>
             )}
@@ -332,7 +352,7 @@ export default function AdAccountRequestReviewDialog({
                 fee is already in, not wonder whether the screen is
                 broken. */}
             {feeAlreadyTaken && feeStageOpen ? (
-              <span className="self-center text-sm text-muted-foreground">
+              <span className="col-span-2 self-center text-sm text-muted-foreground">
                 Fee already paid from their wallet
               </span>
             ) : null}
@@ -341,7 +361,7 @@ export default function AdAccountRequestReviewDialog({
                 with one button missing and no reason given, and the
                 only clue is a raw column name further down. */}
             {feeIncludedInPlan && feeStageOpen ? (
-              <span className="self-center text-sm text-muted-foreground">
+              <span className="col-span-2 self-center text-sm text-muted-foreground">
                 Included in their plan — no fee to invoice
               </span>
             ) : null}

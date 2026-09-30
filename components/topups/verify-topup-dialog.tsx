@@ -4,7 +4,6 @@ import { verifyAdTopup } from "@/actions/topup-actions";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -81,12 +80,24 @@ export default function VerifyTopupDialog({
         setOpen(next);
       }}
     >
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-h-[95dvh] overflow-y-auto sm:max-w-2xl">
+        {/* ── MINDER LEEGTE, ZELFDE INHOUD ─────────────────────────
+            De eigenaar, 30-09: "maak verify topup scherm ook compacter
+            ofzo zodat meer op 1 scherm past, mss minder leegruimte
+            verticaal."
+
+            De ruimte zat niet in de inhoud maar in de marges: een
+            ondertitel die de titel herhaalt, space-y-6 tussen drie
+            blokken, en p-5/p-6 binnen elk blok. Bij elkaar ruim
+            honderd pixels die niets zeggen.
+
+            De ondertitel eruit, de tussenruimte naar 4, de binnenmarge
+            naar 4 op een telefoon en 5 daarboven. Geen enkel cijfer en
+            geen enkele regel tekst verdwijnt -- alleen de lucht
+            ertussen. En de dialoog scrollt nu zelf, zodat hij op een
+            kleine telefoon niet onderaan afgesneden wordt. */}
+        <DialogHeader className="space-y-0.5">
           <DialogTitle>Verify Top-up</DialogTitle>
-          <DialogDescription>
-            Review the transaction details before verifying.
-          </DialogDescription>
         </DialogHeader>
 
         {isLoading && (
@@ -377,7 +388,7 @@ function VerifyTopupInvoice({
   const allTicked = steps.every((st) => ticked[st.key]);
 
   return (
-    <form onSubmit={handleSubmit(handleVerify)} className="space-y-6">
+    <form onSubmit={handleSubmit(handleVerify)} className="space-y-4">
       <div className="border rounded-xl overflow-hidden bg-card text-card-foreground shadow-sm">
         {/* Invoice Header */}
         {/* ── TWO ROWS, EACH ONE THING LEFT AND ONE THING RIGHT ──────
@@ -396,7 +407,7 @@ function VerifyTopupInvoice({
             "Pending", the same size. So: the number with both pills on the
             right, then the account name with a small copy button right
             after it. */}
-        <div className="bg-muted/30 p-5 sm:p-6 space-y-3">
+        <div className="bg-muted/30 p-4 sm:p-5 space-y-2.5">
           {/* On a phone the two pills pushed the number and the date onto
               two lines each ("Topup / #000005"), so they go under the date
               there and to the right from sm up. */}
@@ -488,7 +499,7 @@ function VerifyTopupInvoice({
             moet Ad account topup zijn en de rate staat er nu 3x". What
             the admin needs is the money in, the fee off, and what lands,
             with the one editable percentage where the fee is. */}
-        <div className="p-5 sm:p-6 space-y-3 text-sm">
+        <div className="p-4 sm:p-5 space-y-2.5 text-sm">
           <div className="flex items-baseline justify-between gap-3">
             <span className="font-medium">Ad account top-up</span>
             <span className="font-semibold tabular-nums">
@@ -597,7 +608,7 @@ function VerifyTopupInvoice({
           is. Which steps there are depends on the type — an API type
           funds itself when this is pressed, a manual one does not —
           and the button waits until each has been ticked. */}
-      <div className="rounded-lg border bg-muted/20 p-4">
+      <div className="rounded-lg border bg-muted/20 p-3.5">
         <p className="text-sm font-semibold">Before you verify</p>
         <div className="mt-3 grid gap-3">
           {steps.map((step) => (
