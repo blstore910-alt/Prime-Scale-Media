@@ -4610,8 +4610,8 @@ export default function AdvertiserApp() {
           <div className={`view${view === "referrals" ? " on" : ""}`}>
             <div className="phead">
               <div>
-                <h1>Affiliate program</h1>
-                <p>Earn from the people you bring in.</p>
+                <h1>{t("label.affiliateProgram")}</h1>
+                <p>{t("page.affiliate.sub")}</p>
               </div>
             </div>
             {/* ── NOT JOINED YET: AN INVITATION ───────────────────────
@@ -5131,8 +5131,8 @@ export default function AdvertiserApp() {
           <div className={`view${view === "wallet" ? " on" : ""}`}>
             <div className="phead">
               <div>
-                <h1>Wallet</h1>
-                <p>Your money, ready when you are.</p>
+                <h1>{t("tab.wallet")}</h1>
+                <p>{t("page.wallet.sub")}</p>
               </div>
               {/* The page-level "Top up wallet" is gone: each card already
                   carries its own Top up, so this screen offered the same
@@ -6112,8 +6112,8 @@ export default function AdvertiserApp() {
           <div className={`view${view === "accounts" ? " on" : ""}`}>
             <div className="phead">
               <div>
-                <h1>Ad accounts</h1>
-                <p>Where your budget does its work.</p>
+                <h1>{t("tab.accounts")}</h1>
+                <p>{t("page.accounts.sub")}</p>
               </div>
               {/* "Request ad account" under a heading that already says
                   Ad accounts is the page title twice. The shorter label
@@ -6383,11 +6383,8 @@ export default function AdvertiserApp() {
           <div className={`view${view === "report" ? " on" : ""}`}>
             <div className="phead">
               <div>
-                <h1>Financial report</h1>
-                <p>
-                  Every top-up, funding, fee, invoice and return in one
-                  place — filter it, total it, export it.
-                </p>
+                <h1>{t("tab.report")}</h1>
+                <p>{t("page.report.sub")}</p>
               </div>
             </div>
             <div style={{ marginTop: 14 }}>
@@ -6399,8 +6396,8 @@ export default function AdvertiserApp() {
           <div className={`view${view === "requests" ? " on" : ""}`}>
             <div className="phead">
               <div>
-                <h1>Requests</h1>
-                <p>Everything you&apos;ve asked us for.</p>
+                <h1>{t("tab.requests")}</h1>
+                <p>{t("page.requests.sub")}</p>
               </div>
               {/* THE SAME GATE AS THE ACCOUNTS TAB. This button opened the
                   identical dialog with no check, so a customer with no
@@ -6564,8 +6561,8 @@ export default function AdvertiserApp() {
           <div className={`view${view === "billing" ? " on" : ""}`}>
             <div className="phead">
               <div>
-                <h1>Billing</h1>
-                <p>Your plan, and what&apos;s coming up.</p>
+                <h1>{t("tab.billing")}</h1>
+                <p>{t("page.billing.sub")}</p>
               </div>
             </div>
             <div className="grid2">
@@ -7538,7 +7535,7 @@ export default function AdvertiserApp() {
           <div className={`view${view === "notif" ? " on" : ""}`}>
             <div className="phead">
               <div>
-                <h1>Notifications</h1>
+                <h1>{t("tab.notifications")}</h1>
               </div>
               {notifs.some((n) => !n.is_read) && (
                 <button
@@ -8120,8 +8117,8 @@ export default function AdvertiserApp() {
           <div className={`view${view === "partners" ? " on" : ""}`}>
             <div className="phead">
               <div>
-                <h1>Partners</h1>
-                <p>Companies we work with.</p>
+                <h1>{t("tab.partners")}</h1>
+                <p>{t("page.partners.sub")}</p>
               </div>
             </div>
             {view === "partners" ? <PartnerDirectory /> : null}
@@ -8130,7 +8127,7 @@ export default function AdvertiserApp() {
           <div className={`view${view === "help" ? " on" : ""}`}>
             <div className="phead">
               <div>
-                <h1>Get help</h1>
+                <h1>{t("tab.help")}</h1>
               </div>
             </div>
             <div className="grid2">

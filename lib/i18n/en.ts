@@ -61,6 +61,18 @@ export const en = {
   "dash.nextPayment": "Next payment {amount} · on {date}",
   "dash.activeCount": "{count} active",
 
+  // ── de paginakoppen ─────────────────────────────────────────────
+  // De koppen zelf hergebruiken de tab.-sleutels: een pagina en haar
+  // menu-item horen hetzelfde woord te hebben, in elke taal.
+  "label.affiliateProgram": "Affiliate program",
+  "page.affiliate.sub": "Earn from the people you bring in.",
+  "page.wallet.sub": "Your money, ready when you are.",
+  "page.accounts.sub": "Where your budget does its work.",
+  "page.report.sub": "Every top-up, funding, fee, invoice and return in one place — filter it, total it, export it.",
+  "page.requests.sub": "Everything you've asked us for.",
+  "page.billing.sub": "Your plan, and what's coming up.",
+  "page.partners.sub": "Companies we work with.",
+
   // ── algemeen ────────────────────────────────────────────────────
   "btn.cancel": "Cancel",
   "btn.save": "Save",

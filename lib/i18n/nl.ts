@@ -61,6 +61,19 @@ export const nl: Record<Key, string> = {
   "dash.nextPayment": "Volgende betaling {amount} · op {date}",
   "dash.activeCount": "{count} actief",
 
+  // ── de paginakoppen ─────────────────────────────────────────────
+  // "je" en niet "u": dezelfde toon als "Welkom terug", en de toon die
+  // een Nederlandse app vandaag heeft.
+  "label.affiliateProgram": "Affiliateprogramma",
+  "page.affiliate.sub": "Verdien aan wie je binnenbrengt.",
+  "page.wallet.sub": "Je geld, klaar wanneer jij dat bent.",
+  "page.accounts.sub": "Waar je budget zijn werk doet.",
+  // "funding" en "fee" blijven: vaktermen, zie docs/NL_EN.md.
+  "page.report.sub": "Elke top-up, funding, fee, factuur en terugboeking op een plek — filter, tel op, exporteer.",
+  "page.requests.sub": "Alles wat je ons gevraagd hebt.",
+  "page.billing.sub": "Je plan, en wat eraan komt.",
+  "page.partners.sub": "Bedrijven waarmee we werken.",
+
   // ── algemeen ────────────────────────────────────────────────────
   "btn.cancel": "Annuleer",
   "btn.save": "Bewaar",

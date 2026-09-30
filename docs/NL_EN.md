@@ -29,8 +29,17 @@ Besloten door de eigenaar op 30-09:
 ## De woordenlijst — blijft Engels
 
     wallet · top-up · exchange · ad account · accounts · plan
-    invoice · withdrawal · referral · affiliate · dashboard
-    fee · top up (werkwoord) · Pay now
+    dashboard · affiliate · referral · fee · funding · Pay now
+
+De eerste vier noemde de eigenaar zelf. De rest zijn productnamen of
+woorden die een Nederlandse adverteerder in het Engels kent.
+
+**Wel Nederlands: factuur en terugboeking.** In een eerste versie stonden
+*invoice* en *withdrawal* ook op deze lijst, en de vaktermwachter ving
+prompt "terugboeking". Maar dat was mijn oprekking, niet zijn regel -- en
+"zoveel mogelijk NL" pleit er juist tegen. Factuur en terugboeking zijn
+gewone Nederlandse geldwoorden die elke klant voor zijn boekhouding
+gebruikt; geen jargon zoals wallet of top-up.
 
 Bij twijfel: laat staan wat de klant in zijn eigen bankapp of
 advertentiemanager ook ziet.

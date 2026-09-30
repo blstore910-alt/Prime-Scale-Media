@@ -56,7 +56,9 @@ const VERTAALDE_VAKTERMEN: [RegExp, string][] = [
   [/\bwissel(en|koers)?\b|omwissel/i, "exchange"],
   [/advertentie-?account|advertentierekening/i, "ad account"],
   [/abonnement/i, "plan"],
-  [/terugboeking|opname\b/i, "withdrawal"],
+  // withdrawal staat hier NIET: "terugboeking" is gewoon Nederlands. De
+  // woordenlijst was in een eerste versie opgerekt met woorden die de
+  // eigenaar niet noemde, en deze wachter ving het -- zie docs/NL_EN.md.
   [/doorverwijz/i, "referral"],
   [/\bprovisie\b|\bkosten\b/i, "fee"],
 ];
