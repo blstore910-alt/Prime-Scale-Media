@@ -73,6 +73,30 @@ export const en = {
   "page.billing.sub": "Your plan, and what's coming up.",
   "page.partners.sub": "Companies we work with.",
 
+  // ── bedrijfsgegevens die nog ontbreken ──────────────────────────
+  // lib/pure-company-complete.ts geeft deze sleutels terug, en de
+  // Engelse waarden zijn EXACT de zinnen die hij vroeger zelf gaf -- zo
+  // verandert er niets voor wie Engels leest.
+  "field.companyName": "company name",
+  "field.companyEmail": "company email",
+  "field.phone": "phone number",
+  "field.companyAddress": "company address",
+  "field.country": "country",
+  "field.state": "state or region",
+  "field.postcode": "postcode",
+  "field.vat": "VAT number (or tick that you are not VAT registered)",
+  "field.billingAddress": "billing address",
+  "common.and": "and",
+
+  // ── het dashboard: de bedrijfsmelding en het saldo ──────────────
+  "dash.companyStillNeeded": "Still needed before you can top up or request an account: {fields}",
+  "dash.companyAdd": "Add your company details to top up or request an account",
+  "btn.add": "Add",
+  "dash.walletReadFailed": "We couldn't read your wallet just now — reload and try again.",
+  "dash.walletSettingUp": "Your wallet is still being set up. Reload in a moment.",
+  "dash.stillNeededFirst": "Still needed first: {fields}",
+  "dash.companyFirst": "Add your company details first — including the billing address",
+
   // ── algemeen ────────────────────────────────────────────────────
   "btn.cancel": "Cancel",
   "btn.save": "Save",

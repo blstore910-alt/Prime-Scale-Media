@@ -62,6 +62,7 @@ import { rateForDirection } from "@/lib/pure-exchange";
 import {
   isCompanyComplete,
   missingCompanyFields,
+  missingCompanyKeys,
 } from "@/lib/pure-company-complete";
 import { AdAccount } from "@/lib/types/account";
 import { Wallet } from "@/lib/types/wallet";
@@ -1744,6 +1745,12 @@ export default function AdvertiserApp() {
   // stayed shut. See lib/pure-company-complete.ts.
   const companyComplete = isCompanyComplete(company);
   const companyMissing = missingCompanyFields(company);
+  // Dezelfde lijst, in de taal van de klant, met "en" of "and" ertussen.
+  // companyMissing hierboven blijft voor de LENGTE-toetsen -- die tellen
+  // velden, niet woorden, en mogen dus niet van de taal afhangen.
+  const companyMissingText = missingCompanyKeys(company)
+    .map((k) => t(k))
+    .join(` ${t("common.and")} `);
   // ONE history, in time order. A top-up and an exchange are both "something
   // that happened to my wallet", and two separate tables would make a
   // customer check the date on each to work out what happened first.
@@ -4248,8 +4255,8 @@ export default function AdvertiserApp() {
                     turns a dead end into an instruction. */}
                 <span className="dtx">
                   {companyMissing.length && companyMissing.length <= 2
-                    ? `Still needed before you can top up or request an account: ${companyMissing.join(" and ")}`
-                    : "Add your company details to top up or request an account"}
+                    ? t("dash.companyStillNeeded", { fields: companyMissingText })
+                    : t("dash.companyAdd")}
                 </span>
                 {/* /complete-profile, not Settings. Settings holds three
                     fields; the full form is the only place that collects the
@@ -4260,7 +4267,7 @@ export default function AdvertiserApp() {
                   className="dlink"
                   onClick={() => router.push("/complete-profile")}
                 >
-                  Add <Ic name="i-arrow" />
+                  {t("btn.add")} <Ic name="i-arrow" />
                 </button>
               </div>
             )}
@@ -4282,12 +4289,12 @@ export default function AdvertiserApp() {
               disabledReason={
                 !wallet
                   ? walletError
-                    ? "We couldn't read your wallet just now — reload and try again."
-                    : "Your wallet is still being set up. Reload in a moment."
+                    ? t("dash.walletReadFailed")
+                    : t("dash.walletSettingUp")
                   : !companyComplete && !companyUnknown
                     ? companyMissing.length && companyMissing.length <= 2
-                      ? `Still needed first: ${companyMissing.join(" and ")}`
-                      : "Add your company details first — including the billing address"
+                      ? t("dash.stillNeededFirst", { fields: companyMissingText })
+                      : t("dash.companyFirst")
                     : null
               }
               loading={walletBusy}
@@ -5277,8 +5284,8 @@ export default function AdvertiserApp() {
                     turns a dead end into an instruction. */}
                 <span className="dtx">
                   {companyMissing.length && companyMissing.length <= 2
-                    ? `Still needed before you can top up or request an account: ${companyMissing.join(" and ")}`
-                    : "Add your company details to top up or request an account"}
+                    ? t("dash.companyStillNeeded", { fields: companyMissingText })
+                    : t("dash.companyAdd")}
                 </span>
                 <a className="dlink" href="/complete-profile">
                   Add <Ic name="i-arrow" />

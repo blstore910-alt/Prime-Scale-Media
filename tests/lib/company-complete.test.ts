@@ -72,3 +72,31 @@ test("nothing at all lists every field, once each", () => {
   // Whitespace is not a value.
   assert.equal(isCompanyComplete({ ...full, name: "   " }), false);
 });
+
+// ── HET ENGELS IS NIET VERANDERD ──────────────────────────────────
+//
+// Sinds 30-09 komt deze lijst uit missingCompanyKeys + lib/i18n/en.ts,
+// zodat een klant hem in het Nederlands kan lezen. Het Engels hoort
+// daarbij LETTERLIJK te blijven wat het was. Deze test pint de oude
+// zinnen vast, zodat een wijziging in het woordenboek niet stil verandert
+// wat een Engelse klant op zijn dashboard leest.
+import { missingCompanyKeys } from "../../lib/pure-company-complete";
+
+test("een leeg bedrijf geeft exact de oude Engelse zinnen, in de oude volgorde", () => {
+  assert.deepEqual(missingCompanyFields({}), [
+    "company name",
+    "company email",
+    "phone number",
+    "company address",
+    "country",
+    "state or region",
+    "postcode",
+    "VAT number (or tick that you are not VAT registered)",
+    "billing address",
+  ]);
+});
+
+test("de sleutels en de Engelse zinnen lopen een op een", () => {
+  const leeg = {};
+  assert.equal(missingCompanyKeys(leeg).length, missingCompanyFields(leeg).length);
+});

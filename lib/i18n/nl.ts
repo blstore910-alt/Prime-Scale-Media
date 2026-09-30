@@ -74,6 +74,30 @@ export const nl: Record<Key, string> = {
   "page.billing.sub": "Je plan, en wat eraan komt.",
   "page.partners.sub": "Bedrijven waarmee we werken.",
 
+  // ── bedrijfsgegevens die nog ontbreken ──────────────────────────
+  "field.companyName": "bedrijfsnaam",
+  "field.companyEmail": "bedrijfs-e-mail",
+  "field.phone": "telefoonnummer",
+  "field.companyAddress": "bedrijfsadres",
+  "field.country": "land",
+  "field.state": "provincie of regio",
+  "field.postcode": "postcode",
+  "field.vat": "btw-nummer (of vink aan dat je niet btw-plichtig bent)",
+  "field.billingAddress": "factuuradres",
+  "common.and": "en",
+
+  // ── het dashboard: de bedrijfsmelding en het saldo ──────────────
+  "dash.companyStillNeeded": "Nog nodig voor een top-up of accountaanvraag: {fields}",
+  "dash.companyAdd": "Vul je bedrijfsgegevens in voor een top-up of accountaanvraag",
+  // "Vul in" (6) past niet in de ruimte van "Add" (3)+2. Het ontwerp
+  // wint: de zin ernaast zegt al WAT er ingevuld moet worden, dus de
+  // knop hoeft alleen te openen.
+  "btn.add": "Open",
+  "dash.walletReadFailed": "We konden je wallet net niet lezen — herlaad en probeer opnieuw.",
+  "dash.walletSettingUp": "Je wallet wordt nog klaargezet. Herlaad zo meteen.",
+  "dash.stillNeededFirst": "Eerst nog nodig: {fields}",
+  "dash.companyFirst": "Vul eerst je bedrijfsgegevens in — ook het factuuradres",
+
   // ── algemeen ────────────────────────────────────────────────────
   "btn.cancel": "Annuleer",
   "btn.save": "Bewaar",
