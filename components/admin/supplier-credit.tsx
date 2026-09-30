@@ -234,13 +234,21 @@ const CSS = `
 `;
 
 
-/** EUR 1.234,56 with the code in front, so two currencies in a row can
- *  never be mistaken for one another at a glance. */
-/** Het getal zonder valutateken -- de code staat al in de kolomkop.
- *  Twee keer "EUR" op een regel is ruis, en de kolom is wat het
- *  bedrag zijn betekenis geeft. */
+/** ── HET TEKEN STAAT WEER BIJ HET BEDRAG ──────────────────────────
+ *
+ *  De eigenaar, 30-09: "ik denk het is mooier als we de hele rij EUR
+ *  USD weg doen en dan gewoon bij alle bedragen een EUR-teken of
+ *  USD-teken doen."
+ *
+ *  Het teken werd hier juist weggehaald, omdat de kolomkop het al zei
+ *  en twee keer "EUR" op een regel ruis is. Dat klopte zolang die kop
+ *  er stond. Nu hij weg is, is het teken het ENIGE dat nog zegt welke
+ *  munt het is -- en een bedrag zonder munt op een paneel met twee
+ *  valuta naast elkaar is precies het soort getal waar deze app zich
+ *  op verkijkt.
+ */
 function fmt(amount: number, currency: string): string {
-  return formatCurrency(amount, currency).replace(/^[^\d-]+/, "");
+  return formatCurrency(amount, currency);
 }
 
 /* ── WAT WE AL WETEN VOOR DE LEES TERUG IS ──────────────────────────
@@ -540,6 +548,24 @@ export default function SupplierCredit() {
   // Een leverancier die een valuta niet heeft krijgt een streepje in
   // die kolom -- dat is iets anders dan nul, en in een matrix moet
   // dat verschil zichtbaar blijven.
+  // ── EEN LEVERANCIER DIE NIET ANTWOORDT, VERBERGEN ────────────────
+  //
+  // De eigenaar, 30-09: "als slash niet werkt, hide hem voor nu."
+  //
+  // Slash staat op `error` omdat hun v2-API een sleutelsoort eist die
+  // ze niet uitgeven -- dat is uitgezocht en van onze kant dicht. Een
+  // rij die elke dag "unreadable" zegt is een alarm dat altijd aan
+  // staat, en dat leest niemand meer; dan verbergt het de keer dat er
+  // wél iets aan de hand is bij een ander.
+  //
+  // ALLEEN bij `error`, en met opzet niet bij `off`. "Niet aangezet"
+  // is een mededeling waar iets aan te doen is (twee variabelen in
+  // Vercel); "wij kunnen er niet bij" is dat vandaag niet. En het
+  // totaal verandert er niet van: een leverancier zonder regels telde
+  // toch al niet mee, dus er verdwijnt geen geld uit de som -- alleen
+  // een regel die elke dag hetzelfde zei.
+  const zichtbareLeveranciers = suppliers.filter((s) => s.status !== "error");
+
   const currencies = (() => {
     const seen = new Set<string>();
     for (const s of suppliers) {
@@ -648,16 +674,17 @@ export default function SupplierCredit() {
         </div>
       ) : (
         <table className="sc-grid">
-          <thead>
-            <tr>
-              <th />
-              {currencies.map((c) => (
-                <th key={c}>{c}</th>
-              ))}
-            </tr>
-          </thead>
+          {/* ── GEEN VALUTAKOP MEER ────────────────────────────────
+              De eigenaar: "de hele rij EUR USD weg doen en dan gewoon
+              bij alle bedragen een EUR-teken of USD-teken."
+
+              Die kop kostte een hele regel om twee woorden te zeggen
+              die nu bij elk bedrag staan. De kolommen blijven bestaan
+              -- ze houden de bedragen onder elkaar -- alleen hun
+              opschrift is weg, en fmt geeft het teken daarom weer
+              terug. */}
           <tbody>
-            {suppliers.map((s) => (
+            {zichtbareLeveranciers.map((s) => (
               <SupplierRows
                 key={s.supplier}
                 s={s}
