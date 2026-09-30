@@ -34,6 +34,26 @@ Daarna de gewone laag 1:
 npm run ochtend && npm run rondje
 ```
 
+## 1b. De stand van PSM0018 vlak voor de nacht
+
+Gemeten op 30-09 om ~16:00, zodat elk verschil morgen een naam heeft:
+
+| | voor | hoort morgen |
+|---|---|---|
+| wallet EUR | 500 | **300** |
+| wallet USD | 0 | 0 |
+| ledgerregels | 2 | **3** (de incasso erbij) |
+| abonnement | active, volgende 30-09 | active, **volgende 31-10** |
+| abonnementsfactuur unpaid | 1 x EUR 200,00 | **0** |
+| abonnementsfactuur paid | 0 | **1 x EUR 200,00** |
+| en een NIEUWE unpaid | — | **1 x EUR 200,00, vervalt 07-10** |
+| opwaardeerfacturen paid | 2 x EUR 500,00 | ongewijzigd |
+| ad-accounts | 0 | 0 |
+| aanvragen | 0 | 0 |
+| meldingen | 2 | **3 of meer** |
+
+Wijkt er iets af dat hier niet staat, dan is dat het nieuws.
+
 ## 2. Wat er dan vanzelf opengaat
 
 De accounts- en aanvraagschermen van PSM0018 zijn nu dicht met
