@@ -5016,7 +5016,30 @@ export default function AdvertiserApp() {
                       ? "Just a moment — loading your wallet"
                       : !wallet
                         ? "No wallet on this account yet"
-                        : undefined
+                        : // ── DE REDEN DIE ER HET VAAKST IS, ONTBRAK ──
+                          //
+                          // De knop wordt uitgeschakeld door
+                          // `!companyComplete`, en juist die tak viel
+                          // door naar undefined. Dus op de eerste dag
+                          // van elke klant -- wanneer dit ALTIJD de
+                          // reden is -- was het een knop die er
+                          // ingedrukt uitzag en niets zei.
+                          //
+                          // Gelopen op 390px met een verse klant
+                          // (PSM0018, test 3): Top up aanklikken deed
+                          // niets, zonder dialoog, zonder melding.
+                          // De uitleg stond wel op de pagina, in een
+                          // banner verderop -- maar niet waar je hem
+                          // zoekt, namelijk op de knop.
+                          //
+                          // Zelfde woorden als requestBlockedReason,
+                          // zodat de twee knoppen niet twee dingen
+                          // zeggen over dezelfde blokkade.
+                          !companyComplete && !companyUnknown
+                          ? companyMissing.length && companyMissing.length <= 2
+                            ? `Still needed first: ${companyMissing.join(" and ")}`
+                            : "Add your company details first — including the billing address"
+                          : undefined
                 }
               />
               <WalletCard
@@ -5048,7 +5071,30 @@ export default function AdvertiserApp() {
                       ? "Just a moment — loading your wallet"
                       : !wallet
                         ? "No wallet on this account yet"
-                        : undefined
+                        : // ── DE REDEN DIE ER HET VAAKST IS, ONTBRAK ──
+                          //
+                          // De knop wordt uitgeschakeld door
+                          // `!companyComplete`, en juist die tak viel
+                          // door naar undefined. Dus op de eerste dag
+                          // van elke klant -- wanneer dit ALTIJD de
+                          // reden is -- was het een knop die er
+                          // ingedrukt uitzag en niets zei.
+                          //
+                          // Gelopen op 390px met een verse klant
+                          // (PSM0018, test 3): Top up aanklikken deed
+                          // niets, zonder dialoog, zonder melding.
+                          // De uitleg stond wel op de pagina, in een
+                          // banner verderop -- maar niet waar je hem
+                          // zoekt, namelijk op de knop.
+                          //
+                          // Zelfde woorden als requestBlockedReason,
+                          // zodat de twee knoppen niet twee dingen
+                          // zeggen over dezelfde blokkade.
+                          !companyComplete && !companyUnknown
+                          ? companyMissing.length && companyMissing.length <= 2
+                            ? `Still needed first: ${companyMissing.join(" and ")}`
+                            : "Add your company details first — including the billing address"
+                          : undefined
                 }
               />
             </div>

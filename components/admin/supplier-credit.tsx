@@ -28,8 +28,8 @@ import {
   ChevronDown,
   FlaskConical,
   Landmark,
+  Coins,
   RefreshCw,
-  Vault,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils-pure";
 import { visibleLines } from "@/lib/pure-supplier-holdings";
@@ -75,11 +75,8 @@ const CSS = `
   color:var(--primary-600);display:grid;place-items:center;flex:0 0 auto;
   box-shadow:var(--shadow-sm)}
 .sc-ic svg{width:14px;height:14px}
-.sc-htxt{flex:1 1 auto;min-width:0}
 .sc-head h3{margin:0;font-family:var(--hd);font-weight:800;font-size:.94rem;
   letter-spacing:-.01em;color:var(--ink);line-height:1.2}
-.sc-sub{margin:0;color:var(--faint);font-size:.7rem;line-height:1.3;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Geen knop maar een teken. De eigenaar, 30-09: "refresh ook mooier
    subtieler, nu is standaard button." Een omrande knop naast een
    titel trekt evenveel aandacht als de titel; dit is een handeling
@@ -341,12 +338,13 @@ function SupplierRows({
               }`}
               aria-hidden="true"
             >
-              {/* Landmark voor een bank, Vault voor een leverancier:
-                  bij hen staat KREDIET dat alleen daar besteed kan
-                  worden -- een kluis met ons geld erin, niet een
-                  winkel. Store leek een winkelpui en dat is precies
-                  wat RockAds niet is. */}
-              {s.kind === "bank" ? <Landmark /> : <Vault />}
+              {/* Landmark voor een bank, Coins voor een leverancier:
+                  daar staat KREDIET, geld dat alleen daar besteed kan
+                  worden. Store was een winkelpui en dat is RockAds
+                  niet; Vault werd op 13 pixels een doosje met een
+                  kruis erin. Twee munten blijven op die maat leesbaar
+                  als geld. */}
+              {s.kind === "bank" ? <Landmark /> : <Coins />}
             </span>
             <span className="sc-name">{s.supplier}</span>
             <StatusTag status={s.status} />
@@ -541,10 +539,11 @@ export default function SupplierCredit() {
         <span className="sc-ic">
           <Landmark />
         </span>
-        <div className="sc-htxt">
-          <h3>What we hold</h3>
-          <p className="sc-sub">What a top-up can be funded from today.</p>
-        </div>
+        {/* Alleen de titel. De ondertitel zei wat de kaart al toont:
+            bedragen per leverancier. "What a top-up can be funded
+            from today" is een zin die je één keer leest en daarna
+            elke dag overslaat. */}
+        <h3>What we hold</h3>
         <button
           type="button"
           className="sc-re"
