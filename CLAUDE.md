@@ -159,8 +159,22 @@ Testing happens on the real URL, after promoting. Preview talks to the
 **same Supabase database**, so a write there is a write on live data — it
 proves the build and the render and nothing else.
 
-Before any push: `npx tsc --noEmit && npm test` chained with `&&`. A grep
-over test output silently matches nothing and reads as success.
+Before any push: `npx tsc --noEmit && npm test` chained with `&&`.
+
+**Never read the result through a pipe.** A grep over test output has
+now lied in two different ways on the same day:
+
+- it matched nothing, and the `&&` chain carried on as if green;
+- it printed `Binary file (standard input) matches` -- one stray
+  control byte in a test file makes grep refuse the whole stream --
+  and that read as green too, so a failing suite got pushed.
+
+So: redirect, check the exit code, and only then look.
+
+```bash
+npm test > /tmp/t.txt 2>&1; echo "exit=$?"
+tr -d ' --' < /tmp/t.txt | grep -E "^. (pass|fail)"
+```
 
 Migrations do not deploy with git. They are pasted by hand into the SQL
 editor, and every dollar-quoted block needs a NAMED tag (`$blk0$`, not
