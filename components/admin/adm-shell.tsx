@@ -8,6 +8,7 @@ import { PSM_APP_CSS } from "@/components/advertiser/psm-shell-css";
 import {
   Bell,
   BookOpen,
+  Repeat,
   ChevronDown,
   Coins,
   Download,
@@ -258,6 +259,11 @@ export default function AdminShell({
         // Every movement behind every wallet balance, and one figure
         // at the top saying whether they add up.
         { title: "Ledger", href: "/ledger", icon: BookOpen },
+        // De eigenaar, 30-09: "en waar in admin kan ik alle exchanges
+        // zien?" Nergens -- en er staan er wel twee op de database.
+        // Naast de ledger, want het is dezelfde soort vraag: wat is er
+        // met het geld van een klant gebeurd.
+        { title: "Exchanges", href: "/exchanges", icon: Repeat },
         // Every money decision a machine did not settle, with a written
         // checklist on each one. Owner plus the one designated admin;
         // the page itself has no button that moves a cent, because

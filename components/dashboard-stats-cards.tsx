@@ -102,14 +102,37 @@ const STATS_CSS = `
    line whatever the count -- and the arrows and the date sit under
    it. Nothing wraps inside a control any more; the bar wraps between
    them, which is where a wrap belongs. */
+/* -- DE KALENDER IS EEN KNOPJE, GEEN RIJ ---------------------------
+   De eigenaar, 30-09: "zet die kalendertje gewoon rechts ofzo klein
+   naast Year in plaats van een hele rij zo."
+
+   De regel hierboven gaf .seg2 een volle breedte (flex:1 0 100%)
+   om te voorkomen dat "Year" op een tweede regel viel. Dat werkte,
+   maar duwde de datumknop naar een eigen rij -- en die strekte zich
+   dan ook nog over de volle breedte uit, waardoor een leeg
+   kalendertje net zoveel aandacht kreeg als de vier periodes samen.
+
+   Nu delen ze een rij: de vier periodes nemen de ruimte die er is, de
+   kalender is een vierkantje van 36 ernaast. Het label eronder viel
+   toch al weg onder 470px; nu valt het altijd weg zolang er niets
+   gekozen is, want een kalendericoon zegt hetzelfde in een tiende van
+   de ruimte.
+
+   MET een gekozen bereik groeit hij wel terug. Dan is de DATUM de
+   informatie, en die hoort leesbaar te zijn -- dat is precies het
+   verschil tussen een knop en een antwoord. */
 @media (max-width:760px){
-  .psm-stats .statctl{flex-wrap:wrap;row-gap:8px}
-  .psm-stats .statctl .seg2{order:-1;flex:1 0 100%;display:grid;
+  .psm-stats .statctl{flex-wrap:wrap;row-gap:8px;gap:6px}
+  .psm-stats .statctl .seg2{flex:1 1 auto;min-width:0;display:grid;
     grid-auto-flow:column;grid-auto-columns:1fr;gap:2px}
   .psm-stats .statctl .seg2 button{padding:8px 2px;font-size:.76rem;text-align:center}
-  .psm-stats .statctl .rangebtn{flex:1 1 auto;min-width:0;justify-content:center}
-  .psm-stats .statctl .rangebtn .rangelbl{min-width:0;overflow:hidden;
-    text-overflow:ellipsis;white-space:nowrap}
+  .psm-stats .statctl .rangebtn{flex:0 0 auto;width:36px;height:36px;
+    padding:0;gap:0;justify-content:center}
+  .psm-stats .statctl .rangebtn .rangelbl{display:none}
+  .psm-stats .statctl .rangebtn:has(.rangelbl.set){width:auto;height:auto;
+    padding:8px 10px;gap:7px;flex:1 1 auto;min-width:0}
+  .psm-stats .statctl .rangebtn .rangelbl.set{display:inline;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
 .psm-stats .statctl-lbl{margin-right:auto;padding-left:4px;font-size:.66rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
 /* WRAPS, does not scroll. Measured at 400px: six options need 440px in a

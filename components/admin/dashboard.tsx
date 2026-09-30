@@ -321,6 +321,37 @@ export default function AdminDashboard() {
       ? null
       : dstBehind(dstRows.data ?? []).length;
 
+  // ── EEN OVERGANG, NIET DRIE ──────────────────────────────────────
+  //
+  // De eigenaar, 30-09: "bij admin zie je dit flitsen dan dit flitsen
+  // en eerst laadt boven of beneden en je ziet flitsen; zorg ervoor dat
+  // alles mooi laadt en dat alles in 1x mooi ziet."
+  //
+  // Er waren DRIE losse bronnen onder deze ene lijst, en twee daarvan
+  // voegen kaarten IN in plaats van alleen een getal te vullen:
+  //
+  //   pending     acht tellingen in een query -> de badges + de sortering
+  //   dstRows     eigen query -> zet er een kaart BOVENAAN bij
+  //   affWaiting  eigen query -> zet er tot TWEE kaarten bij
+  //
+  // Elke bron landde op zijn eigen moment, dus de lijst werd langer
+  // terwijl je hem las, alles eronder schoof, en daarna sorteerde het
+  // geheel zich ook nog een keer om. Vier bewegingen op een scherm dat
+  // je aankijkt om te zien wie op je wacht.
+  //
+  // Nu wacht de lijst tot ALLE drie klaar zijn en verschijnt hij in een
+  // keer in zijn eindvorm. Dat kost geen extra tijd -- de drie queries
+  // liepen al naast elkaar, dus de wachttijd was altijd al die van de
+  // traagste.
+  //
+  // De twee die UIT staan tellen niet mee: een uitgeschakelde query
+  // blijft in react-query v5 voor altijd `isPending`, en dan zou de
+  // lijst nooit verschijnen. Vandaar per bron de eigen voorwaarde.
+  const countsSettled =
+    !pending.isPending &&
+    (!profile?.tenant_id || !dstRows.isPending) &&
+    (!isSuperAdmin || !affWaiting.isPending);
+
   const queues: Queue[] = [
     // Only when somebody is actually behind. A card that says 0 every
     // day is a card people stop reading.
@@ -665,7 +696,7 @@ export default function AdminDashboard() {
             The sort has to wait too -- ordering by counts we do not have
             would shuffle the cards under the reader's finger the moment
             they land. Declared order until then. */}
-        {(pending.isPending
+        {(!countsSettled
           ? queues
           : [...queues].sort((a, b) => {
             // A soft card is a standing check, not somebody waiting, so
@@ -699,7 +730,7 @@ export default function AdminDashboard() {
                 <Icon />
               </span>
               <span className="ql">{q.label}</span>
-              {pending.isPending ? (
+              {!countsSettled ? (
                 /* Still counting. A quiet block, the same size as the
                    badge, so nothing moves when the number lands. */
                 <span className="qbadge skel" aria-hidden="true" />

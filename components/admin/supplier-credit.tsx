@@ -80,7 +80,7 @@ const CSS = `
    niet netheid: het verschil tussen "zet het een halve stap groter"
    en "pas zestien getallen aan zonder er een te vergeten" is precies
    waarom dit soort verzoeken anders half blijft liggen. */
-.sc{--sc-pad:13px;--sc-fs:1.5;border:1px solid var(--line);border-radius:14px;
+.sc{--sc-pad:13px;--sc-fs:1.2;border:1px solid var(--line);border-radius:14px;
   background:var(--panel);box-shadow:var(--shadow-sm);overflow:hidden}
 
 .sc-head{display:flex;align-items:center;gap:9px;padding:10px var(--sc-pad);
@@ -242,6 +242,18 @@ const CSS = `
 function fmt(amount: number, currency: string): string {
   return formatCurrency(amount, currency).replace(/^[^\d-]+/, "");
 }
+
+/* ── WAT WE AL WETEN VOOR DE LEES TERUG IS ──────────────────────────
+   Deze vier staan er altijd en in deze volgorde -- het is dezelfde
+   lijst als `names` in app/api/supplier-balances/route.ts -- en de
+   kolommen zijn EUR en USD. Alleen de BEDRAGEN zijn onbekend zolang we
+   wachten, en dat is het enige dat een grijs vlakje verdient.
+
+   Deze twee staan hier los zodat de skeletontabel dezelfde vorm heeft
+   als de echte. Zou de skelet zijn kolommen uit `q.data` halen, dan had
+   hij er nul, en dan sprong het paneel alsnog in de breedte. */
+const SUPPLIER_ORDER = ["RockAds", "SeamX", "Wise", "Slash"];
+const CURRENCIES_WHILE_LOADING = ["EUR", "USD"];
 
 /** "synced just now" / "synced at 14:52" / "synced 28 Sep 14:52" --
  *  kort, en nooit preciezer dan het is. */
@@ -575,7 +587,55 @@ export default function SupplierCredit() {
       </div>
 
       {q.isPending ? (
-        <span className="sc-skel" />
+        /* ── DEZELFDE VORM ALS WAT ERAAN KOMT ──────────────────────
+           De eigenaar, 30-09: "eerst laadt boven of beneden en je ziet
+           flitsen; zorg dat alles in 1x mooi ziet."
+
+           Hier stond een balkje van twaalf pixels, en daarna kwam er
+           een tabel van zes rijen voor in de plaats. Het paneel sprong
+           dus van ~50 naar ~250 pixels en duwde alles eronder omlaag --
+           precies de beweging waar hij op wijst.
+
+           Nu staat de tabel er meteen, met de namen erin. Dat is
+           dezelfde afweging als bij de wachtrijkaarten op het
+           dashboard: wat we WETEN staat er direct (welke leveranciers
+           er zijn, in welke volgorde), en alleen het ene dat we nog
+           niet weten -- het bedrag -- is een grijs vlakje. De hoogte
+           klopt daarmee vanzelf, want het is dezelfde tabel. */
+        <table className="sc-grid" aria-busy="true">
+          <thead>
+            <tr>
+              <th />
+              {CURRENCIES_WHILE_LOADING.map((c) => (
+                <th key={c}>{c}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {SUPPLIER_ORDER.map((naam) => (
+              <tr key={naam}>
+                <td>
+                  <span className="sc-name">{naam}</span>
+                </td>
+                {CURRENCIES_WHILE_LOADING.map((c) => (
+                  <td key={c}>
+                    <span className="sc-skel" />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td className="lab">Together</td>
+              {CURRENCIES_WHILE_LOADING.map((c) => (
+                <td key={c}>
+                  <span className="sc-skel" />
+                </td>
+              ))}
+            </tr>
+          </tfoot>
+        </table>
       ) : q.isError ? (
         <div className="sc-det" style={{ padding: "12px 13px" }}>
           <div className="sc-note bad">
