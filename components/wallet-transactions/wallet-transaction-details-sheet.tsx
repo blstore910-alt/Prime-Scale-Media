@@ -9,6 +9,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { DATE_TIME_FORMAT } from "@/lib/constants";
+import { formatPaymentReference } from "@/lib/payment-reference";
 import { createClient } from "@/lib/supabase/client";
 import { WalletTopupWithAdvertiser } from "@/lib/types/wallet-topup";
 import { useQuery } from "@tanstack/react-query";
@@ -125,8 +126,19 @@ export default function WalletTransactionDetailsSheet({
           <div className="flex items-baseline justify-between gap-3">
             <SheetTitle>Wallet Transaction</SheetTitle>
             <div className="flex items-center gap-3">
+              {/* DEZELFDE BETALING, TWEE VORMEN. De rij in de wachtrij,
+                  de bevestiging bij Verify en het scherm van de klant
+                  tonen allemaal `0018-5714322060`; dit paneel toonde de
+                  kale kolomwaarde `5714322060`. Een beheerder die de
+                  bankomschrijving ernaast legt, ziet twee verschillende
+                  strings voor hetzelfde geld -- op de ene plek waar hij
+                  ze juist naast elkaar legt. De helper die de andere
+                  drie gebruiken staat in lib/payment-reference.ts. */}
               <span className="text-xs font-mono text-muted-foreground">
-                {topup?.reference_no ?? "-"}
+                {formatPaymentReference(
+                  topup?.advertiser?.tenant_client_code,
+                  topup?.reference_no,
+                ) || "-"}
               </span>
               {/* THE BASE SHEET'S OWN CLOSE CARRIES `hidden`, so a sheet
                   only has an X if it draws one — and this one did not.

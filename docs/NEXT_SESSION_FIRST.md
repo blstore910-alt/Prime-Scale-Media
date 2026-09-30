@@ -1,3 +1,54 @@
+# 30-09 — TWEE DINGEN UIT DE WALLET-REIS, GEPARKEERD
+
+Gevonden tijdens test 3, reis 2 (opwaarderen), allebei gemeten op
+productie. Geen van beide houdt een klant tegen, dus geen van beide
+gaat voor de livegang.
+
+## 1. Het kenmerk staat er al voordat de aanvraag bestaat
+
+De klant ziet zijn betaalkenmerk in **stap 2** van de dialoog, met
+"Put this reference in the description of your transfer". Pas op
+**stap 3** (bedrag + verplichte slip) ontstaat de rij in
+`wallet_topups`. Gemeten: een dialoog die je op stap 2 wegklikt laat
+**geen** rij achter -- goed -- maar de klant kan intussen wel
+overgeboekt hebben. Dat geld komt binnen met een kenmerk waar geen
+aanvraag bij hoort en blijft in de onbekende-stortingenlijst staan.
+
+**Waarom het meevalt:** het kenmerk is stabiel per klant tot er een
+aanvraag verstuurd wordt. Gemeten op PSM0018: een afgebroken
+USD-poging en de daaropvolgende EUR-aanvraag kregen allebei
+`0018-0663477024`. De storting matcht dus alsnog zodra hij de aanvraag
+afmaakt.
+
+**Hoe het beter kan, als het ooit hindert:** de rij op stap 2 aanmaken
+met status `draft`, of bij het sluiten van stap 2/3 een waarschuwing
+tonen ("heb je al overgemaakt?").
+
+## 2. Hetzelfde kenmerk stond er in twee vormen — GEREPAREERD 30-09
+
+Op hetzelfde beheerscherm, één klik uit elkaar:
+
+| waar | wat er staat |
+|---|---|
+| de rij in de wachtrij | `0018-5714322060` |
+| de bevestiging bij Verify | `0018-5714322060` |
+| het scherm van de klant | `0018-5714322060` |
+| **het Details-paneel** | `5714322060` |
+| de database (`reference_no`) | `5714322060` |
+
+Het Details-paneel toont de kale kolomwaarde; overal elders wordt de
+klantcode ervoor geplakt. Een beheerder die de bankomschrijving
+(`0018-...`) naast Details legt, ziet twee verschillende strings voor
+dezelfde betaling.
+
+**Gerepareerd.** `wallet-transaction-details-sheet.tsx` gebruikt nu
+`formatPaymentReference(clientCode, reference_no)` uit
+`lib/payment-reference.ts` -- dezelfde helper als de andere drie
+plekken, zodat ze niet opnieuw uit elkaar kunnen lopen. Alleen de
+database houdt de kale waarde, en dat hoort ook.
+
+---
+
 # 29-09, LAAT — ÉÉN DING DAT IK BEWUST NIET HEB GEREPAREERD
 
 `_in_owner_set(tenant, user)` toetst **niet** of het profiel nog actief
