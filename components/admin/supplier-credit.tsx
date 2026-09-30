@@ -116,7 +116,10 @@ const CSS = `
 .sc-dot.bad{background:var(--danger)}
 .sc-dot.idle{background:var(--line-2)}
 .sc-name{font-weight:800;font-family:var(--hd);font-size:.85rem;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  /* De naam is de identiteit van de rij en mag NOOIT het eerste zijn
+     dat verdwijnt: hij krijgt de ruimte, de rest wijkt. */
+  flex:1 1 auto;min-width:0}
 .sc-bank{font-family:var(--bd);font-weight:700;font-size:.58rem;
   letter-spacing:.06em;text-transform:uppercase;color:var(--faint);flex:0 0 auto}
 .sc-chev{width:13px;height:13px;color:var(--faint);flex:0 0 auto;
@@ -214,10 +217,21 @@ function whenShort(iso: string): string {
     : `synced ${t.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} ${hhmm}`;
 }
 
+/**
+ * ALLEEN BIJ MOCKCIJFERS. Niet bij "off" en niet bij "error".
+ *
+ * Gemeten op 390px: de rijen van SeamX en Slash hadden een naam van
+ * NUL pixels breed -- hun pil at de hele naamkolom op. En die pil zei
+ * precies hetzelfde als wat er al in de valutacellen van diezelfde
+ * rij stond: "not connected" en "unreadable".
+ *
+ * Een leverancier die niets levert vertelt dat dus al twee keer, en
+ * de prijs was zijn eigen naam. Nu alleen een pil waar hij iets
+ * TOEVOEGT: bij `demo` staan er wel bedragen, en die zien er echt
+ * uit terwijl ze het niet zijn. Daar is een waarschuwing het waard.
+ */
 function StatusTag({ status }: { status: SupplierHolding["status"] }) {
   if (status === "demo") return <span className="sc-tag demo">test data</span>;
-  if (status === "off") return <span className="sc-tag off">not connected</span>;
-  if (status === "error") return <span className="sc-tag bad">unreadable</span>;
   return null;
 }
 
