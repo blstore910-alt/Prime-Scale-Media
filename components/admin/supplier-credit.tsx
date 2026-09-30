@@ -87,13 +87,20 @@ const CSS = `
 .sc-grid{table-layout:auto}
 .sc-grid th,.sc-grid td{padding:7px 10px;text-align:right;
   border-top:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+/* De cijferkolommen krijgen precies wat ze nodig hebben; de naam
+   krijgt de rest en kort in als die rest klein is.
+
+   width:1% op een td betekent in tabellen "zo smal mogelijk", en
+   width:100% op de eerste "al het overschot". Samen met max-width:0
+   op die eerste cel krimpt de NAAM in plaats van dat de tabel breder
+   wordt dan de kaart.
+
+   Eerst probeerde ik width:auto met max-width:0, en toen loste de
+   browser die kolom op naar zijn minimum: 27px, alleen de stip, alle
+   namen weg. auto en 100% zijn hier niet uitwisselbaar. */
+.sc-grid th:not(:first-child),.sc-grid td:not(:first-child){width:1%}
 .sc-grid th:first-child,.sc-grid td:first-child{text-align:left;
-  padding-left:var(--sc-pad);
-  /* max-width:0 met width:auto is de standaardtruc om EEN kolom te
-     laten inkorten in plaats van de tabel breder te maken. Met
-     width:99% at hij alles op en vielen de cijferkolommen eraf --
-     dat was "de helft niet leesbaar". */
-  width:auto;max-width:0;overflow:hidden}
+  padding-left:var(--sc-pad);width:100%;max-width:0;overflow:hidden}
 .sc-grid th:last-child,.sc-grid td:last-child{padding-right:var(--sc-pad)}
 .sc-grid thead th{padding-top:6px;padding-bottom:6px;font-size:.62rem;
   font-weight:800;letter-spacing:.07em;text-transform:uppercase;
