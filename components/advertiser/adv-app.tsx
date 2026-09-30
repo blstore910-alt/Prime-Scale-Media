@@ -14,6 +14,9 @@ import { pageAllRows } from "@/lib/page-all-rows";
 import { customerPlatformName } from "@/lib/pure-platform-badge";
 import { groupsForRole } from "@/lib/notification-catalog";
 import { talkToUsLine } from "@/lib/whatsapp";
+import CustomerGuideView, {
+  customerGuideHeading,
+} from "@/components/guide/customer-guide";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import AffiliateApplicationCard from "@/components/advertiser/affiliate-application-card";
 import PayoutCard from "@/components/advertiser/payout-card";
@@ -8095,32 +8098,24 @@ export default function AdvertiserApp() {
                 <h2>
                   <Ic name="i-help" /> How it works
                 </h2>
-                <div className="faq" style={{ marginTop: 14 }}>
-                  <div>
-                    <div className="q">How do I fund an ad account?</div>
-                    <div className="a">
-                      Top up your wallet by bank transfer, we verify it, then
-                      move budget onto any ad account.
-                    </div>
-                  </div>
-                  <div>
-                    <div className="q">How fast do accounts go live?</div>
-                    {/* A question about SPEED, answered with a place —
-                        and the answer was a copy of the sentence already
-                        used in the ad-accounts empty state and in the
-                        request dialog. */}
-                    <div className="a">
-                      Usually within one working day of approval. You get a
-                      notification the moment it is live.
-                    </div>
-                  </div>
-                  <div>
-                    <div className="q">Can I get my money back?</div>
-                    <div className="a">
-                      You can request a withdrawal of an ad-account balance; our
-                      team approves and returns it to your wallet.
-                    </div>
-                  </div>
+                {/* ── HET HANDBOEK IN PLAATS VAN DRIE VRAGEN ──────────
+                    De eigenaar, 30-09: "PSM app guide > affiliates >
+                    advertisers > admins > super admin."
+
+                    Hier stonden drie korte vragen onder deze zelfde kop.
+                    Het handboek voor adverteerders bestond al, met zeven
+                    hoofdstukken, maar alleen de beheerkant kon het
+                    openen. Nu staat het hier, op de plek waar een klant
+                    al kijkt als hij iets niet snapt.
+
+                    Alle drie de antwoorden zitten erin; het ene feit dat
+                    alleen de FAQ had -- "meestal binnen een werkdag live"
+                    -- is naar het hoofdstuk over ad-accounts verhuisd. */}
+                <p className="cap" style={{ marginTop: 6 }}>
+                  {customerGuideHeading("advertiser").lead}
+                </p>
+                <div style={{ marginTop: 14 }}>
+                  <CustomerGuideView audience="advertiser" />
                 </div>
               </div>
               {/* ── NAAR DE GROEP, NIET NAAR EEN PRIVÉNUMMER ────────

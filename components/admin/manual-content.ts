@@ -99,9 +99,18 @@ const ADVERTISER: Section[] = [
     intro:
       "An ad account is what you actually spend on. You ask for one, we set it up, and then you fund it from your wallet.",
     steps: [
-      "Open Ad accounts and press Request account. Pick the type, the currency and the timezone, and give the website you will advertise.",
+      // "platform", not "type". This handbook is now shown TO the
+      // customer (components/guide/customer-guide.tsx), and the
+      // ad-account TYPE names the supplier family -- the one thing a
+      // customer must never see. What they actually pick is Meta,
+      // Google or TikTok, which the app already calls the platform
+      // (customerPlatformName).
+      "Open Ad accounts and press Request account. Pick the platform, the currency and the timezone, and give the website you will advertise.",
       "The currency and timezone cannot be changed once the account exists, so check them before submitting.",
       "We review the request. If something is missing you get a reason and can file a new one.",
+      // Carried over from the FAQ this handbook replaced in the app's
+      // Help screen, so the one fact only the FAQ had is not lost.
+      "It is usually live within one working day of approval, and you get a notification the moment it is.",
       "Once the account is live it appears in your list with its name and ID, and a Top up button.",
     ],
     notes: [
@@ -137,19 +146,30 @@ const ADVERTISER: Section[] = [
     id: "adv-withdraw",
     title: "Getting money off an account",
     icon: Banknote,
-    path: "Ad accounts › Withdraw",
+    // The button is in the account's own details, not on the card --
+    // walked on production 30-09.
+    path: "Ad accounts › Details › Withdraw to wallet",
     intro:
       "If an account holds money you would rather spend elsewhere, you can ask for it back into your wallet.",
     steps: [
-      "Press Withdraw on the account and enter the amount.",
-      "The request comes to us for approval; it is not instant.",
-      "Once approved, the amount is credited back to your wallet and can go to another account or an invoice.",
+      "Open the account, press Details, then Withdraw to wallet.",
+      "Enter the amount. The screen shows the most you can ask back, and will not let you go over it.",
+      "Check the summary and send it. The request comes to us for approval; it is not instant.",
+      "Once approved, the amount is credited to your wallet in the account's own currency, and can go to another account or an invoice.",
     ],
     notes: [
       {
         label: "Back to the wallet",
         tone: "info",
         text: "A withdrawal returns money to your wallet, never to your bank.",
+      },
+      {
+        // The ceiling changed on 30-09: for an account whose live
+        // balance we can read, that balance caps it. Said in the
+        // customer's terms -- no supplier, no mechanism.
+        label: "How much you can ask back",
+        tone: "pend",
+        text: "Up to what was put on the account, less anything you already asked back. Money that has already been spent on ads cannot come back, so where we can see the account's live balance, the most you can ask for is what is actually on it.",
       },
     ],
   },
@@ -162,7 +182,10 @@ const ADVERTISER: Section[] = [
       "Your plan is a monthly amount. An invoice is raised each period and paid from your wallet.",
     steps: [
       "Billing shows your plan, the next payment date and every invoice.",
-      "An open invoice has a Pay now button, which takes the amount out of your wallet.",
+      // Plak 173, 30-09: true for every subscription invoice now, not
+      // only the ones the nightly run raised.
+      "You get an email for every new invoice, and a reminder a few days before it is due.",
+      "An open invoice has a Pay now button, which takes the amount out of your wallet. You see your balance before and after before you confirm.",
       "If an invoice is not paid by its due date, we collect it from your wallet automatically.",
       "Each invoice can be downloaded as a PDF for your own bookkeeping.",
     ],
@@ -187,9 +210,14 @@ const ADVERTISER: Section[] = [
     ],
     notes: [
       {
+        // "cannot be reissued with them" was true until plak 164
+        // (30-09), which fills the company onto a first invoice that
+        // was raised before the details existed. A handbook that says
+        // something the app no longer does is the one a customer
+        // quotes back at us.
         label: "Before your first invoice",
-        tone: "pend",
-        text: "Fill these in before you are billed, otherwise that invoice goes out without them and cannot be reissued with them.",
+        tone: "info",
+        text: "Fill these in early. If your first invoice was raised before you did, it picks up your company details once you save them.",
       },
     ],
   },
@@ -214,7 +242,7 @@ const AFFILIATE: Section[] = [
     id: "aff-link",
     title: "Your referral link",
     icon: Link2,
-    path: "Dashboard",
+    path: "My Referrals",
     intro:
       "Everyone you refer arrives through your link. It is what ties a new customer to you.",
     steps: [
@@ -234,19 +262,27 @@ const AFFILIATE: Section[] = [
     id: "aff-earnings",
     title: "What you earn",
     icon: BadgePercent,
-    path: "Earnings",
+    path: "My Referrals",
     intro:
       "Commission is agreed per referral, so two of your customers can be on different terms. Your own terms are shown on each referral.",
     steps: [
-      "Earnings lists each referred customer and what they have generated.",
+      "My Referrals lists each referred customer and what they have generated.",
       "Commission may be a one-off amount, a monthly amount or a share of what they spend, depending on what was agreed.",
-      "Use the date filter for a period, and Export for a spreadsheet.",
+      "Use the period filter, and Export for a spreadsheet.",
+      // Carried over from the FAQ this handbook replaced in the app, so
+      // the one topic only the FAQ covered is not lost.
+      "Your tier — Starter, Riser, Scaler, Legend — follows your total lifetime earnings. It is a milestone, not a rate: your commission is set per referral and does not change with your tier.",
     ],
     notes: [
       {
-        label: "Provisional until settled",
+        // Measured 30-09, journey 6: a withdrawal reversed nothing on a
+        // commission that was already PAID (EUR 37.50, PSM0017) -- the
+        // clawback stops at what is still open. The old sentence said
+        // "commission already counted on it is reversed", which promised
+        // more than the system does, in a handbook customers now read.
+        label: "Provisional until paid",
         tone: "pend",
-        text: "Commission on money that has not settled is provisional. If a customer takes money back off an ad account, commission already counted on it is reversed.",
+        text: "Commission you have not been paid yet is provisional. If a customer takes money back off an ad account, the part of your open commission that came from it is reversed. Commission already paid out to you stays paid.",
       },
     ],
   },
@@ -254,7 +290,7 @@ const AFFILIATE: Section[] = [
     id: "aff-payout",
     title: "Getting paid",
     icon: Wallet,
-    path: "Earnings › Payouts",
+    path: "Wallet",
     intro: "Payouts are made by us, by hand, against what has settled.",
     steps: [
       "Your balance shows what has settled and is payable.",
@@ -266,7 +302,7 @@ const AFFILIATE: Section[] = [
     id: "aff-customers",
     title: "Your customers",
     icon: Users,
-    path: "Referrals",
+    path: "My Referrals",
     intro:
       "You can see who you referred and how they are doing, without seeing anything private to them.",
     steps: [
@@ -472,6 +508,49 @@ export function buildManuals(adminSections: Section[]): Manual[] {
     },
   ];
 }
+
+// ── DE KLANT LEEST ZIJN EIGEN HANDBOEK ─────────────────────────────
+//
+// De eigenaar, 30-09: "PSM app guide > affiliates > advertisers >
+// admins > super admin, manuals en handleidingen."
+//
+// Die vier bestonden al -- hierboven. Maar `manualsFor` gaf ze alleen
+// aan de BEHEERKANT: de advertiser-handleiding stond er, en een
+// advertiser kon hem niet openen. Dezelfde tekst, voor de verkeerde
+// lezer.
+//
+// Dit is dezelfde inhoud -- dezelfde secties, niet een kopie ervan --
+// met een inleiding die tot de klant spreekt. De `lead` hierboven
+// ("Open it when somebody asks why they were charged a fee") is voor
+// een admin geschreven en zou op het scherm van een klant vreemd
+// staan.
+//
+// Omdat het DEZELFDE secties zijn, kan de uitleg die een admin aan de
+// telefoon voorleest nooit meer afwijken van wat de klant op zijn
+// eigen scherm leest. Dat was de reden dat de eigenaar ze wilde kunnen
+// lezen, en nu geldt het ook andersom.
+//
+// De regel bovenaan dit bestand geldt hier dubbel: GEEN leverancier,
+// geen accounttype, geen marge. Nagelopen op 30-09 met een grep over
+// beide klanthandboeken -- nul treffers.
+export type CustomerGuide = {
+  heading: string;
+  lead: string;
+  sections: Section[];
+};
+
+export const CUSTOMER_GUIDES: Record<"advertiser" | "affiliate", CustomerGuide> = {
+  advertiser: {
+    heading: "How it works",
+    lead: "Everything you can do here, step by step — the same way our team explains it.",
+    sections: ADVERTISER,
+  },
+  affiliate: {
+    heading: "How it works",
+    lead: "How your link earns, what you are paid for, and how the money reaches you.",
+    sections: AFFILIATE,
+  },
+};
 
 /** Which handbooks a role may open. */
 export function manualsFor(isSuperAdmin: boolean, all: Manual[]): Manual[] {

@@ -53,6 +53,9 @@ import AdvertiseTooCard from "./advertise-too-card";
 import PsmAvatar from "@/components/ui/psm-avatar";
 import { downloadCsv } from "@/lib/download-blob";
 import { isCustomerVisibleType } from "@/lib/notification-catalog";
+import CustomerGuideView, {
+  customerGuideHeading,
+} from "@/components/guide/customer-guide";
 
 // Support inbox for the "contact us" actions. Change here if it differs.
 // Every "contact us" action is WhatsApp now -- see lib/whatsapp.ts.
@@ -2145,31 +2148,16 @@ Where your payouts go. Saved on your account, and filled in
             <div className="grid">
               <div className="card">
                 <h2>How the affiliate program works</h2>
-                <div className="faq" style={{ marginTop: 14 }}>
-                  <div>
-                    <div className="q">How do I earn?</div>
-                    <div className="a">
-                      Share your link. When an advertiser signs up through it,
-                      they&apos;re linked to you, and you earn from what they do
-                      with us — the terms are agreed per referral, so check
-                      yours above.
-                    </div>
-                  </div>
-                  <div>
-                    <div className="q">When do I get paid?</div>
-                    <div className="a">
-                      Request a payout of your balance under Wallet; the PSM team
-                      settles it to your account.
-                    </div>
-                  </div>
-                  <div>
-                    <div className="q">What are tiers?</div>
-                    <div className="a">
-                      Tiers track your <b>total lifetime earnings</b> (Starter →
-                      Riser → Scaler → Legend). Your commission rate is set per
-                      referral and doesn&apos;t change with tier.
-                    </div>
-                  </div>
+                {/* Het handboek in plaats van drie vragen -- zie de
+                    uitleg bij de adverteerder-app. De drie antwoorden
+                    zitten er allemaal in; "wat zijn tiers", het ene dat
+                    alleen hier stond, is naar het hoofdstuk over wat je
+                    verdient verhuisd. */}
+                <p className="cap" style={{ marginTop: 6 }}>
+                  {customerGuideHeading("affiliate").lead}
+                </p>
+                <div style={{ marginTop: 14 }}>
+                  <CustomerGuideView audience="affiliate" />
                 </div>
               </div>
               <div className="card">
