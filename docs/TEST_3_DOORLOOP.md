@@ -248,6 +248,6 @@ gelijk geeft.
 | medewerker-admin | de 39 min eigenaar-alleen | | | |
 | read-only admin | elke wachtrijknop weigert | | | |
 | — | laag 3: de vijf geldstappen | | | |
-| — | laag 1 opnieuw | | | |
+| — | laag 1 opnieuw (na de klantreis) | ochtend **11 van de 12 op 0**; controle 12 "elke factuur heeft een bedrijf" staat op **2**. rondje 18 controles, **niets op FOUT**, twee op KIJKEN (8 oude topups in de wachtrij, 1 klant achter met DST -- allebei werkvoorraad). | alles op 0 | **EEN ECHTE, GEVONDEN DOOR LAAG 1.** De eerste abonnementsfactuur van elke nieuwe klant heeft geen `company_id`: bij PSM0018 is de factuur om 07:41 gemaakt en het bedrijf om 08:55 ingevuld, en niets vult hem later aan. De nachtelijke run doet het wél goed, dus het raakt alleen de allereerste. Zichtbaar is het niet -- `/invoices` haalt de naam via de adverteerder -- maar adres en btw-nummer vallen van de factuur af. **Plak 164 geleverd.** De tweede (PSM0010, 22-09) heeft helemaal geen bedrijfsrij en blijft dus staan. |
 | — | plak 157: opruimen | | | |
 | — | laag 1 na het opruimen | | | |
