@@ -1,7 +1,8 @@
 import InviteSignUpForm from "@/components/invite-sign-up-form";
 import InviteExpired from "@/components/invites/invite-expired";
 import { SignUpForm } from "@/components/sign-up-form";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { readTeamInvite } from "@/lib/auth/team-invite";
 import { UserInvitation } from "@/lib/types/invite";
 import { Suspense } from "react";
 
@@ -165,5 +166,32 @@ export default async function Page({ searchParams }: PageProps) {
   // explicitly is both the fix and the right shape -- the client should
   // never have depended on a read echoing back the credential it was
   // called with.
-  return <InviteSignUpForm invite={invite} token={token} />;
+  // ── EEN TEAMUITNODIGING IS GEEN NIEUWE KLANT ───────────────────
+  //
+  // get_invite_by_token geeft de teamkolommen niet terug (en hoort dat
+  // ook niet: hij is anon-aanroepbaar). Zonder dit zei het formulier
+  // tegen een collega die alleen mag meekijken "je komt bij Prime Scale
+  // Media als advertiser", en vroeg het wie hem had doorgestuurd. Gelopen
+  // op productie 01-10. Dus hier, server-side, de teamvelden en de code
+  // van het account -- en het formulier zegt wat er echt gebeurt.
+  let team: { role: "manager" | "viewer"; code: string | null } | null = null;
+  try {
+    const admin = await createAdminClient();
+    const ti = await readTeamInvite(admin, String((invite as { id?: unknown }).id ?? ""));
+    if (ti) {
+      const { data: adv } = await admin
+        .from("advertisers")
+        .select("tenant_client_code")
+        .eq("id", ti.advertiserId)
+        .limit(1);
+      team = {
+        role: ti.role,
+        code: ((adv ?? [])[0] as { tenant_client_code?: string | null } | undefined)?.tenant_client_code ?? null,
+      };
+    }
+  } catch {
+    team = null;
+  }
+
+  return <InviteSignUpForm invite={invite} token={token} team={team} />;
 }

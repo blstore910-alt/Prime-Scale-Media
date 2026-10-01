@@ -109,6 +109,7 @@ const HEARD_FROM = [
 export default function InviteSignUpForm({
   invite,
   token,
+  team = null,
 }: {
   invite: UserInvitation;
   /**
@@ -127,6 +128,8 @@ export default function InviteSignUpForm({
    * join.
    */
   token: string;
+  /** Gezet als dit een teamuitnodiging is: meekijken op een account. */
+  team?: { role: "manager" | "viewer"; code: string | null } | null;
   className?: string;
 }) {
   const { t: tr } = useT();
@@ -282,8 +285,17 @@ export default function InviteSignUpForm({
       </div>
       <h2>{tr("signup.createYourAccount")}</h2>
       <p className="lede">
-        {tr("isignup.youWereInvitedToJoin")}{" "}{invite.tenant_name} {" "}{tr("label.isignup.asAn")}{" "}
-        <b>{invite.role}</b>.
+        {team ? (
+          tr("isignup.teamLede", {
+            account: String(team.code ?? invite.tenant_name ?? ""),
+            role: team.role === "manager" ? tr("label.roleManager") : tr("label.roleViewer"),
+          })
+        ) : (
+          <>
+            {tr("isignup.youWereInvitedToJoin")}{" "}{invite.tenant_name} {" "}{tr("label.isignup.asAn")}{" "}
+            <b>{invite.role}</b>.
+          </>
+        )}
       </p>
 
       {/* The address the account is created for. It is not editable — it is
@@ -298,7 +310,12 @@ export default function InviteSignUpForm({
         <MailIcon />
         <span className="t">
           <small>
-            {tr("isignup.joiningAs", { tenantname: String(invite.tenant_name), role: String(invite.role) })}</small>
+            {team
+              ? tr("isignup.teamJoining", {
+                  account: String(team.code ?? invite.tenant_name ?? ""),
+                  role: team.role === "manager" ? tr("label.roleManager") : tr("label.roleViewer"),
+                })
+              : tr("isignup.joiningAs", { tenantname: String(invite.tenant_name), role: String(invite.role) })}</small>
           <b title={invite.email}>{invite.email}</b>
         </span>
       </div>
@@ -389,7 +406,9 @@ export default function InviteSignUpForm({
         {/* Only asked when the invitation doesn't already carry a referrer —
             if it does, the answer is already known and asking again invites a
             contradiction. */}
-        {!invite.affiliate_id && (
+        {/* Een teamlid is geen nieuwe klant: wie hem doorstuurde is al
+            bekend -- de eigenaar van het account. */}
+        {!invite.affiliate_id && !team && (
           <div className="field">
             <label>{tr("isignup.wereYouReferredBySomeone")}</label>
             <Controller

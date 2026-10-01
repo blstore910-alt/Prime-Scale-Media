@@ -1330,6 +1330,9 @@ export const en = {
   // ── partnertegel ──
   "label.partners.more": "Read more",
   "label.partners.less": "Show less",
+  // ── aanmelden als teamlid ──
+  "isignup.teamLede": "You'll see {account}'s account as a {role}: balances, ad accounts and invoices. Moving money stays with the owner.",
+  "isignup.teamJoining": "Viewing {account} as {role}",
 } as const;
 
 export type Key = keyof typeof en;

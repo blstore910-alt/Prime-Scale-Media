@@ -1338,4 +1338,7 @@ export const nl: Record<Key, string> = {
   // ── partnertegel ──
   "label.partners.more": "Lees meer",
   "label.partners.less": "Minder",
+  // ── aanmelden als teamlid ──
+  "isignup.teamLede": "Je kijkt mee op het account van {account} als {role}: saldi, ad accounts en facturen. Geld verplaatsen blijft bij de eigenaar.",
+  "isignup.teamJoining": "Meekijken op {account} als {role}",
 };
