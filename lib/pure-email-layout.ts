@@ -38,7 +38,6 @@ export type EmailLayoutInput = {
 
 const FONT = "'Segoe UI',Helvetica,Arial,sans-serif";
 const ASSETS = "https://app.primescalemedia.com/email";
-const WHATSAPP = "https://wa.me/31615300300";
 
 /** For text that came from a person: names, company names, reasons. */
 export function escapeHtml(s: string): string {
@@ -175,11 +174,10 @@ export function emailLayout(input: EmailLayoutInput): string {
     // ── FOOTER ───────────────────────────────────────────────────────────
     `<tr><td align="center" style="padding:24px 28px 30px;text-align:center;">`,
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="border-top:1px solid #eef1f8;padding-top:22px;text-align:center;">`,
-    `<div style="font-family:${FONT};font-size:13px;line-height:1.5;font-weight:600;color:#475069;">Questions? We answer on WhatsApp.</div>`,
-    `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:12px auto 0;"><tr>`,
-    `<td align="center" bgcolor="#1faa53" style="padding:10px 20px;border-radius:999px;background:#1faa53;">`,
-    `<a href="${WHATSAPP}" target="_blank" style="display:inline-block;font-family:${FONT};font-size:13px;line-height:1;font-weight:800;color:#ffffff;text-decoration:none;border-radius:999px;">`,
-    `Message us &middot; +31 6 15300300</a></td></tr></table>`,
+    // GEEN TELEFOONNUMMER. De eigenaar, 01-10: "dit moet uit alle emails,
+    // anders krijg ik teveel spam" -- een nummer in een mail wordt
+    // doorgestuurd en gescraped. Klanten hebben hun eigen WhatsApp-groep.
+    `<div style="font-family:${FONT};font-size:13px;line-height:1.5;font-weight:600;color:#475069;">Questions? Ask us in your WhatsApp group.</div>`,
     `<div style="margin-top:18px;font-family:${FONT};font-size:12px;line-height:1.6;font-weight:500;color:#aab1c4;">Prime Scale Media &middot; `,
     `<a href="https://app.primescalemedia.com" target="_blank" style="color:#aab1c4;text-decoration:none;">app.primescalemedia.com</a></div>`,
     `</td></tr></table></td></tr>`,

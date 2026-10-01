@@ -129,7 +129,7 @@ export function billingEmail(
         lead: `Your ${cur} wallet didn't hold enough for ${amount}. Top it up and we collect it automatically — nothing else to do.`,
         cta: { label: "Top up my wallet", href: wallet },
         bodyHtml: panel,
-        footnoteHtml: "Questions about this invoice? Message us on WhatsApp — we answer quickly.",
+        footnoteHtml: "Questions about this invoice? Ask us in your WhatsApp group — we answer quickly.",
       }),
       text: [
         "Your payment didn't go through.",
