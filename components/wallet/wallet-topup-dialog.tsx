@@ -57,6 +57,7 @@ import {
   TopupStepper,
   TopupStyles,
   currencySymbol,
+  RateStamp,
 } from "@/components/topups/topup-ui";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
@@ -1243,6 +1244,9 @@ export default function WalletTopupDialog({
                             {currency}
                           </span>
                         </div>
+                      ) : null}
+                      {cross ? (
+                        <RateStamp at={(exchangeRates?.[0] as { updated_at?: string } | undefined)?.updated_at} />
                       ) : null}
                       {cross && crossQuote ? (
                         <>

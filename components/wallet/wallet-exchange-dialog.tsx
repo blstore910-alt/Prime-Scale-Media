@@ -20,7 +20,7 @@ import {
 } from "@/lib/pure-exchange";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowDownUp, ArrowLeftRight, Loader2 } from "lucide-react";
-import { TopupStyles, currencySymbol } from "@/components/topups/topup-ui";
+import { RateStamp, TopupStyles, currencySymbol } from "@/components/topups/topup-ui";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -88,6 +88,7 @@ export default function WalletExchangeDialog({
   // than 1 when it cannot be read.
   const {
     rate: advEurRate,
+    updatedAt: rateUpdatedAt,
     isLoading: ratesLoading,
     isError: ratesError,
   } = useUsdToEur();
@@ -511,6 +512,7 @@ export default function WalletExchangeDialog({
                     : `1 ${fromCurrency} = ${rate.toFixed(6)} ${toCurrency}`}
               </span>
             </div>
+            <RateStamp at={rateUpdatedAt} />
             <div className="tpx-receipt-row">
               <span>{tr("exch.converted")}</span>
               <span>{rate ? formatCurrency(quote.gross, toCurrency) : "-"}</span>

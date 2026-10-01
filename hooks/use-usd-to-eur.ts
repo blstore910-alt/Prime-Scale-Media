@@ -4,7 +4,6 @@ import { useEffect } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 import { useAppContext } from "@/context/app-provider";
-import { rateAge } from "@/lib/pure-rate-guard";
 import { useQuery } from "@tanstack/react-query";
 
 /**
@@ -36,7 +35,10 @@ import { useQuery } from "@tanstack/react-query";
 // again on every navigation.
 //
 // A per-instance ref cannot see the other instance. This can.
-const REASK_AFTER_MS = 10 * 60_000;
+const REASK_AFTER_MS = 5 * 60_000;
+// De eigenaar, 01-10: "it should update every 15min". A row older than
+// this is refreshed by whoever is looking, whatever the cron did.
+const REFRESH_AFTER_MS = 15 * 60_000;
 let lastAskedAt = 0;
 
 export function useUsdToEur() {
@@ -46,7 +48,7 @@ export function useUsdToEur() {
   const { data, isError, isLoading, isPending, refetch } = useQuery({
     queryKey: ["usd-to-eur", tenantId],
     enabled: !!tenantId,
-    staleTime: 10 * 60_000,
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -87,7 +89,7 @@ export function useUsdToEur() {
   // holds it to once per mount so a re-render cannot loop.
   useEffect(() => {
     if (!tenantId || !data?.updatedAt) return;
-    if (!rateAge(data.updatedAt).stale) return;
+    if (Date.now() - new Date(data.updatedAt).getTime() < REFRESH_AFTER_MS) return;
     // Stamped BEFORE the request, so two instances rendering in the same
     // tick cannot both get through, and a refresh that fails cannot be
     // retried on every re-render.

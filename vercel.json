@@ -11,7 +11,7 @@
     },
     {
       "path": "/api/cron/exchange-rates",
-      "schedule": "0 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/system-backup",

@@ -13,6 +13,7 @@
  */
 
 import { Check } from "lucide-react";
+import { useT } from "@/hooks/use-t";
 import type { ReactNode } from "react";
 
 const CSS = `
@@ -134,6 +135,7 @@ const CSS = `
 .tpx-receipt-hero em{font-style:normal;display:block;font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.78)}
 .tpx-receipt-hero b{display:block;font-size:26px;font-weight:800;line-height:1.1;margin-top:3px;font-variant-numeric:tabular-nums}
 .tpx-receipt-hero span{font-size:12px;color:rgba(255,255,255,.88);text-align:right}
+.tpx-stamp{display:block;padding:0 14px 10px;margin-top:-4px;font-size:10.5px;color:#9AA2B4;text-align:right;line-height:1.35}
 .tpx-receipt hr{border:0;border-top:1px dashed var(--tpx-line);margin:2px 14px}
 
 .tpx-route{border-radius:18px;padding:12px;background:var(--tpx-soft);display:flex;flex-direction:column;gap:10px}
@@ -276,6 +278,27 @@ export function ChoiceCard({
       {sub ? <small>{sub}</small> : null}
     </button>
   );
+}
+
+/**
+ * When the rate was last written, and where it comes from -- small, under
+ * the rate (de eigenaar, 01-10: "mensen moeten zeer klein subtiel zien
+ * wanneer last synced en waar"). The stored row is refreshed from an open
+ * market-rate feed (lib/get-exchange-rates.ts); a stale row is refreshed
+ * on read (hooks/use-usd-to-eur.ts).
+ */
+export function RateStamp({ at }: { at: string | null | undefined }) {
+  const { t: tr, locale } = useT();
+  if (!at) return null;
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return null;
+  const when = d.toLocaleString(locale === "nl" ? "nl-NL" : "en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return <span className="tpx-stamp">{tr("rate.stamp", { t: when })}</span>;
 }
 
 const SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", HKD: "HK$" };
