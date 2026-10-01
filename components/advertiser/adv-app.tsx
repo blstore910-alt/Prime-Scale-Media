@@ -21,7 +21,6 @@ import PartnerDirectory from "@/components/partners/partner-directory";
 import LanguageSwitcher from "@/components/i18n/language-switcher";
 import TeamPanel from "@/components/team/team-panel";
 import { useT } from "@/hooks/use-t";
-import { useApplySignupLocale } from "@/lib/signup-locale";
 import type { Key } from "@/lib/i18n/en";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import AffiliateApplicationCard from "@/components/advertiser/affiliate-application-card";
@@ -284,6 +283,17 @@ const COMPANY_FIELDS = [
   "country",
 ] as const;
 
+// Per ontbrekend recht een regel: wat dat recht nodig heeft, verdwijnt.
+const PERM_CSS = [
+  "topup", "exchange", "request", "fund", "withdraw", "pay", "company", "owner",
+]
+  .map((p) => `.perm-no-${p} [data-perm~="${p}"]{display:none!important}`)
+  .join("\n") +
+  `
+.umenu-team{display:flex;align-items:center;gap:8px;margin:2px 8px 6px;padding:8px 10px;border-radius:10px;
+  font-size:.78rem;font-weight:700;color:var(--primary-600);background:var(--primary-tint)}
+.umenu-team .ic,.umenu-team svg{width:15px;height:15px}`;
+
 export default function AdvertiserApp() {
   const { profile } = useAppContext();
   const queryClient = useQueryClient();
@@ -329,6 +339,26 @@ export default function AdvertiserApp() {
   const teamRole =
     (profile as { team_role?: string | null } | null)?.team_role ?? null;
   const isViewer = teamRole === "viewer";
+  // ── EEN TEAMLID ZIET HETZELFDE ALS DE ADVERTEERDER ──────────────
+  //
+  // De eigenaar, 01-10: "ik wil gewoon dat een tweede user net als
+  // advertiser is, tenzij dingen uitgevinkt". Geen balk "read only",
+  // geen grijze knoppen, geen takenlijst van de eigenaar: wat iemand
+  // niet mag, staat er niet. Elk element dat een recht nodig heeft
+  // draagt data-perm; de buitenste laag krijgt per ontbrekend recht een
+  // klasse perm-no-<recht>, en de CSS verbergt de rest.
+  //
+  // De rechten per lid (vinkjes in Team) komen met de volgende stap,
+  // samen met de toets in de geld-RPC's. Tot dan mag een teamlid niets
+  // dat geld verplaatst of de eigenaar raakt -- een vinkje zonder toets
+  // op de server zou een knop zijn die niets bewaakt.
+  const isTeamMember = !!teamRole;
+  const teamPerms: string[] =
+    ((profile as { team_permissions?: string[] | null } | null)?.team_permissions ?? []) as string[];
+  const PERMS = ["topup", "exchange", "request", "fund", "withdraw", "pay", "company", "owner"] as const;
+  const permKlassen = isTeamMember
+    ? PERMS.filter((p) => p === "owner" || !teamPerms.includes(p)).map((p) => `perm-no-${p}`).join(" ")
+    : "";
   const viewerRefusal = (): boolean => {
     if (!isViewer) return false;
     toast.info(t("viewer.title"), { description: t("viewer.body") });
@@ -384,7 +414,6 @@ export default function AdvertiserApp() {
   // De taal van deze klant. Zie docs/NL_EN.md; valt terug op Engels
   // zolang plak 177 niet gedraaid is, zodat de app dan werkt als vandaag.
   const { t, tx, locale } = useT();
-  useApplySignupLocale(locale, !!profile);
   // Dezelfde functie onder een naam die een lusvariabele niet kan
   // overschaduwen. In de walletlijst heet een top-uprij toevallig ook
   // `t` (`t.status`, `t.description`), en daarbinnen roept t("...") dan
@@ -3874,7 +3903,7 @@ export default function AdvertiserApp() {
                 to find out was to press it, read the refusal and close
                 it again. The card already prints "Currency: Not set
                 yet"; the button now agrees with it. */}
-            <button
+            <button data-perm="fund"
               className="btn sm"
               disabled={!a.currency}
               title={
@@ -3921,8 +3950,9 @@ export default function AdvertiserApp() {
   };
 
   return (
-    <div className={`advapp app ${jakarta.variable} ${dmSans.variable}`}>
+    <div className={`advapp app ${jakarta.variable} ${dmSans.variable} ${permKlassen}`}>
       <style>{ADV_CSS}</style>
+      <style>{PERM_CSS}</style>
       <AdvIcons />
 
       <div
@@ -3963,8 +3993,8 @@ export default function AdvertiserApp() {
             <Ic name={item.icon} /> {item.label}
           </button>
         ))}
-        <div className="navsec">Earn</div>
-        <button
+        <div className="navsec" data-perm="owner">Earn</div>
+        <button data-perm="owner"
           className={`navlink${view === "referrals" ? " on" : ""}`}
           onClick={() => go("referrals")}
         >
@@ -4142,6 +4172,11 @@ export default function AdvertiserApp() {
                       </span>
                     </span>
                   </div>
+                  {isTeamMember ? (
+                    <div className="umenu-team">
+                      <Ic name="i-users" /> {t("team.chip", { account: referralCode ?? "" })}
+                    </div>
+                  ) : null}
                   <button
                     className="umenu-item"
                     role="menuitem"
@@ -4201,28 +4236,6 @@ export default function AdvertiserApp() {
               niet te onderscheiden -- en dan verbaast het hem dat Top up
               "Read only" zegt. Nu staat bovenaan elk scherm bij wie hij
               is, en wat hij wel en niet kan. */}
-          {isViewer ? (
-            <div
-              role="status"
-              style={{
-                display: "flex",
-                gap: 8,
-                alignItems: "center",
-                padding: "9px 13px",
-                marginBottom: 14,
-                borderRadius: 12,
-                background: "var(--primary-tint)",
-                color: "var(--primary-600)",
-                fontSize: ".84rem",
-                fontWeight: 600,
-              }}
-            >
-              <Ic name="i-user" />
-              <span>
-                {t("viewer.banner", { account: referralCode ?? "" })}
-              </span>
-            </div>
-          ) : null}
           {/* DASHBOARD */}
           <div className={`view${view === "dash" ? " on" : ""}`}>
             {/* ── ONE SKELETON, NOT A CASCADE ──────────────────────────
@@ -4259,7 +4272,7 @@ export default function AdvertiserApp() {
             />
             {/* Niet voor een kijker: "voeg je bedrijf toe, doe een top-up"
                 is de takenlijst van de EIGENAAR. Zie viewerRefusal. */}
-            {!isViewer && (
+            {!isTeamMember && (
             <OnboardingChecklist
               /* WAIT FOR THE ANSWERS, not just for localStorage. The ticks
                  come from three separate queries — company, wallet,
@@ -4328,7 +4341,7 @@ export default function AdvertiserApp() {
               /* The app no longer blocks the door with this form, so it has
                  to say plainly why the buttons are quiet — otherwise "you can
                  look but nothing works" is just a broken app. */
-              <div className="duerow msg">
+              <div className="duerow msg" data-perm="company">
                 <span className="ai">
                   <Ic name="i-building" />
                 </span>
@@ -4352,7 +4365,7 @@ export default function AdvertiserApp() {
                     phone, official email, street address and billing address
                     an invoice needs — and since the layout stopped redirecting
                     there, this is the only way anyone reaches it. */}
-                <button
+                <button data-perm="company"
                   className="dlink"
                   onClick={() => {
                     if (!viewerRefusal()) router.push("/complete-profile");
@@ -4701,7 +4714,7 @@ export default function AdvertiserApp() {
           </div>
 
           {/* AFFILIATE PROGRAM (advertiser-as-affiliate) */}
-          <div className={`view${view === "referrals" ? " on" : ""}`}>
+          <div className={`view${view === "referrals" ? " on" : ""}`} data-perm="owner">
             <div className="phead">
               <div>
                 <h1>{t("label.affiliateProgram")}</h1>
@@ -5340,7 +5353,7 @@ export default function AdvertiserApp() {
                 this told a customer whose details are complete to go and
                 add them, every time they opened the Wallet view. */}
             {!companyComplete && !companyUnknown && !companyBusy && (
-              <div className="duerow msg" style={{ marginTop: 12 }}>
+              <div className="duerow msg" data-perm="company" style={{ marginTop: 12 }}>
                 <span className="ai">
                   <Ic name="i-building" />
                 </span>
@@ -6204,12 +6217,12 @@ export default function AdvertiserApp() {
                 {(accounts ?? []).length > 0 &&
                   (canRequestAccount ? (
                     <RequestAdAccountDialog onNeedTopUp={() => go("wallet")}>
-                      <button className="btn grad">
+                      <button data-perm="request" className="btn grad">
                         <Ic name="i-plus" /> {" "}{tr("label.adv.requestOne")}</button>
                     </RequestAdAccountDialog>
                   ) : (
                     <>
-                      <button className="btn grad" disabled>
+                      <button data-perm="request" className="btn grad" disabled>
                         <Ic name="i-plus" /> {" "}{tr("label.adv.requestOne")}</button>
                       {/* A title does not fire on a disabled control, so
                           the reason it is dead has to be said out loud --
@@ -6414,7 +6427,7 @@ export default function AdvertiserApp() {
                      het volledige formulier. Gelopen en gezien. Naar
                      settings sturen zou dus dezelfde fout zijn die
                      deze regel repareert, een sprong verderop. */
-                  <button
+                  <button data-perm="company"
                     className="btn"
                     onClick={() => {
                       window.location.href = "/complete-profile";
@@ -6465,11 +6478,11 @@ export default function AdvertiserApp() {
               <div className="phead-actions">
                 {canRequestAccount ? (
                   <RequestAdAccountDialog onNeedTopUp={() => go("wallet")}>
-                    <button className="btn grad">
+                    <button data-perm="request" className="btn grad">
                       <Ic name="i-plus" /> {" "}{tr("label.adv.newRequest")}</button>
                   </RequestAdAccountDialog>
                 ) : (
-                  <button
+                  <button data-perm="request"
                     className="btn grad"
                     disabled
                     title={requestBlockedReason() ?? undefined}
@@ -6976,7 +6989,7 @@ export default function AdvertiserApp() {
                         The failed-to-load case DOES get a button, because
                         there the customer can do something: reload. */}
                     {dueSubInvoice ? (
-                      <button
+                      <button data-perm="pay"
                         className="btn block grad"
                         style={{ marginTop: 14 }}
                         onClick={() => {
@@ -7080,7 +7093,7 @@ export default function AdvertiserApp() {
                         >
                           {tr("adv.orTopUpYourWallet", { v: String(invCurrency(dueSubInvoice)) })}</button>
                       ) : (eurBal > 0 || usdBal > 0) ? (
-                        <button
+                        <button data-perm="pay"
                           className="linkish"
                           style={{
                             display: "block",
@@ -7162,7 +7175,7 @@ export default function AdvertiserApp() {
                           {tr("adv.noPlanIsRunningOn", { v: String(unpaidSubCount > 1
                             ? `${unpaidSubCount} invoices are still open, together ${unpaidSubText}.`
                             : `an invoice of ${dueSubSymbol}${money2(dueSubInvoice.total)} is still open.`) })}</p>
-                        <button
+                        <button data-perm="pay"
                           className="btn block grad"
                           style={{ marginTop: 14 }}
                           onClick={() => {
@@ -7447,7 +7460,7 @@ export default function AdvertiserApp() {
                                     inv.type === "subscription_adjustment" ||
                                     inv.type === "ad_account_fee" ||
                                     inv.type === "manual_invoice") && (
-                                  <button
+                                  <button data-perm="pay"
                                     className="btn ghost sm"
                                     disabled={payingId === inv.id}
                                     title={
@@ -7716,7 +7729,7 @@ export default function AdvertiserApp() {
                   </a>
                 </div>
               </div>
-              <div className="card">
+              <div className="card" data-perm="company">
                 <h2>
                   <span
                     style={{
@@ -8036,7 +8049,7 @@ export default function AdvertiserApp() {
             {/* ...and hidden while we do not yet know. Offering
                 "Become an affiliate" to somebody who already is one is
                 the thing this flag is read to prevent. */}
-            <div className="card" hidden={isAffiliate || affiliateUnknown}>
+            <div className="card" hidden={isAffiliate || affiliateUnknown || isTeamMember}>
               <h2>
                 <span
                   style={{ display: "inline-flex", gap: 8, alignItems: "center" }}
@@ -8655,7 +8668,7 @@ function WalletCard({
         )}
       </div>
       <div className="wa">
-        <button
+        <button data-perm="topup"
           className="wbtn"
           onClick={onTopup}
           disabled={disabled}
@@ -8663,7 +8676,7 @@ function WalletCard({
         >
           <Ic name="i-plus" /> Top up
         </button>
-        <button
+        <button data-perm="exchange"
           className="wbtn gh"
           onClick={onExchange}
           disabled={disabled}
@@ -8675,7 +8688,7 @@ function WalletCard({
       {/* A title attribute is invisible on a phone, and this is a phone
           app. The sentence goes on the card. */}
       {disabled && disabledReason && (
-        <div className="wavail">{disabledReason}</div>
+        <div className="wavail" data-perm="company">{disabledReason}</div>
       )}
     </div>
   );

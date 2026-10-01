@@ -120,6 +120,7 @@ export default function BalanceHero({
           title does not fire on a disabled button anyway. */}
       {disabled && disabledReason ? (
         <p
+          data-perm="company"
           style={{
             margin: "0 0 10px",
             fontSize: ".82rem",
@@ -131,11 +132,12 @@ export default function BalanceHero({
       ) : null}
 
       <div className="hero-a">
-        <button className="hero-btn" onClick={onTopup} disabled={disabled}>
+        <button className="hero-btn" data-perm="topup" onClick={onTopup} disabled={disabled}>
           <Ic name="i-plus" /> Top up
         </button>
         <button
           className="hero-btn gh"
+          data-perm="exchange"
           onClick={onExchange}
           disabled={disabled}
         >

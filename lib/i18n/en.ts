@@ -1333,6 +1333,7 @@ export const en = {
   // ── aanmelden als teamlid ──
   "isignup.teamLede": "You'll see {account}'s account as a {role}: balances, ad accounts and invoices. Moving money stays with the owner.",
   "isignup.teamJoining": "Viewing {account} as {role}",
+  "team.chip": "Team member · {account}",
 } as const;
 
 export type Key = keyof typeof en;

@@ -1,7 +1,6 @@
 "use client";
 
 import { useT } from "@/hooks/use-t";
-import { rememberSignupLocale } from "@/lib/signup-locale";
 import { scorePassword } from "@/lib/password-strength";
 import { createClient } from "@/lib/supabase/client";
 import { UserInvitation } from "@/lib/types/invite";
@@ -133,7 +132,7 @@ export default function InviteSignUpForm({
   team?: { role: "manager" | "viewer"; code: string | null } | null;
   className?: string;
 }) {
-  const { t: tr, locale } = useT();
+  const { t: tr } = useT();
   const router = useRouter();
   const [viewPass, setViewPass] = useState({ pass: false, repeatPass: false });
   const {
@@ -181,8 +180,6 @@ export default function InviteSignUpForm({
   const strength = scorePassword(password);
 
   const onSubmit = async (values: InviteSignUpData) => {
-    // De taal van dit formulier gaat mee naar het profiel -- zie lib/signup-locale.ts.
-    rememberSignupLocale(locale);
     const payload = {
       email: invite.email,
       password: values.password,

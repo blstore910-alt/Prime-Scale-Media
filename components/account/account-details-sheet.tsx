@@ -188,6 +188,12 @@ export function AccountDetailsSheet({
   const { t: tr } = useT();
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
+  // Een teamlid zonder het recht "withdraw" krijgt de knop niet. De sheet
+  // staat in een portal, buiten de klasse van de app, dus hier zelf.
+  const teamRole = (profile as { team_role?: string | null } | null)?.team_role ?? null;
+  const magTerugboeken =
+    !teamRole ||
+    (((profile as { team_permissions?: string[] | null } | null)?.team_permissions ?? []) as string[]).includes("withdraw");
   const isAdvertiser = profile?.role === "advertiser";
   // ── THE COST BRANCH IS ADMIN-ONLY, NOT NOT-ADVERTISER ────────────
   //
@@ -738,7 +744,7 @@ export function AccountDetailsSheet({
                     withdrawal was created on a disabled account and an
                     admin could approve it. See lib/pure-account-status. */}
                 {isAdvertiser && (
-                  <Button
+                  <Button hidden={!magTerugboeken}
                     variant="outline"
                     /* ── THE ONLY DOOR THE MONEY HAS ──────────────────
                        isAccountLocked() locks everything that is not

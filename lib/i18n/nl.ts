@@ -1341,4 +1341,5 @@ export const nl: Record<Key, string> = {
   // ── aanmelden als teamlid ──
   "isignup.teamLede": "Je kijkt mee op het account van {account} als {role}: saldi, ad accounts en facturen. Geld verplaatsen blijft bij de eigenaar.",
   "isignup.teamJoining": "Meekijken op {account} als {role}",
+  "team.chip": "Teamlid · {account}",
 };
