@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { deletePlan, listPlans, upsertPlan } from "@/actions/plan-actions";
+import { deletePlan, listPlanAffiliateFlags, listPlans, setPlanAffiliate, upsertPlan } from "@/actions/plan-actions";
 import type { Plan, PlanCurrency, PlanKind } from "@/lib/types/plan";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
@@ -58,6 +58,28 @@ const blankOrNumber = (v: string) =>
 export default function PlansCard() {
   const { profile } = useAppContext();
   const queryClient = useQueryClient();
+  // ── AFFILIATEPROGRAMMA AAN/UIT, EEN KNOP PER KAART (plak 188) ──────
+  // Los van Save: een klik is meteen opgeslagen.
+  const affFlags = useQuery({
+    queryKey: ["plan-affiliate-flags"],
+    queryFn: async () => {
+      const r = await listPlanAffiliateFlags();
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+  });
+  const affToggle = useMutation({
+    mutationFn: async (v: { id: string; enabled: boolean }) => {
+      const r = await setPlanAffiliate(v);
+      if (!r.ok) throw new Error(r.error);
+      return v.enabled;
+    },
+    onSuccess: (on) => {
+      toast.success(on ? "Affiliate program switched ON for this plan" : "Affiliate program switched OFF for this plan");
+      queryClient.invalidateQueries({ queryKey: ["plan-affiliate-flags"] });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
   const { data, isLoading, isError, error } = useQuery({
     // The query filters by tenant (the server action resolves it from
     // the profile_id cookie) and the key did not, so after a profile
@@ -420,6 +442,26 @@ export default function PlansCard() {
                     value={r.name}
                     onChange={(e) => patch(i, { name: e.target.value })}
                   />
+                  {affFlags.data ? (
+                    (() => {
+                      const on = affFlags.data[r.id] !== false;
+                      return (
+                        <button
+                          type="button"
+                          disabled={affToggle.isPending}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            affToggle.mutate({ id: r.id, enabled: !on });
+                          }}
+                          title="Can customers on this plan join the affiliate program?"
+                          className={`mt-1 inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${on ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"}`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${on ? "bg-emerald-500" : "bg-slate-400"}`} />
+                          Affiliate program: {on ? "On" : "Off"}
+                        </button>
+                      );
+                    })()
+                  ) : null}
                 </label>
                 {/* ── THE TWO PRICES BELONG NEXT TO EACH OTHER ──────
                     On a phone this is a two-column grid and the DOM

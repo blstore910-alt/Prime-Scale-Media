@@ -484,6 +484,29 @@ export default function AdvertiserApp() {
     appliedAt: affiliateAppliedAt,
   } = useIsAffiliate();
   const affiliateUnknown = affiliateError || affiliateLoading;
+  // ── HET AFFILIATEPROGRAMMA PER COMMUNITY (plak 188) ─────────────
+  // De eigenaar, 01-10: "affiliate programma aan/uit per community met
+  // een knop". Staat het uit op hun plan, dan geen "Earn" en geen
+  // aanmeldknop -- behalve voor wie al affiliate IS: die houdt zijn
+  // verdiensten. Zonder plak 188 of bij een leesfout: aan, zoals eerst.
+  // De server weigert de aanmelding ook (affiliate_application_submit).
+  const planAffiliate = useQuery({
+    queryKey: ["plan-affiliate", advertiserId],
+    enabled: !!advertiserId,
+    queryFn: async () => {
+      const { data, error } = await createClient()
+        .from("advertiser_plans")
+        .select("plan:plans(affiliate_enabled)")
+        .eq("advertiser_id", advertiserId as string)
+        .limit(1);
+      if (error) return true;
+      const row = (data ?? [])[0] as { plan?: { affiliate_enabled?: boolean | null } | { affiliate_enabled?: boolean | null }[] | null } | undefined;
+      const p = Array.isArray(row?.plan) ? row?.plan[0] : row?.plan;
+      return p?.affiliate_enabled !== false;
+    },
+    staleTime: 5 * 60_000,
+  });
+  const affiliateOff = planAffiliate.data === false && !isAffiliate;
   // Applied is what the DATABASE says (plak 42), or this press -- the
   // local flag alone was forgotten on reload and offered "Join" again.
   const applicationOpen = affiliateApplied || affiliateApplication === "applied";
@@ -3999,8 +4022,8 @@ export default function AdvertiserApp() {
             <Ic name={item.icon} /> {item.label}
           </button>
         ))}
-        <div className="navsec" data-perm="owner">Earn</div>
-        <button data-perm="owner"
+        <div className="navsec" data-perm="owner" hidden={affiliateOff}>Earn</div>
+        <button data-perm="owner" hidden={affiliateOff}
           className={`navlink${view === "referrals" ? " on" : ""}`}
           onClick={() => go("referrals")}
         >
@@ -8057,7 +8080,7 @@ export default function AdvertiserApp() {
             {/* ...and hidden while we do not yet know. Offering
                 "Become an affiliate" to somebody who already is one is
                 the thing this flag is read to prevent. */}
-            <div className="card" hidden={isAffiliate || affiliateUnknown || isTeamMember}>
+            <div className="card" hidden={isAffiliate || affiliateUnknown || isTeamMember || affiliateOff}>
               <h2>
                 <span
                   style={{ display: "inline-flex", gap: 8, alignItems: "center" }}

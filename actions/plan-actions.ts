@@ -436,3 +436,59 @@ export async function deletePlan(
 
   return { ok: true, data: { deleted: true } };
 }
+
+// ─────────────────────────────────────────
+// Het affiliateprogramma per plan/community (plak 188). De eigenaar,
+// 01-10: "affiliate programma aan/uit per community met een knop".
+// ─────────────────────────────────────────
+
+/** id -> aan/uit. null = plak 188 is er nog niet (dan is alles aan). */
+export async function listPlanAffiliateFlags(): Promise<ActionResult<Record<string, boolean> | null>> {
+  const auth = await resolveCapability("plans.edit");
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profile } = auth.ctx;
+  const { data, error } = await supabase
+    .from("plans")
+    .select("id, affiliate_enabled")
+    .eq("tenant_id", profile.tenant_id);
+  if (error) {
+    if (missingPriceColumn(error)) return { ok: true, data: null };
+    return { ok: false, error: safeErrorMessage(error) };
+  }
+  const uit: Record<string, boolean> = {};
+  for (const r of (data ?? []) as { id: string; affiliate_enabled: boolean | null }[]) {
+    uit[r.id] = r.affiliate_enabled !== false;
+  }
+  return { ok: true, data: uit };
+}
+
+export async function setPlanAffiliate(input: {
+  id: string;
+  enabled: boolean;
+}): Promise<ActionResult<{ id: string }>> {
+  const auth = await resolveCapability("plans.edit");
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, profile } = auth.ctx;
+  const id = String(input?.id ?? "");
+  if (!id || typeof input?.enabled !== "boolean") return { ok: false, error: "Pick a plan." };
+  const { data: existing, error: fErr } = await supabase
+    .from("plans")
+    .select("id, tenant_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (fErr) return { ok: false, error: safeErrorMessage(fErr) };
+  if (!existing) return { ok: false, error: "Plan not found", code: "not_found" };
+  if (existing.tenant_id !== profile.tenant_id) return { ok: false, error: "Forbidden", code: "forbidden" };
+  const { data: rows, error } = await supabase
+    .from("plans")
+    .update({ affiliate_enabled: input.enabled, updated_by: profile.user_id })
+    .eq("id", id)
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
+  if (error) {
+    if (missingPriceColumn(error)) return { ok: false, error: "Run plak 188 first." };
+    return { ok: false, error: safeErrorMessage(error) };
+  }
+  if (!(rows ?? []).length) return { ok: false, error: "Nothing was saved. Reload and try again." };
+  return { ok: true, data: { id } };
+}
