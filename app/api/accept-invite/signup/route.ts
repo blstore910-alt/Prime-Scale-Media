@@ -166,8 +166,21 @@ export async function POST(request: NextRequest) {
         "signup profile insert failed:",
         safeErrorMessage(profileError),
       );
+      // ── EN DE LOGIN WEER WEG ──────────────────────────────────────
+      // Test 4, 01-10: het profiel faalde (een database-bewaker), maar de
+      // login bestond al -- en een tweede poging zei toen "this email
+      // already has an account". Een login zonder profiel is niemand: ruim
+      // hem op, zodat dezelfde uitnodiging gewoon opnieuw kan.
+      try {
+        await supabase.auth.admin.deleteUser(data.user.id);
+      } catch (e) {
+        console.error("signup rollback deleteUser failed:", safeErrorMessage(e));
+      }
       return NextResponse.json(
-        { success: false, message: "Failed to create user profile" },
+        {
+          success: false,
+          message: "We could not finish your account. Nothing was saved — please try again in a minute.",
+        },
         { status: 500 },
       );
     }
