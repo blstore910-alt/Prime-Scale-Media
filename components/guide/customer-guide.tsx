@@ -230,13 +230,12 @@ export default function CustomerGuideView({
               ))}
             </select>
           </label>
-          <b>{keuze === "en" || keuze === "nl" ? "Help in your language" : vt.label}</b>
         </div>
         {vt.stand === "busy" ? (
           <span className="cg-lang-st">
             <Loader2 aria-hidden="true" />
             {vt.voortgang === 0
-              ? `Downloading the ${vt.label} language pack — only the first time, up to a minute…`
+              ? `Downloading ${vt.label} (only the first time)… ${vt.download}%`
               : `Translating to ${vt.label}… ${vt.voortgang}%`}
           </span>
         ) : vt.stand === "needsClick" && keuze !== "en" && keuze !== "nl" ? (

@@ -16,7 +16,11 @@ export type TranslateState = "idle" | "busy" | "done" | "unsupported" | "needsCl
 type Vertaler = { translate: (s: string) => Promise<string> };
 type TranslatorApi = {
   availability: (o: { sourceLanguage: string; targetLanguage: string }) => Promise<string>;
-  create: (o: { sourceLanguage: string; targetLanguage: string }) => Promise<Vertaler>;
+  create: (o: {
+    sourceLanguage: string;
+    targetLanguage: string;
+    monitor?: (m: EventTarget) => void;
+  }) => Promise<Vertaler>;
 };
 
 export const LANGUAGES: { code: string; label: string }[] = [
@@ -76,6 +80,8 @@ export function useBrowserTranslate(texts: string[], storageKey: string, handmat
   const [vertaald, setVertaald] = useState<Record<string, string>>({});
   const [stand, setStand] = useState<TranslateState>("idle");
   const [voortgang, setVoortgang] = useState(0);
+  // Het downloaden van een taalpakket, 0-100 (Chrome meldt het via monitor).
+  const [download, setDownload] = useState(0);
   const loop = useRef(0);
   const gestart = useRef<string | null>(null);
   const tekstenRef = useRef(texts);
@@ -96,7 +102,33 @@ export function useBrowserTranslate(texts: string[], storageKey: string, handmat
     try {
       setStand("busy");
       setVoortgang(0);
-      const v = await t.create({ sourceLanguage: "en", targetLanguage: code });
+      setDownload(0);
+      // De eigenaar, 01-10: "na 1 min nog steeds downloading -- ik wil een
+      // percentage zien". Chrome meldt de download; zonder voortgang en
+      // zonder klaar binnen 90 s is het "kan niet", niet eeuwig wachten.
+      let laatste = Date.now();
+      const v = await Promise.race([
+        t.create({
+          sourceLanguage: "en",
+          targetLanguage: code,
+          monitor(m) {
+            m.addEventListener("downloadprogress", (e) => {
+              laatste = Date.now();
+              const geladen = Number((e as unknown as { loaded?: number }).loaded ?? 0);
+              setDownload(Math.min(100, Math.round(geladen * 100)));
+            });
+          },
+        }),
+        new Promise<never>((_, nee) => {
+          const tik = setInterval(() => {
+            if (Date.now() - laatste > 90_000) {
+              clearInterval(tik);
+              nee(new Error("download hangt"));
+            }
+          }, 2000);
+        }),
+      ]);
+      setDownload(100);
       const teksten = Array.from(new Set(tekstenRef.current.filter(Boolean)));
       const uit: Record<string, string> = {};
       for (let i = 0; i < teksten.length; i++) {
@@ -174,5 +206,5 @@ export function useBrowserTranslate(texts: string[], storageKey: string, handmat
   const tt = (s: string) => vertaald[s] ?? s;
   const label = LANGUAGES.find((t) => t.code === lang)?.label ?? lang;
 
-  return { lang, kies, tt, stand, voortgang, opnieuw, label };
+  return { lang, kies, tt, stand, voortgang, download, opnieuw, label };
 }
