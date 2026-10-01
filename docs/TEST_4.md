@@ -532,7 +532,7 @@ eigenaar nodig is).
 | R1 | T4-C | EN | half | aangemeld; bedrijfsgegevens nog niet | PSM0025, plan, bedrijf 0 | open: onboarding |
 | R1 | T4-N | EN | half | aangemeld; bedrijfsgegevens nog niet | PSM0026, NSA-plan, bedrijf 0 | open: onboarding |
 | R1 | T4-F | EN | half | aangemeld als affiliate | PSM0028 | open: dashboard lopen (R9) |
-| R1 | T4-R | EN | | | | |
+| R1 | T4-R | EN | werkt | link van T4-F (/auth/sign-up?t=prime-scale-media&ref=PSM0028): 'Invited by a partner · Referral code PSM0028' -> e-mailbevestiging -> dashboard met 'Get started'. Bedrijfsgegevens opgeslagen | PSM0031; referral_links pending -> active; companies 1 | zonder uitnodiging GEEN plan: beheer moest Launch toewijzen + activeren |
 | R1 | T4-V | EN | werkt | teamuitnodiging -> aanmelden -> dashboard (na fix 0642aa8b) | subject_members viewer | zie R11 |
 | R1 | T4-U | EN | half | aangemeld als affiliate | PSM0027 | open: R10 |
 | R1 | T4-0 | EN | werkt | zonder plan: Billing zegt het een keer; aanvragen geblokkeerd | PSM0029, geen plan, bedrijf 1 | geen plan != gratis plan (6921ffca, plak 196) |
@@ -556,13 +556,13 @@ eigenaar nodig is).
 | R8 | T4-A EUR | EN | werkt | Billing: Flex EUR 75, 'Pay EUR 75.00 from wallet' -> bevestiging 'EUR 400 -> 325' -> 'This month is paid, next 1 Nov' | invoice 150: total 75.00, paid, paid_from wallet; ledger -75.00 (400 -> 325, invoice_pay_from_wallet); subscription active | titel was 'Renew your plan?' bij de eerste betaling -> 'Pay your plan?' (9ee0d9c7) |
 | R8 | T4-B USD | EN | | | | |
 | R8 | T4-0 geen plan | EN | | | | |
-| R9 | T4-F + T4-R | EN | | | | |
+| R9 | T4-F + T4-R | EN | deels | beheer: 'Affiliates waiting for you (2)' -> T4R 'signed up through T4F' -> Approve toont '20% van top-up-winst · 50% van elke betaalde factuur'. Abonnement Launch EUR 150 aangemaakt + geactiveerd. T4-R: top-up EUR 150 (geen minimum voor de eerste planbetaling, geen fee-regel bij EUR->EUR) -> geverifieerd (slip in de bevestiging, laadt na ~20 s) -> 'Pay your plan?' EUR 150 -> 0 | invoice 155 EUR 150 paid (wallet); referral_commissions: subscription_pct 75.00 EUR (50% van 150.00), unpaid, PSM0028 | hinderlijk: slip-voorbeeld laadt traag (serveracties in de rij); abonnementskaart toont '01-10 -> 01-10'. Open: T4-F ziet het + uitbetaling, beheer betaalt uit / weigert met reden |
 | R10 | T4-U | EN | | | | |
 | R11 | T4-A + T4-V + T4-W | EN | werkt | T4-A Team -> twee uitnodigingen (link ook zichtbaar). Aanmeldpagina: 'Viewing PSM0030 as viewer', geen referral. BLOKKER gevonden + gefixt: na Join landde V op 'we can''t open your account' (0642aa8b). V ziet T4-A: EUR 245.00 / USD 55.76, account, Flex, facturen; geen enkele geldknop (wallet: alleen saldi; accounts: Tax rates/Details; billing: View/Download); avatar 'Team member · PSM0030' | subject_members: V viewer van T4-A, permissions []; invitation accepted. Server: alle zes geldfuncties eisen _psm_can(advertiser, perm) -> viewer zonder rechten wordt geweigerd (uit de definities gelezen, niet aangeroepen) | hinderlijk: 'First name is required' blijft staan na invullen tot Join  T4-W (Exchange + Fund): wallet toont alleen Exchange (geen Top up), accounts alleen Top up/Details (geen Request), billing geen Pay, Details geen Withdraw. Exchange EUR 10 -> $11,18 (fee $0,07, 'Wise mid-market rate'); Fund EUR 10 -> fee EUR 0,50 -> EUR 9,50. TWEE FIXES: rechtenpaneel liep door elkaar op een telefoon (f137447c); twee rechten snel achter elkaar bewaarde er één (65bf9fa3). BLOKKER: Fund-recht werkte niet, fee-offerte zocht alleen een eigen advertiser (03864342). | subject_members W: [exchange, fund]. wallet_exchanges 10 -> 11.18, fee 0.07, door t4w; wallet EUR 245 -> 235 -> 225, USD 55.76 -> 66.94; top_ups 10.00/0.50/9.50 pending, ledger -10.00 | — |
 | R12 | alle | | | | | |
 | R13 | T4-A, T4-B | | | | | |
 | R14 | beheer | EN | | | | |
-| R15 | eigenaar | EN | | | | |
+| R15 | eigenaar | EN | deels | dashboard: What we hold RockAds €2.210,31/$5.357,70, Falkyn €973,68/$3.500, Bestads $3.500, Wise €4.271,19/$2.454,89, Slash $2.669,95; samen €7.455,18 + $17.482,54 = €23.000,74 (x 0,889205 klopt). Vandaag: wallet in €500, ad topups €95, fees €5, exchanges €110, subs €75 -- precies wat Test 4 deed. Queues: 1 aanvraag, 1 ad top-up, 1 affiliate. /exchanges: zie R4 | n.v.t. (leveranciers-saldi) | open: RockAds-reconciliatie, account koppelen, plannen beheren |
 | R16 | eigenaar | | | | | |
 | R17 | de nacht | | | | | |
 | R18 | doorlopend | | | | | |
