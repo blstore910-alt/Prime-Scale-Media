@@ -1173,6 +1173,26 @@ export const en = {
   "fin.s.rejected": "rejected",
   "fin.s.unpaid": "unpaid",
   "fin.s.void": "void",
+  // ── formuliervelden, filters en kolomkoppen, via tx() ──
+  "form.googleEmailRequired": "Google Email is required",
+  "form.invalidEmail": "Invalid email address",
+  "form.bcIdRequired": "Business Center ID is required",
+  "form.tiktokEmailRequired": "TikTok Email is required",
+  "form.countriesRequired": "Countries list is required",
+  "form.fbLinkRequired": "Personal FB Profile Link is required",
+  "form.invalidUrl": "Invalid URL",
+  "form.googleEmail": "Google Email",
+  "form.enterBcId": "Enter Business Center ID",
+  "form.tiktokAccountEmail": "TikTok Account Email",
+  "form.countries": "Countries",
+  "form.countriesPh": "US, UK, CA (comma separated)",
+  "form.fbProfileLink": "Personal Facebook Profile Link",
+  "form.bmAtLeastOne": "Give at least one Business Manager ID.",
+  "form.bmLooksWrong": "That does not look like a Business Manager ID.",
+  "form.platform": "Platform",
+  "inv.everyStatus": "Every status",
+  "inv.void": "Void",
+  "col.what": "What",
 } as const;
 
 export type Key = keyof typeof en;

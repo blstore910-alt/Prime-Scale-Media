@@ -160,7 +160,7 @@ export default function AffiliateCommissionsCard({
    *  the sums below for why this card needs it. */
   payableAllTime?: { eur: number; usd: number } | null;
 }) {
-  const { t: tr } = useT();
+  const { t: tr, tx } = useT();
   const [sort, setSort] = useState<Sort>("newest");
   // Five is enough to see what is going on; the rest is one tap away.
   const [showAll, setShowAll] = useState(false);
@@ -355,7 +355,7 @@ export default function AffiliateCommissionsCard({
             className={`xm ${tint}${status === st ? " on" : ""}`}
             onClick={() => setStatus(st)}
           >
-            <span className="l">{label}</span>
+            <span className="l">{tx(label)}</span>
             <span className="v">{dash ? "—" : money(sum, leadCurrency)}</span>
           </button>
         ))}

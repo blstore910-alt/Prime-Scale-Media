@@ -2,6 +2,7 @@ import React from "react";
 import { Control, Controller, FieldValues, Path } from "react-hook-form";
 import { Field, FieldDescription, FieldError, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
+import { useT } from "@/hooks/use-t";
 
 type InputFieldProps<T extends FieldValues> = {
   name: Path<T>;
@@ -26,6 +27,9 @@ export default function InputField<T extends FieldValues>({
   className,
   ...props
 }: InputFieldProps<T> & React.ComponentProps<"input">) {
+  // Label, placeholder en foutmelding volgen de taal van wie kijkt. Een
+  // tekst die niet in het woordenboek staat, komt ongewijzigd terug.
+  const { tx } = useT();
   return (
     <Controller
       name={name}
@@ -39,20 +43,28 @@ export default function InputField<T extends FieldValues>({
       disabled={(props as { disabled?: boolean }).disabled}
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid}>
-          {label && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
+          {label && <FieldLabel htmlFor={id}>{tx(label)}</FieldLabel>}
           
           <Input
             {...field}
             id={id}
             type={type}
             aria-invalid={fieldState.invalid}
-            placeholder={placeholder}
+            placeholder={placeholder ? tx(placeholder) : placeholder}
             autoComplete={String(name)}
             className={className}
             {...props}
           />
-          {description && <FieldDescription>{description}</FieldDescription>}
-          {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          {description && <FieldDescription>{tx(description)}</FieldDescription>}
+          {fieldState.invalid && (
+            <FieldError
+              errors={[
+                fieldState.error
+                  ? { ...fieldState.error, message: tx(fieldState.error.message ?? "") }
+                  : undefined,
+              ]}
+            />
+          )}
         </Field>
       )}
     />

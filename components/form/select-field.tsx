@@ -1,4 +1,5 @@
 import { Control, Controller, FieldValues, Path } from "react-hook-form";
+import { useT } from "@/hooks/use-t";
 import { Field, FieldDescription, FieldError, FieldLabel } from "../ui/field";
 import {
   Select,
@@ -31,13 +32,14 @@ export default function SelectField<T extends FieldValues>({
   options,
   disabled,
 }: SelectFieldProps<T>) {
+  const { tx } = useT();
   return (
     <Controller
       name={name}
       control={control}
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid}>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <FieldLabel htmlFor={id}>{label ? tx(label) : label}</FieldLabel>
           <Select
             name={field.name}
             value={field.value}
@@ -72,19 +74,27 @@ export default function SelectField<T extends FieldValues>({
             >
               <SelectValue
                 className="truncate max-w-60"
-                placeholder={placeholder}
+                placeholder={placeholder ? tx(placeholder) : placeholder}
               />
             </SelectTrigger>
             <SelectContent position="item-aligned">
               {options.map((option: Option) => (
                 <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+                  {typeof option.label === "string" ? tx(option.label) : option.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           {description && <FieldDescription>{description}</FieldDescription>}
-          {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          {fieldState.invalid && (
+            <FieldError
+              errors={[
+                fieldState.error
+                  ? { ...fieldState.error, message: tx(fieldState.error.message ?? "") }
+                  : undefined,
+              ]}
+            />
+          )}
         </Field>
       )}
     />

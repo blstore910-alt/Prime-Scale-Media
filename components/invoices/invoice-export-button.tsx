@@ -42,7 +42,7 @@ function isoDay(d: Date): string {
 export default function InvoiceExportButton({
   className = "btn ghost sm",
 }: Props) {
-  const { t: tr } = useT();
+  const { t: tr, tx } = useT();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   // A sensible period rather than an empty form: this year so far is
@@ -158,7 +158,7 @@ export default function InvoiceExportButton({
             >
               {STATUSES.map((s) => (
                 <option key={s.value} value={s.value}>
-                  {s.label}
+                  {tx(s.label)}
                 </option>
               ))}
             </select>

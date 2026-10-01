@@ -5462,16 +5462,16 @@ export default function AdvertiserApp() {
                           return (
                             <tr key={`i-${inv.id}`}>
                               <td
-                                data-label="Date"
+                                data-label={tx("Date")}
                                 style={{ fontWeight: 600, whiteSpace: "nowrap" }}
                               >
                                 {dayjs(ev.at).format("D MMM")}
                               </td>
-                              <td data-label="Reference" className="mono">
+                              <td data-label={tx("Reference")} className="mono">
                                 {formatPaymentReference(referralCode, inv.number)}
                               </td>
                               <td
-                                data-label="Description"
+                                data-label={tx("Description")}
                                 style={{ color: "var(--txt-2)" }}
                               >
                                 {tx(invoiceTypeLabel(inv.type))}
@@ -5527,7 +5527,7 @@ export default function AdvertiserApp() {
                                 return (
                                   <>
                                     <td
-                                      data-label="Amount"
+                                      data-label={tx("Amount")}
                                       className="r mono"
                                       style={{
                                         color: fromWallet
@@ -5539,7 +5539,7 @@ export default function AdvertiserApp() {
                                       {sym}
                                       {money2(inv.total)}
                                     </td>
-                                    <td data-label="Status" className="r">
+                                    <td data-label={tx("Status")} className="r">
                                       <span
                                         className="badge muted"
                                         title={
@@ -5584,18 +5584,18 @@ export default function AdvertiserApp() {
                           return (
                             <tr key={`f-${t.id}`}>
                               <td
-                                data-label="Date"
+                                data-label={tx("Date")}
                                 style={{ fontWeight: 600, whiteSpace: "nowrap" }}
                               >
                                 {dayjs(ev.at).format("D MMM")}
                               </td>
-                              <td data-label="Reference" className="mono">
+                              <td data-label={tx("Reference")} className="mono">
                                 {t.number
                                   ? `#${String(t.number).padStart(6, "0")}`
                                   : "—"}
                               </td>
                               <td
-                                data-label="Description"
+                                data-label={tx("Description")}
                                 style={{ color: "var(--txt-2)" }}
                               >
                                 {tr("label.adv.funded")}{" "}{t.account_name || tr("label.adv.anAdAccount")}
@@ -5624,14 +5624,14 @@ export default function AdvertiserApp() {
                                 ) : null}
                               </td>
                               <td
-                                data-label="Amount"
+                                data-label={tx("Amount")}
                                 className="r mono"
                                 style={{ color: "var(--danger)" }}
                               >
                                 −{sym}
                                 {money2(t.amount_received)}
                               </td>
-                              <td data-label="Status" className="r">
+                              <td data-label={tx("Status")} className="r">
                                 {/* The money has left the wallet in every
                                     one of these states. What differs is
                                     where it IS: on the account, on its
@@ -5680,25 +5680,25 @@ export default function AdvertiserApp() {
                           return (
                             <tr key={ev.id}>
                               <td
-                                data-label="Date"
+                                data-label={tx("Date")}
                                 style={{ fontWeight: 600, whiteSpace: "nowrap" }}
                               >
                                 {dayjs(ev.at).format("D MMM")}
                               </td>
-                              <td data-label="Reference" className="mono">
+                              <td data-label={tx("Reference")} className="mono">
                                 —
                               </td>
-                              <td data-label="What">
+                              <td data-label={tx("What")}>
                                 {refund
                                   ? tr("wallet.requestRefunded")
                                   : tr("wallet.requestFee")}
                               </td>
-                              <td data-label="Amount" className="r">
+                              <td data-label={tx("Amount")} className="r">
                                 {refund ? "+" : "−"}
                                 {sym}
                                 {Math.abs(amt).toFixed(2)}
                               </td>
-                              <td data-label="Status" className="r">
+                              <td data-label={tx("Status")} className="r">
                                 <span
                                   className={`badge ${refund ? "ok" : "muted"}`}
                                 >
@@ -5717,16 +5717,16 @@ export default function AdvertiserApp() {
                           return (
                             <tr key={`w-${w.id}`}>
                               <td
-                                data-label="Date"
+                                data-label={tx("Date")}
                                 style={{ fontWeight: 600, whiteSpace: "nowrap" }}
                               >
                                 {dayjs(ev.at).format("D MMM")}
                               </td>
-                              <td data-label="Reference" className="mono">
+                              <td data-label={tx("Reference")} className="mono">
                                 —
                               </td>
                               <td
-                                data-label="Description"
+                                data-label={tx("Description")}
                                 style={{ color: "var(--txt-2)" }}
                               >
                                 {String(w.status ?? "").toLowerCase() ===
@@ -5754,7 +5754,7 @@ export default function AdvertiserApp() {
                                 ) : null}
                               </td>
                               <td
-                                data-label="Amount"
+                                data-label={tx("Amount")}
                                 className="r mono"
                                 style={{ fontWeight: 700 }}
                               >
@@ -5790,7 +5790,7 @@ export default function AdvertiserApp() {
                                   </>
                                 )}
                               </td>
-                              <td data-label="Status" className="r">
+                              <td data-label={tx("Status")} className="r">
                                 {/* ── "Credited" WAS THE else BRANCH ──
                                     Anything not pending or rejected
                                     printed as Credited, in green. With
@@ -5875,16 +5875,16 @@ export default function AdvertiserApp() {
                           return (
                             <tr key={`m-${m.id}`}>
                               <td
-                                data-label="Date"
+                                data-label={tx("Date")}
                                 style={{ fontWeight: 600, whiteSpace: "nowrap" }}
                               >
                                 {dayjs(ev.at).format("D MMM")}
                               </td>
-                              <td data-label="Reference" className="mono">
+                              <td data-label={tx("Reference")} className="mono">
                                 {"\u2014"}
                               </td>
                               <td
-                                data-label="Description"
+                                data-label={tx("Description")}
                                 style={{ color: "var(--txt-2)" }}
                               >
                                 {m.kind === "refund"
@@ -5908,7 +5908,7 @@ export default function AdvertiserApp() {
                                 ) : null}
                               </td>
                               <td
-                                data-label="Amount"
+                                data-label={tx("Amount")}
                                 className="r mono"
                                 style={{ fontWeight: 700 }}
                               >
@@ -5916,7 +5916,7 @@ export default function AdvertiserApp() {
                                 {sym}
                                 {money2(Math.abs(m.amount))}
                               </td>
-                              <td data-label="Status" className="r">
+                              <td data-label={tx("Status")} className="r">
                                 <span className={`badge ${up ? "ok" : "muted"}`}>
                                   {m.kind === "refund" ? tr("label.stPaidOut") : tr("label.stApplied")}
                                 </span>
@@ -5930,16 +5930,16 @@ export default function AdvertiserApp() {
                           return (
                             <tr key={`x-${x.id}`}>
                               <td
-                                data-label="Date"
+                                data-label={tx("Date")}
                                 style={{ fontWeight: 600, whiteSpace: "nowrap" }}
                               >
                                 {dayjs(x.created_at).format("D MMM")}
                               </td>
-                              <td data-label="Reference" className="mono">
+                              <td data-label={tx("Reference")} className="mono">
                                 —
                               </td>
                               <td
-                                data-label="Description"
+                                data-label={tx("Description")}
                                 style={{ color: "var(--txt-2)" }}
                               >
                                 Exchanged {sym(x.from_currency)}
@@ -5980,14 +5980,14 @@ export default function AdvertiserApp() {
                                 })()}
                               </td>
                               <td
-                                data-label="Amount"
+                                data-label={tx("Amount")}
                                 className="r mono"
                                 style={{ fontWeight: 700 }}
                               >
                                 {sym(x.to_currency)}
                                 {money2(x.to_amount)}
                               </td>
-                              <td data-label="Status" className="r">
+                              <td data-label={tx("Status")} className="r">
                                 <span className="badge ok">Exchanged</span>
                               </td>
                             </tr>
@@ -5997,30 +5997,30 @@ export default function AdvertiserApp() {
                         return (
                         <tr key={t.id}>
                           <td
-                            data-label="Date"
+                            data-label={tx("Date")}
                             style={{ fontWeight: 600, whiteSpace: "nowrap" }}
                           >
                             {dayjs(t.created_at).format("D MMM")}
                           </td>
-                          <td data-label="Reference" className="mono">
+                          <td data-label={tx("Reference")} className="mono">
                             {formatPaymentReference(
                               referralCode,
                               t.reference_no,
                             ) ||
                               (t.reference_no ?? "—")}
                           </td>
-                          <td data-label="Description" style={{ color: "var(--txt-2)" }}>
+                          <td data-label={tx("Description")} style={{ color: "var(--txt-2)" }}>
                             {t.description || tr("wallet.topupDefault")}
                           </td>
                           <td
-                            data-label="Amount"
+                            data-label={tx("Amount")}
                             className="r mono"
                             style={{ fontWeight: 700 }}
                           >
                             {currencySymbol(t.currency)}
                             {money2(t.amount)}
                           </td>
-                          <td data-label="Status" className="r">
+                          <td data-label={tx("Status")} className="r">
                             <span className="stwrap">
                             {/* `failed` fell through the else and rendered
                                 "Pending" — so a top-up that will never be
@@ -7354,7 +7354,7 @@ export default function AdvertiserApp() {
                                 card's title label back on for this one
                                 list; everywhere else the first cell is a
                                 name that speaks for itself. */}
-                            <td data-label="Reference" style={{ fontWeight: 600 }}>
+                            <td data-label={tx("Reference")} style={{ fontWeight: 600 }}>
                               {/* One tap copies it. This is a string
                                   somebody retypes into a bank form or an
                                   email to us, and retyping a reference by
@@ -7368,17 +7368,17 @@ export default function AdvertiserApp() {
                                 )}
                               />
                             </td>
-                            <td data-label="Date">
+                            <td data-label={tx("Date")}>
                               {dayjs(inv.created_at).format("D MMM YYYY")}
                             </td>
                             {/* WHAT the invoice is for. Without it the page
                                 was a list of amounts: a plan fee and a plan
                                 change, both "Due", both €-something, and
                                 nothing on the row to tell them apart. */}
-                            <td data-label="Type">
+                            <td data-label={tx("Type")}>
                               {tx(invoiceTypeLabel(inv.type))}
                             </td>
-                            <td data-label="Amount" className="r mono">
+                            <td data-label={tx("Amount")} className="r mono">
                               {invSym}
                               {money2(inv.total)}
                             </td>
@@ -7387,7 +7387,7 @@ export default function AdvertiserApp() {
                                 so the €200 we superseded kept asking the
                                 customer for €200 after it had been
                                 cancelled. */}
-                            <td data-label="Status" className="r">
+                            <td data-label={tx("Status")} className="r">
                               <span className={`badge ${invSt.tone}`}>
                                 {tx(invSt.label)}
                               </span>
