@@ -38,6 +38,14 @@ export function makeQueryClient() {
         // people to dismiss the toasts that do matter.
         if (query.meta?.silent) return;
 
+        // ── NIET NA HET UITLOGGEN ──────────────────────────────────
+        // De eigenaar, 01-10: na uitloggen als super-admin stond op het
+        // inlogscherm "Couldn't load some data (rate-limit-buckets)". Een
+        // lijst die elke 30 seconden ververst, draaide nog een keer zonder
+        // sessie. Op de inlog- en aanmeldschermen is een mislukte lees
+        // van het vorige scherm geen nieuws voor wie daar staat.
+        if (typeof window !== "undefined" && /^\/(auth|invite)\b/.test(window.location.pathname)) return;
+
         const key = JSON.stringify(query.queryKey);
         const now = Date.now();
         const last = lastToastAt.get(key) ?? 0;

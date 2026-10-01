@@ -442,8 +442,28 @@ export function getNotificationCopy(
     case "integration_failure": {
       // Admin-facing. The payload names the service; saying which one is
       // the entire difference between acting and ignoring it.
-      const p = (notification.payload ?? {}) as { source?: string };
+      const p = (notification.payload ?? {}) as { source?: string; detail?: string };
       const source = typeof p.source === "string" && p.source ? p.source : null;
+      const detail = typeof p.detail === "string" && p.detail ? p.detail : null;
+      // Twee bronnen zijn geen "verbinding" en kregen toch die zin: de
+      // eigenaar las "A connection to backup is failing" en wist niet wat
+      // er aan de hand was (01-10).
+      if (source === "backup") {
+        return {
+          title: "Backup problem",
+          description: detail
+            ? `Last night's backup did not fully work: ${detail}`
+            : "Last night's backup did not fully work. Check the backup e-mail or Google Drive.",
+        };
+      }
+      if (source === "app") {
+        return {
+          title: "Error in the app",
+          description: detail
+            ? `Someone hit an error: ${detail}`
+            : "Someone hit an error in the app.",
+        };
+      }
       return {
         title: "Connection failing",
         description: source
