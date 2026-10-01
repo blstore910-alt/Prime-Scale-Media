@@ -9,12 +9,12 @@
 // than in a message, because this is where somebody will next wonder.
 //
 // WHAT A DST LINE NEEDS is the SPEND per customer, per country, per
-// week. Neither supplier will tell us. SeamX exposes three endpoints
+// week. Neither supplier will tell us. Falkyn exposes three endpoints
 // (top-ups, withdrawals, wallet balance) and RockAds two (wallets,
 // ad-accounts); there is no statistics, insights or reporting endpoint
 // on either. So the weekly lines on this screen are still typed.
 //
-// WHAT THEY DO REPORT is this: SeamX states a wallet balance AND a
+// WHAT THEY DO REPORT is this: Falkyn states a wallet balance AND a
 // spendable balance, and the gap between them is the tax they are
 // holding back off our own money. That is a real DST figure from a real
 // supplier, it is OUR cost, and until now nobody could see it without
@@ -82,8 +82,8 @@ export default function SupplierDstReserve() {
 
           <div className="mt-2.5 flex flex-col gap-1.5">
             {/* GROUPED BY SUPPLIER, not one flat list of lines.
-                Walked on production, 29-09: SeamX holds back in both
-                currencies, so a line per currency printed "SeamX /
+                Walked on production, 29-09: Falkyn holds back in both
+                currencies, so a line per currency printed "Falkyn /
                 TEST DATA" twice and the card read as two different
                 suppliers. The name is the heading; the currencies sit
                 under it. */}
@@ -138,7 +138,7 @@ export default function SupplierDstReserve() {
             <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-amber-300/60 bg-amber-50/60 p-2 text-xs text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/5 dark:text-amber-400">
               <FlaskConical className="mt-px h-3.5 w-3.5 flex-none" />
               <span>
-                SeamX is on the mock adapter, so that figure is invented and
+                Falkyn is on the mock adapter, so that figure is invented and
                 identical every time. Set SUPPLIER1_MODE to &quot;live&quot; to
                 read the real reserve.
               </span>

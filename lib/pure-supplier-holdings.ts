@@ -29,7 +29,7 @@ export type HoldingWallet = {
   currency?: string | null;
 };
 
-/** What SeamX returns from /v1/wallets/balance, already parsed. */
+/** What Falkyn returns from /v1/wallets/balance, already parsed. */
 export type HoldingSeamx = {
   usd_balance?: number | null;
   eur_balance?: number | null;
@@ -50,7 +50,7 @@ export type HoldingLine = {
   available: number | null;
   /**
    * Gross minus spendable, when both are known and gross is the larger.
-   * For SeamX this is the DST the supplier is holding back. Null when
+   * For Falkyn this is the DST the supplier is holding back. Null when
    * the supplier reports no such split.
    */
   heldBack: number | null;
@@ -75,7 +75,7 @@ export type SupplierHolding = {
    *         not a fault.
    * error — we asked and did not get an answer. Figures are unknown.
    * demo  — the MOCK adapter answered. It returns USD 5,000 / EUR 2,000
-   *         with a plausible 3% reserve and `ok: true`, and SeamX is in
+   *         with a plausible 3% reserve and `ok: true`, and Falkyn is in
    *         mock mode unless SUPPLIER1_MODE is exactly "live" — which is
    *         the default. Without this state the dashboard would have
    *         shown invented supplier credit as fact, to the one person
@@ -173,7 +173,7 @@ export function rockadsHoldings(
 }
 
 /**
- * SeamX: one balance object, two currencies, with a spendable figure
+ * Falkyn: one balance object, two currencies, with a spendable figure
  * beside each.
  *
  * A currency they report as null is LEFT OUT rather than shown as zero.

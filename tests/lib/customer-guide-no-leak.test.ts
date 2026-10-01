@@ -48,7 +48,7 @@ function zonderCommentaar(s: string): string {
 
 const VERBODEN: [RegExp, string][] = [
   [/rockads/i, "de naam van een leverancier"],
-  [/seamx|gradyn|supplier1/i, "de naam van een leverancier"],
+  [/seamx|falkyn|gradyn|supplier1/i, "de naam van een leverancier"],
   [/\bsupplier\b/i, "het woord supplier -- een klant heeft geen leverancier"],
   [/\bmargin\b|\bmarge\b/i, "onze marge"],
   [/meta-eu|eu-meta|hk-meta|psm-ra/i, "een ad-accounttype"],

@@ -509,13 +509,13 @@ end $$;
 `delta` MOET gelijk zijn aan `amount`. (Uitgevoerd 2026-09-13:
 amount=300, before=300, after=600, delta=300 → PASS.)
 
-### 4b.2 Ad-account pool (SeamX + handmatig)
+### 4b.2 Ad-account pool (Falkyn + handmatig)
 
 Migratie `20260913200000_supplier_ad_account_pool` vereist.
 
-1. Admin → Account pool: lijst toont zowel **SeamX**- als
+1. Admin → Account pool: lijst toont zowel **Falkyn**- als
    **Manual**-rijen (kolom Source).
-2. "Sync" haalt SeamX-inventaris op (upsert op
+2. "Sync" haalt Falkyn-inventaris op (upsert op
    `tenant_id, provider, external_id`) — twee keer syncen maakt géén
    duplicaten.
 3. "Add manual" voegt een eigen account toe met `provider='manual'`.

@@ -32,14 +32,14 @@ export default function IntegrationStatusCard() {
       <CardHeader>
         <CardTitle>Integrations</CardTitle>
         <CardDescription>
-          Check connectivity to SeamX (ad accounts) and Wise (incoming
+          Check connectivity to Falkyn (ad accounts) and Wise (incoming
           transfers). Uses the live credentials when the mode is set to
           &ldquo;live&rdquo;; tokens are never shown.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <AutoPushRow />
-        <IntegrationRow label="SeamX" test={testSupplier1Connection} />
+        <IntegrationRow label="Falkyn" test={testSupplier1Connection} />
         <IntegrationRow label="Wise" test={testWiseConnection} />
         <AccountProbeRow />
         <FeeReconRow />

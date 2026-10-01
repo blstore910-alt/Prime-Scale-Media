@@ -119,7 +119,7 @@ On Vercel **Production** (not Preview):
 - `WISE_API_PRIVATE_KEY` — set, with its `-----BEGIN/END-----` lines.
   Wise demands SCA for statement reads on this account; the app signs the
   challenge with this key.
-- `SUPPLIER1_*` and `WISE_MODE` are on **Preview only** — so the SeamX
+- `SUPPLIER1_*` and `WISE_MODE` are on **Preview only** — so the Falkyn
   adapter is not configured on production. J3's automation half is out of
   scope for this walkthrough; the manual half is what we are testing.
 

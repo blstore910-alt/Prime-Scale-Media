@@ -86,7 +86,7 @@ test("no wallets is an empty list, not a zero line", () => {
 
 // ── SEAMX: GROSS, SPENDABLE, AND THE DST IN BETWEEN ────────────────
 
-test("what SeamX holds back is the difference, and it is named", () => {
+test("what Falkyn holds back is the difference, and it is named", () => {
   const lines = seamxHoldings({
     usd_balance: 1000,
     available_usd: 900,
@@ -109,7 +109,7 @@ test("spendable above gross is never reported as a negative reserve", () => {
   assert.equal(lines[0].available, 150);
 });
 
-test("a currency SeamX does not report is left out, not shown as zero", () => {
+test("a currency Falkyn does not report is left out, not shown as zero", () => {
   const lines = seamxHoldings({ usd_balance: 42, available_usd: 42 });
   assert.equal(lines.length, 1);
   assert.equal(lines[0].currency, "USD");
@@ -143,7 +143,7 @@ const line = (currency: string, total: number) => ({
 test("the total adds the same currency across suppliers", () => {
   const { lines, complete } = totalHoldings([
     ok("RockAds", [line("EUR", 100), line("USD", 50)]),
-    ok("SeamX", [line("EUR", 25)]),
+    ok("Falkyn", [line("EUR", 25)]),
   ]);
   assert.equal(complete, true);
   assert.deepEqual(lines, [
@@ -155,7 +155,7 @@ test("the total adds the same currency across suppliers", () => {
 test("a supplier we could not read makes the total incomplete", () => {
   const { lines, complete } = totalHoldings([
     ok("RockAds", [line("EUR", 100)]),
-    { supplier: "SeamX", status: "error", error: "timeout", lines: [] },
+    { supplier: "Falkyn", status: "error", error: "timeout", lines: [] },
   ]);
   assert.equal(complete, false);
   // The figure it CAN see is still returned — the panel decides what to
@@ -166,14 +166,14 @@ test("a supplier we could not read makes the total incomplete", () => {
 test("a supplier switched off holds nothing, and that is not incomplete", () => {
   const { complete } = totalHoldings([
     ok("RockAds", [line("EUR", 100)]),
-    { supplier: "SeamX", status: "off", error: null, lines: [] },
+    { supplier: "Falkyn", status: "off", error: null, lines: [] },
   ]);
   assert.equal(complete, true);
 });
 
 test("a failed supplier's stale lines never reach the total", () => {
   const { lines } = totalHoldings([
-    { supplier: "SeamX", status: "error", error: "500", lines: [line("EUR", 9_999)] },
+    { supplier: "Falkyn", status: "error", error: "500", lines: [line("EUR", 9_999)] },
   ]);
   assert.deepEqual(lines, []);
 });
@@ -188,7 +188,7 @@ test("cents survive a list of thirds", () => {
 
 // ── THE MOCK IS THE MOST DANGEROUS ANSWER OF THE FOUR ──────────────
 //
-// SeamX runs on the MOCK adapter unless SUPPLIER1_MODE is exactly
+// Falkyn runs on the MOCK adapter unless SUPPLIER1_MODE is exactly
 // "live", and the default is mock. The mock returns `ok: true` with
 // USD 5,000 / EUR 2,000 and a 3% reserve — a completely plausible set
 // of figures. Put on a dashboard unlabelled, that is invented supplier
@@ -198,14 +198,14 @@ test("a demo supplier never contributes to the total", () => {
   const { lines, complete } = totalHoldings([
     ok("RockAds", [line("EUR", 100)]),
     {
-      supplier: "SeamX",
+      supplier: "Falkyn",
       status: "demo",
       error: null,
       lines: [line("USD", 5_000), line("EUR", 2_000)],
     },
   ]);
   assert.deepEqual(lines, [{ currency: "EUR", total: 100 }]);
-  // And the total is not called complete: the real SeamX balance is as
+  // And the total is not called complete: the real Falkyn balance is as
   // unknown as it would be after a timeout.
   assert.equal(complete, false);
 });
@@ -274,29 +274,29 @@ test("de mock telt NIET mee, en wordt bij naam genoemd", () => {
   const g = grandTotal(
     [
       ok("RockAds", [line("EUR", 100)]),
-      { supplier: "SeamX", status: "demo", error: null,
+      { supplier: "Falkyn", status: "demo", error: null,
         lines: [line("EUR", 2_000), line("USD", 5_000)] },
     ],
     RATE,
   );
   assert.equal(g.eur, 100);
   assert.equal(g.usd, 0);
-  assert.deepEqual(g.excluded, [{ supplier: "SeamX", why: "test data" }]);
+  assert.deepEqual(g.excluded, [{ supplier: "Falkyn", why: "test data" }]);
 });
 
 test("een leverancier die niet antwoordde telt niet mee en wordt genoemd", () => {
   const g = grandTotal(
     [ok("RockAds", [line("EUR", 100)]),
-     { supplier: "SeamX", status: "error", error: "timeout", lines: [] }],
+     { supplier: "Falkyn", status: "error", error: "timeout", lines: [] }],
     RATE,
   );
-  assert.deepEqual(g.excluded, [{ supplier: "SeamX", why: "could not be read" }]);
+  assert.deepEqual(g.excluded, [{ supplier: "Falkyn", why: "could not be read" }]);
 });
 
 test("uitgeschakeld hoeft niet genoemd: dat is een nul, geen onbekende", () => {
   const g = grandTotal(
     [ok("RockAds", [line("EUR", 100)]),
-     { supplier: "SeamX", status: "off", error: null, lines: [] }],
+     { supplier: "Falkyn", status: "off", error: null, lines: [] }],
     RATE,
   );
   assert.deepEqual(g.excluded, []);

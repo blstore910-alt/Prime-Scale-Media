@@ -35,7 +35,7 @@ import type {
 const NOT_CONFIGURED =
   "Supplier 1 live mode is on but SUPPLIER1_BASE_URL / SUPPLIER1_AUTH_TOKEN are not set.";
 
-// SeamX status vocab → our vocab.
+// Falkyn status vocab → our vocab.
 function mapAccountStatus(s: string | null | undefined): Supplier1AdAccount["status"] {
   switch ((s ?? "").toLowerCase()) {
     case "accepted":
@@ -117,21 +117,21 @@ function acknowledgedMovement(
   if (!id) {
     return {
       ok: false,
-      error: `SeamX answered 200 but named no ${what} id, so nothing can be confirmed as sent.`,
+      error: `Falkyn answered 200 but named no ${what} id, so nothing can be confirmed as sent.`,
       retryable: true,
     };
   }
   if (statusWord && !KNOWN_MOVEMENT_STATUSES.has(statusWord)) {
     return {
       ok: false,
-      error: `SeamX reported the ${what} as "${statusWord}", which is not a status this app knows. Treating it as unsent rather than guessing.`,
+      error: `Falkyn reported the ${what} as "${statusWord}", which is not a status this app knows. Treating it as unsent rather than guessing.`,
       retryable: true,
     };
   }
   return { ok: true, id, status: mapMovementStatus(statusWord) };
 }
 
-// SeamX topup/withdraw status → our queued/completed/failed.
+// Falkyn topup/withdraw status → our queued/completed/failed.
 function mapMovementStatus(
   s: string | null | undefined,
 ): "queued" | "completed" | "failed" {
@@ -151,7 +151,7 @@ function mapMovementStatus(
 // into an IntegrationResult. 4xx (except 429) is terminal; 5xx / network is
 // retryable so the job worker backs off and tries again.
 //
-// SeamX is case-INconsistent about the auth header: most endpoints read
+// Falkyn is case-INconsistent about the auth header: most endpoints read
 // `authToken`, but the ad-accounts LIST endpoint only accepts lowercase
 // `authtoken` (camelCase there 500s server-side). Callers pass `authHeader`
 // with the exact casing that endpoint wants; default is `authToken`.
@@ -177,7 +177,7 @@ async function seamxFetch<T>(
         ...(hasBody ? { "Content-Type": "application/json" } : {}),
         ...(reqInit.headers ?? {}),
       },
-      // Bound the request. Without this a hung SeamX connection blocks until
+      // Bound the request. Without this a hung Falkyn connection blocks until
       // the serverless function is killed mid-flight, which is exactly how a
       // job row gets stranded in 'processing' with nothing to reclaim it.
       // An abort lands in the catch below and is treated as retryable.
@@ -199,7 +199,7 @@ async function seamxFetch<T>(
         (json as { message?: string } | null)?.message ??
         null;
       const snippet = text ? ` ${text.slice(0, 300)}` : "";
-      const msg = structured ?? `SeamX ${res.status}:${snippet}`.trim();
+      const msg = structured ?? `Falkyn ${res.status}:${snippet}`.trim();
       const retryable = res.status >= 500 || res.status === 429;
       return { ok: false, error: String(msg), retryable };
     }
@@ -223,14 +223,14 @@ async function seamxFetch<T>(
     if (json === null && text.trim().length > 0) {
       return {
         ok: false,
-        error: `SeamX answered ${res.status} with a body that is not JSON: ${text.slice(0, 200)}`,
+        error: `Falkyn answered ${res.status} with a body that is not JSON: ${text.slice(0, 200)}`,
         retryable: true,
       };
     }
     if (json === null) {
       return {
         ok: false,
-        error: `SeamX answered ${res.status} with an empty body, so nothing can be confirmed.`,
+        error: `Falkyn answered ${res.status} with an empty body, so nothing can be confirmed.`,
         retryable: true,
       };
     }
@@ -239,7 +239,7 @@ async function seamxFetch<T>(
     // Never reached the remote (DNS/timeout/network) — safe to retry.
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "SeamX request failed",
+      error: err instanceof Error ? err.message : "Falkyn request failed",
       retryable: true,
     };
   }
@@ -277,7 +277,7 @@ type SeamxList<T> = {
 function balanceToCents(v: number | string | null | undefined): number | null {
   if (v === null || v === undefined || v === "") return null;
   // A FORMATTED AMOUNT IS STILL AN AMOUNT. This used a bare Number(),
-  // while num() twenty lines down exists precisely because "SeamX returns
+  // while num() twenty lines down exists precisely because "Falkyn returns
   // money as a number OR a formatted string ('4,849.50')" and
   // Number("4,849.50") is NaN. So a formatted balance read as "not
   // reported" here, and a formatted supplier FEE — where the caller does
@@ -290,10 +290,10 @@ function balanceToCents(v: number | string | null | undefined): number | null {
   return Number.isFinite(n) ? Math.round(n * 100) : null;
 }
 
-// Amounts cross the boundary in cents on our side; SeamX speaks major units.
+// Amounts cross the boundary in cents on our side; Falkyn speaks major units.
 const toMajor = (cents: number) => Math.round(cents) / 100;
 
-// SeamX returns money as a number OR a formatted string ("4,849.50").
+// Falkyn returns money as a number OR a formatted string ("4,849.50").
 // Number("4,849.50") is NaN, and every comparison against NaN is false — so a
 // formatted balance silently disabled the low-balance alarm (NaN < threshold
 // === false) while the cron reported healthy. Parse defensively.
@@ -447,7 +447,7 @@ const mockSupplier1Adapter: Supplier1Adapter = {
   },
 };
 
-// Real SeamX adapter. Mapped to the endpoints SeamX documents today
+// Real Falkyn adapter. Mapped to the endpoints Falkyn documents today
 // (see docs/SEAMX_API.md) — nothing beyond their current functions.
 // Only runs when SUPPLIER1_MODE=live AND the base URL + token are set.
 const realSupplier1Adapter: Supplier1Adapter = {
@@ -729,7 +729,7 @@ const realSupplier1Adapter: Supplier1Adapter = {
  * schrijven.
  *
  * `SUPPLIER1_MODE` bestaat om te voorkomen dat er echt geld naar
- * SeamX wordt GEDUWD voordat iemand dat bewust aanzet -- zie
+ * Falkyn wordt GEDUWD voordat iemand dat bewust aanzet -- zie
  * autopush.ts, waar een spatie achter "live " ooit de geldpoort
  * opende terwijl de mock het werk deed. Dat is een schrijfbeveiliging.
  *

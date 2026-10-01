@@ -236,14 +236,14 @@ gaat daarom van de bladeren naar de wortel.
 De eigenaar vroeg: "en je kan miss ook van rockads en seamx in de dst
 verwerken?" Gemeten, niet geraden:
 
-**Wat WEL kan, en sinds vandaag op /dst staat.** SeamX geeft naast het
+**Wat WEL kan, en sinds vandaag op /dst staat.** Falkyn geeft naast het
 saldo ook een besteedbaar saldo, en het verschil is de belasting die ze
 van ons inhouden. Dat is het enige echte DST-cijfer dat een van beide
 leveranciers rapporteert, en het stond tot nu toe alleen op hun site.
 RockAds rapporteert geen enkel belastingcijfer.
 
 **Wat NIET kan.** Een DST-regel heeft BESTEDING nodig, per klant, per
-land, per week. SeamX heeft drie endpoints (topups, withdrawals,
+land, per week. Falkyn heeft drie endpoints (topups, withdrawals,
 wallet-saldo), RockAds twee (wallets, ad-accounts). Geen van beide heeft
 statistics, insights of reporting. Er valt dus niets op te halen.
 

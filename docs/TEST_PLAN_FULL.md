@@ -31,7 +31,7 @@ Two standing constraints that override anything below:
    during testing. Every step that would push money to the supplier is
    written to assume the gate is shut and to *verify that nothing was sent*.
 2. **The supplier is never named to a customer.** Any screen reached as an
-   advertiser or affiliate fails this plan if the word SeamX, a supplier
+   advertiser or affiliate fails this plan if the word Falkyn, a supplier
    account id, a cost or a margin appears anywhere in it — including in the
    JSON behind the page, not just in what renders.
 
@@ -311,22 +311,22 @@ The four bold cells are the ones that were wrong today.
 
 ## 3b. The one live supplier push
 
-The point of this test is narrow: prove that ONE real top-up reaches SeamX,
-that the figures match on both sides, and that SeamX's own portal still shows
+The point of this test is narrow: prove that ONE real top-up reaches Falkyn,
+that the figures match on both sides, and that Falkyn's own portal still shows
 what it should afterwards. Nothing more goes out.
 
-### What the app does to SeamX when nobody is testing
+### What the app does to Falkyn when nobody is testing
 
 Measured from the code, not assumed:
 
 | path | frequency |
 |---|---|
-| `/api/cron/integration-jobs` | every minute, but it only claims QUEUED jobs. An empty queue means zero calls to SeamX. |
+| `/api/cron/integration-jobs` | every minute, but it only claims QUEUED jobs. An empty queue means zero calls to Falkyn. |
 | supplier balance check | once an hour, on the hour only (`getUTCMinutes() !== 0` returns early), and only when `SUPPLIER1_MODE=live`. |
 | ad-account pool sync | every 15 minutes (4 calls/hour) when `SUPPLIER1_MODE=live`, plus on demand from the Sync button. A READ, so it is not behind the auto-push gate. |
 
 So with the gate shut and nobody clicking, live traffic is one balance read
-an hour plus four inventory reads an hour. No writes. SeamX's portal sees
+an hour plus four inventory reads an hour. No writes. Falkyn's portal sees
 nothing else from us.
 
 ### The trap
@@ -364,7 +364,7 @@ two-switch gate exists to prevent, so do not defeat it by accident.
 3. **Verify it** through the normal admin dialog. Confirm exactly one
    `push_topup` row now exists, held.
 
-4. **Record the before state**: SeamX wallet balance, and the ad account's
+4. **Record the before state**: Falkyn wallet balance, and the ad account's
    balance in their portal.
 
 5. **Open the gate**: `SUPPLIER1_MODE=live`, `SUPPLIER1_AUTOPUSH=on`. Note
@@ -372,7 +372,7 @@ two-switch gate exists to prevent, so do not defeat it by accident.
    used to arm the gate while routing the job to the MOCK adapter, which
    reports success without sending anything.
 
-6. **Wait one minute.** The cron claims it, calls SeamX once, and writes the
+6. **Wait one minute.** The cron claims it, calls Falkyn once, and writes the
    result onto the job row.
 
 7. **Shut the gate immediately.** `SUPPLIER1_AUTOPUSH` off. Do this before
@@ -381,7 +381,7 @@ two-switch gate exists to prevent, so do not defeat it by accident.
 8. **Check three things agree**, in this order:
    - `integration_jobs.status = 'succeeded'`, with the supplier's response in
      `result`.
-   - SeamX's portal: the ad account's balance rose by the pushed amount, and
+   - Falkyn's portal: the ad account's balance rose by the pushed amount, and
      the wallet fell by that amount plus their fee.
    - Our side: the ad account's recorded balance and the top-up row.
    Any disagreement stops the test. A push that half-happened is worse than
@@ -393,7 +393,7 @@ two-switch gate exists to prevent, so do not defeat it by accident.
    twice here, the gate is not the problem — the idempotency key is, and
    nothing goes live until it holds.
 
-10. **Confirm SeamX's own portal still behaves**: log into it directly, load
+10. **Confirm Falkyn's own portal still behaves**: log into it directly, load
     the account list, the wallet, the top-up history. Our push must appear as
     an ordinary entry, not as something that put their side into a strange
     state.

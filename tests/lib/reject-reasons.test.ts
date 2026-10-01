@@ -10,7 +10,7 @@ import {
 // test rather than a comment, because the next person adding a template
 // will be in a hurry.
 const FORBIDDEN = [
-  "seamx", "gradyn", "rockads", "supplier", "provider", "reseller",
+  "seamx", "falkyn", "gradyn", "rockads", "supplier", "provider", "reseller",
   "partner", "upstream", "vendor",
 ];
 

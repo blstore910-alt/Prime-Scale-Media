@@ -4,7 +4,7 @@
 // zien wat we momenteel usd en eur hebben bij rockads en bij seamx."
 //
 // ADMIN-GATED, and it stays that way. A supplier balance is cost data:
-// it names the suppliers, and the SeamX line exposes the tax they hold
+// it names the suppliers, and the Falkyn line exposes the tax they hold
 // back from us. Neither belongs anywhere a customer or an affiliate can
 // reach — not in the UI, not in the JSON behind it. This route is the
 // JSON behind it, so the guard is the whole point.
@@ -17,7 +17,7 @@
 // WHY BOTH SUPPLIERS IN ONE ROUTE, AND WHY NEITHER CAN HIDE THE OTHER.
 // Two fetches to two third parties, and each can be slow, off or down
 // independently. `allSettled`, not `all`: with `all` a RockAds timeout
-// takes the SeamX figure down with it, and the screen would say nothing
+// takes the Falkyn figure down with it, and the screen would say nothing
 // is known when half of it is.
 
 import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
@@ -87,12 +87,12 @@ async function rockads(): Promise<SupplierHolding> {
 // blank panel, but they are labelled and they are kept out of the
 // total.
 async function seamx(): Promise<SupplierHolding> {
-  const base = { supplier: "SeamX" } as const;
+  const base = { supplier: "Falkyn" } as const;
   try {
     // ── HET ECHTE SALDO EERST ──────────────────────────────────
     //
     // SUPPLIER1_MODE is een schrijfbeveiliging: hij houdt tegen dat
-    // er geld naar SeamX wordt geduwd. Een saldo lezen valt daar
+    // er geld naar Falkyn wordt geduwd. Een saldo lezen valt daar
     // niet onder, en de mock teruggeven op die vraag is een verzonnen
     // antwoord (USD 5.000 / EUR 2.000) op precies het cijfer waar
     // iemand op beslist of de mode aan mag.
@@ -125,7 +125,7 @@ async function seamx(): Promise<SupplierHolding> {
       return { ...base, status: "off", error: null, readAt: null, lines: [] };
     }
 
-    // Sleutels staan er wel en SeamX antwoordde niet. Dat is een
+    // Sleutels staan er wel en Falkyn antwoordde niet. Dat is een
     // storing en moet als storing lezen, niet als mockcijfers.
     return {
       ...base,
@@ -154,7 +154,7 @@ async function seamx(): Promise<SupplierHolding> {
 // leveranciers alleen.
 //
 // Het staat apart van de twee erboven omdat het iets anders IS: bij
-// RockAds en SeamX hebben we krediet staan dat alleen daar besteed
+// RockAds en Falkyn hebben we krediet staan dat alleen daar besteed
 // kan worden; bij Wise staat geld dat overal heen kan.
 async function wise(): Promise<SupplierHolding> {
   const base = { supplier: "Wise", kind: "bank" } as const;
@@ -284,7 +284,7 @@ export async function GET() {
   // Neither of these rejects — both resolve to a status — but allSettled
   // guarantees that even a throw inside the guard clauses cannot turn
   // one slow supplier into a 500 for both.
-  const names = ["RockAds", "SeamX", "Wise", "Slash"];
+  const names = ["RockAds", "Falkyn", "Wise", "Slash"];
   const settled = await Promise.allSettled([rockads(), seamx(), wise(), slash()]);
   const suppliers: SupplierHolding[] = settled.map((s, i) =>
     s.status === "fulfilled"

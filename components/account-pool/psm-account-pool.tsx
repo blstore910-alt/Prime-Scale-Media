@@ -506,7 +506,7 @@ export default function PsmAccountPool() {
               "Syncing…"
             ) : (
               <>
-                Sync <span className="lbl-long">from SeamX</span>
+                Sync <span className="lbl-long">from Falkyn</span>
               </>
             )}
           </button>
@@ -581,7 +581,7 @@ export default function PsmAccountPool() {
               onChange: (v) => setSource(v as "all" | "supplier1" | "manual"),
               options: [
                 { value: "all", label: "All sources" },
-                { value: "supplier1", label: "SeamX" },
+                { value: "supplier1", label: "Falkyn" },
                 { value: "manual", label: "Manual (ours)" },
               ],
             },
@@ -651,7 +651,7 @@ export default function PsmAccountPool() {
                             r.provider === "manual" ? "info" : "pend"
                           }`}
                         >
-                          {r.provider === "manual" ? "Manual" : "SeamX"}
+                          {r.provider === "manual" ? "Manual" : "Falkyn"}
                         </span>
                       </td>
                       <td data-label="Platform">
@@ -768,7 +768,7 @@ export default function PsmAccountPool() {
             </button>
           </div>
           <p className="cap">
-            An account you hold yourself (not from SeamX). It joins the same
+            An account you hold yourself (not from Falkyn). It joins the same
             pool and is allocated the same way. Syncing never touches it.
           </p>
 

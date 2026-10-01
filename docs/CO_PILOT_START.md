@@ -80,7 +80,7 @@ nog open:
   afgaan -- en de reden staat er letterlijk bij: *"pushes stay manual
   (admin funds the account in the supplier portal)"*. Op de database
   staan **nul** rijen in `integration_jobs`, ooit. De mock wordt dus
-  niet bereikt en SeamX ook niet.
+  niet bereikt en Falkyn ook niet.
 
   Met andere woorden: het vullen van een ad-account is vandaag
   handwerk, net als elke andere geldstap in deze app. Dat is geen

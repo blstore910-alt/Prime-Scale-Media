@@ -933,7 +933,7 @@ export async function readAdAccountLiveBalance(adAccountId: string): Promise<
   // De eigenaar, 30-09: "stel het is een API ad account, dan dus alleen
   // wat er live op dat ad acc staat als max refundable."
   //
-  // Tot vandaag vroeg deze functie het ALTIJD aan supplier1 (SeamX), en
+  // Tot vandaag vroeg deze functie het ALTIJD aan supplier1 (Falkyn), en
   // die staat in mock. Daardoor zei het Approve-scherm "the supplier is
   // in mock mode" boven een RockAds-account -- terwijl RockAds live is
   // en per ad-account gewoon een saldo teruggeeft. Gemeten op 30-09:
@@ -1059,7 +1059,7 @@ export async function readAdAccountLiveBalance(adAccountId: string): Promise<
 // en dat is een ander antwoord dan "we konden het even niet nakijken".
 //
 // EN HIJ IS GEEN BOODSCHAPPER VAN DE LEVERANCIER. Elke reden hieronder
-// is in onze eigen woorden geschreven; de tekst die RockAds of SeamX
+// is in onze eigen woorden geschreven; de tekst die RockAds of Falkyn
 // zelf teruggeeft wordt NIET doorgegeven, want daar staat hun naam in.
 export async function readOwnAdAccountLiveBalance(adAccountId: string): Promise<
   | { ok: true; data: { available: false; reason: string } }

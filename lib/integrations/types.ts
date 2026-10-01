@@ -106,7 +106,7 @@ export interface Supplier1Adapter {
    * once — the exact risk enqueue.ts describes.
    *
    * The owner chose to credit AFTER the supplier confirms on API
-   * accounts, so something has to ask. This is that ask. SeamX
+   * accounts, so something has to ask. This is that ask. Falkyn
    * documents GET /v1/withdrawls/{id}, so no webhook is needed.
    */
   getWithdraw(

@@ -16,7 +16,7 @@
 // THE THING THIS PANEL REFUSES TO DO is print a number it is not sure
 // of. Four states come back per supplier and all four are shown as
 // themselves: read, switched off, could not read, and MOCK. That last
-// one matters most — SeamX answers from the mock adapter unless
+// one matters most — Falkyn answers from the mock adapter unless
 // SUPPLIER1_MODE is exactly "live", the mock returns USD 5,000 with
 // `ok: true`, and this panel is read by the person who decides whether
 // to fund an account.
@@ -272,7 +272,7 @@ function fmt(amount: number, currency: string): string {
 
    Komt die sleutel er ooit, dan hoort hij hier weer bij -- en dan zegt
    de rij eronder vanzelf wat hij houdt. */
-const SUPPLIER_ORDER = ["RockAds", "SeamX", "Wise"];
+const SUPPLIER_ORDER = ["RockAds", "Falkyn", "Wise"];
 const CURRENCIES_WHILE_LOADING = ["EUR", "USD"];
 
 /** "synced just now" / "synced at 14:52" / "synced 28 Sep 14:52" --
@@ -296,7 +296,7 @@ function whenShort(iso: string): string {
 /**
  * ALLEEN BIJ MOCKCIJFERS. Niet bij "off" en niet bij "error".
  *
- * Gemeten op 390px: de rijen van SeamX en Slash hadden een naam van
+ * Gemeten op 390px: de rijen van Falkyn en Slash hadden een naam van
  * NUL pixels breed -- hun pil at de hele naamkolom op. En die pil zei
  * precies hetzelfde als wat er al in de valutacellen van diezelfde
  * rij stond: "not connected" en "unreadable".
@@ -451,7 +451,7 @@ function SupplierRows({
             <div className="sc-note warn">
               <FlaskConical />
               <span>
-                These are the mock adapter&apos;s figures, not SeamX&apos;s.
+                These are the mock adapter&apos;s figures, not Falkyn&apos;s.
                 They are the same numbers every time and they are not
                 money. Set SUPPLIER1_MODE to &quot;live&quot; to read the
                 real balance.
@@ -473,7 +473,7 @@ function SupplierRows({
 
           {s.lines.map((l) => (
             <div key={l.currency}>
-              {/* What the supplier is holding back. For SeamX this is the
+              {/* What the supplier is holding back. For Falkyn this is the
                   DST reserve — the tax they take off our balance before
                   we can spend it. It is the only DST figure either
                   supplier reports, and it is worth seeing beside the
@@ -753,13 +753,13 @@ export default function SupplierCredit() {
       )}
 
       {/* ── GEEN VOETNOOT MEER ────────────────────────────────
-          De eigenaar, 29-09: "USD at 0.8780 · SeamX (test data) not
+          De eigenaar, 29-09: "USD at 0.8780 · Falkyn (test data) not
           counted -- deze tekst onnodig."
 
           Weg, maar niet de INFORMATIE. Die stond in een zin onder de
           tabel en hoort naast het cijfer waar hij over gaat:
 
-          - dat SeamX niet meetelt is nu te zien AAN de rij zelf --
+          - dat Falkyn niet meetelt is nu te zien AAN de rij zelf --
             zijn bedragen staan doorgestreept en grijs, met de reden
             in de tooltip. Een regel tekst onderaan lezen om te weten
             dat de rij erboven niet meedoet is een omweg.

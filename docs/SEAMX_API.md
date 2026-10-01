@@ -1,13 +1,13 @@
-# SeamX (Supplier 1) API — contract & adapter mapping
+# Falkyn (Supplier 1) API — contract & adapter mapping
 
-Source: SeamX Postman collection "Api Documentation" (v `latest`), captured
-2026-09-12. SeamX is our ad-account supplier — internal only, **never**
+Source: Falkyn Postman collection "Api Documentation" (v `latest`), captured
+2026-09-12. Falkyn is our ad-account supplier — internal only, **never**
 surface the name to advertisers/affiliates. Adapter: `lib/integrations/supplier1.ts`.
 
 ## Auth & base
 
 - **Base URL (LIVE-CONFIRMED 2026-09-12): `https://app.gradyn.io/api`**
-  (SeamX = Gradyn). Endpoints resolve to `https://app.gradyn.io/api/v1/...`.
+  (Falkyn = Gradyn). Endpoints resolve to `https://app.gradyn.io/api/v1/...`.
   Env vars the adapter reads: `SUPPLIER1_BASE_URL`, `SUPPLIER1_AUTH_TOKEN`,
   `SUPPLIER1_MODE=live`.
 - **Auth header:** a raw token (not `Bearer`) — but the **casing is
@@ -59,7 +59,7 @@ endpoint.** Balance is wallet-level only (#11).
 
 ### Topup shapes
 - list (12) / per-account (5): `{ id, amount, currency, status:"pending"|"approved", created_at, metadata:{ad_account_id, ad_account_name} }`
-- single (13): adds `total_amount, topup_amount, topup_fee, description` — **SeamX computes the topup fee server-side.**
+- single (13): adds `total_amount, topup_amount, topup_fee, description` — **Falkyn computes the topup fee server-side.**
 - request (14) response: `{ data:{id, amount, currency, status, created_at, metadata}, message }`
 
 ### Calculate Location Fee (6) — the DST module
@@ -70,7 +70,7 @@ advertising_amount_after_location_fee, total_tax_amount } }`
 
 ## Mapping to `Supplier1Adapter` (only the 4 functions we already have)
 
-| Our method | SeamX endpoint | Maps? |
+| Our method | Falkyn endpoint | Maps? |
 |---|---|---|
 | `listAdAccounts()` | GET `/v1/adaccounts` (follow `pagination`) | ✅ — but `balance_cents` is not available (drop / 0) |
 | `pushTopup({external_ad_account_id, amount_cents, currency})` | POST `/v1/topups {ad_account_id, amount, currency}` | ✅ (amount is major units, not cents) |
@@ -78,12 +78,12 @@ advertising_amount_after_location_fee, total_tax_amount } }`
 | `getBalance(externalAdAccountId)` | GET `/v1/adaccounts/{id}` → `current_balance` | ✅ per-account balance DOES exist (Postman sample omitted it) |
 
 Notes for the live implementation (when key arrives):
-- SeamX amounts are **major units** (e.g. `10`, `100.44`), our adapter speaks
+- Falkyn amounts are **major units** (e.g. `10`, `100.44`), our adapter speaks
   `_cents` — convert at the boundary.
-- SeamX returns a `topup_fee` it computed itself (#13). Decide whether our
-  fee display should mirror SeamX's or stay our `topup_fee_pct` — must agree.
+- Falkyn returns a `topup_fee` it computed itself (#13). Decide whether our
+  fee display should mirror Falkyn's or stay our `topup_fee_pct` — must agree.
 - Idempotency: the collection shows no idempotency header; our worker passes
-  an `idempotency_key`. Confirm with SeamX whether they dedup, else we rely on
+  an `idempotency_key`. Confirm with Falkyn whether they dedup, else we rely on
   our `integration_jobs` dedup only.
 - The DST `calculate-fee` endpoint (#6) is the location-fee/tax module noted
   in the roadmap — separate from the 4 adapter methods; wire only if/when we

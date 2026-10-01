@@ -372,7 +372,7 @@ export async function reconcileSupplierFees(): Promise<FeeReconResult> {
   };
 }
 
-// Calls the WIRED SeamX adapter (mock or live, per SUPPLIER1_MODE) and
+// Calls the WIRED Falkyn adapter (mock or live, per SUPPLIER1_MODE) and
 // returns a small redacted summary so an owner can verify the connection
 // on any deployment without reading logs.
 export async function testSupplier1Connection(): Promise<IntegrationPing> {

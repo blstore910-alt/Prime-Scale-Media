@@ -19,7 +19,7 @@ test("the customer is never told who we buy from", () => {
   for (const v of WITHDRAWAL_STATUS_CHOICES.map((c) => c.value)) {
     const l = withdrawalStatusLook(v);
     for (const text of [l.customerLabel, l.customerHint]) {
-      assert.doesNotMatch(text, /supplier|seamx|gradyn|rockads/i, `${v}: ${text}`);
+      assert.doesNotMatch(text, /supplier|seamx|falkyn|gradyn|rockads/i, `${v}: ${text}`);
     }
   }
 });

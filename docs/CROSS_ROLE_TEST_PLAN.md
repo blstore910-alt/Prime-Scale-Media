@@ -20,7 +20,7 @@ absent (not just hidden in the UI — try direct URLs / IDs too).
 
 | Actor | MUST see | MUST NOT see |
 |---|---|---|
-| **A1** (advertiser) | own wallet, own ad accounts, own top-ups, own invoices, own subscription, own referrals-as-affiliate (if any) | A2's wallet/accounts/invoices; any admin queue; any other tenant; the SeamX/supplier name anywhere |
+| **A1** (advertiser) | own wallet, own ad accounts, own top-ups, own invoices, own subscription, own referrals-as-affiliate (if any) | A2's wallet/accounts/invoices; any admin queue; any other tenant; the Falkyn/supplier name anywhere |
 | **A2** (advertiser) | own data only | A1's data; affiliate earnings; admin pages |
 | **AF** (affiliate) | own referral book = **only the advertisers they referred** (A1), their spend/top-ups/commission; own payout wallet | A2 (not referred); A1's *wallet balance / invoices / ad-account internals*; any other affiliate's referrals; admin pages |
 | **AD** (admin) | everything in **their tenant** (advertisers, wallets, top-ups, requests, withdrawals, subscriptions, promotions) | other tenants; super-admin surfaces (reconciliation, settings, refund/adjustment **approve**, audit, admins) |
@@ -30,7 +30,7 @@ absent (not just hidden in the UI — try direct URLs / IDs too).
 - [ ] AF's dashboard shows A1 (referred) but **not** A2; AF sees A1's *spend & commission* but **not** A1's wallet balance or invoices.
 - [ ] AD on tenant T sees no data from another tenant.
 - [ ] A plain AD hitting `/reconciliation`, `/settings/finance`, `/audit`, `/admins`, `/invites`, `/affiliates`, `/commissions` is redirected (super-admin only).
-- [ ] The supplier/SeamX name never appears in A1/A2/AF-facing UI, emails, or invoices.
+- [ ] The supplier/Falkyn name never appears in A1/A2/AF-facing UI, emails, or invoices.
 
 ## Part 2 — Cross-role flow, in order (advertiser → affiliate, never reverse)
 
