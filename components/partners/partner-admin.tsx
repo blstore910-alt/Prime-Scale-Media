@@ -177,8 +177,10 @@ export default function PartnerAdmin() {
       if (!res.ok) throw new Error(res.error);
       return res.data;
     },
-    onSuccess: () => {
-      toast.success("Saved");
+    onSuccess: (d) => {
+      if (d?.ingekort)
+        toast.warning("Saved, but the description was cut to 120 characters — run plak 181 to allow 400.");
+      else toast.success("Saved");
       setForm(null);
       void qc.invalidateQueries({ queryKey: ["partners-admin"] });
       void qc.invalidateQueries({ queryKey: ["partners-directory"] });
@@ -224,14 +226,15 @@ export default function PartnerAdmin() {
               />
             </label>
             <label>
-              One line about them
-              <input
+              Description
+              <textarea
                 value={form.tagline}
-                maxLength={120}
+                maxLength={400}
+                rows={4}
                 onChange={(e) => zet("tagline", e.target.value)}
-                placeholder="Storage, pick-and-pack and shipping for your store."
+                placeholder="What they do, for whom, and why a PSM customer would call them."
               />
-              <span className="hint">{form.tagline.length}/120 — the tile shows three lines at most.</span>
+              <span className="hint">{form.tagline.length}/400 — shown in full on the tile.</span>
             </label>
             <div className="two">
               <label>

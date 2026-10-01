@@ -1,4 +1,4 @@
-# TEST 4 — ELKE REIS, ELKE SOORT, IN TWEE TALEN
+# TEST 4 — ELKE REIS, ELKE SOORT
 
 > Geschreven 01-10-2026, na test 3. De eigenaar: *"maak alvast slimme
 > test 4 en geef ook de prompt, vooral alle mogelijke reizen."*
@@ -22,15 +22,17 @@ dat ze werken voor **elke** soort:
   de **hulp** in de app, de **factuurmail**, de **backups**.
 
 Test 4 is daarom geen nieuwe soort test maar een **matrix**: dezelfde
-reizen, maar over elke soort account, elke valuta, elke rol en twee
-talen. "Slim" betekent hier: niet alles met alles vermenigvuldigen
+reizen, maar over elke soort account, elke valuta en elke rol.
+
+**Niet in twee talen** (de eigenaar, 01-10: "test 4 hoeft niet in 2
+talen"). Alles loopt in het Engels. De Nederlandse vertaling is een
+apart, later rondje; R2 hieronder is daarom optioneel. "Slim" betekent hier: niet alles met alles vermenigvuldigen
 (dat zijn honderden runs), maar elke **tak** minstens één keer laten
 lopen, op het account waar hij van nature voorkomt.
 
 **Een reis is binair: werkt of werkt niet.** Een reis werkt pas als
 hij gelopen is in de browser, met een sessie per rol, met elk bedrag
-tot op de cent tegen de database gehouden — en in de taal van dat
-account.
+tot op de cent tegen de database gehouden.
 
 ---
 
@@ -59,12 +61,12 @@ Wegwerp-mailboxen werken. De codes worden PSM0021 en verder.
 | # | rol | plan / community | taal | wallet | ad account (type) | wat dit account bewijst |
 |---|---|---|---|---|---|---|
 | **T4-A** | adverteerder | **Flex** (EUR 75, 1 inbegrepen, 5%) | EN | EUR | **Meta-EU-PSM** (API) | de API-tak: automatisch funden, live saldo, terugboek-plafond = live saldo |
-| **T4-B** | adverteerder | **Prime** (EUR 200, 2 inbegrepen, 3%) | **NL** | **USD** | **Google** (handmatig) | USD van top-up tot factuur; tweede account inbegrepen (geen EUR 50); alles in het Nederlands |
-| **T4-C** | adverteerder | **Launch** (EUR 150, 1 inbegrepen, 3,5%) | NL | EUR | **TikTok** (handmatig) | TikTok-velden (BC ID, landen); een extra account = EUR 50 van de wallet |
-| **T4-N** | adverteerder | **NSA**-community (5%) | NL | EUR | **Meta-HK-Premium** (handmatig) | de community-fee op elk scherm; de HK-bankroute bij de top-up |
+| **T4-B** | adverteerder | **Prime** (EUR 200, 2 inbegrepen, 3%) | EN | **USD** | **Google** (handmatig) | USD van top-up tot factuur; tweede account inbegrepen (geen EUR 50) |
+| **T4-C** | adverteerder | **Launch** (EUR 150, 1 inbegrepen, 3,5%) | EN | EUR | **TikTok** (handmatig) | TikTok-velden (BC ID, landen); een extra account = EUR 50 van de wallet |
+| **T4-N** | adverteerder | **NSA**-community (5%) | EN | EUR | **Meta-HK-Premium** (handmatig) | de community-fee op elk scherm; de HK-bankroute bij de top-up |
 | **T4-F** | affiliate | — | EN | EUR + USD | — | link, referral, commissie, uitbetaling in beide valuta |
-| **T4-R** | adverteerder via de link van T4-F | Flex | NL | EUR | Meta-EU-PSM-GH (handmatig) | attributie, commissie op top-up én op plan, clawback bij terugboeking |
-| **T4-V** | teamlid (viewer) van T4-A | — | NL | — | — | meekijken: ziet alles van T4-A, kan niets dat geld verplaatst |
+| **T4-R** | adverteerder via de link van T4-F | Flex | EN | EUR | Meta-EU-PSM-GH (handmatig) | attributie, commissie op top-up én op plan, clawback bij terugboeking |
+| **T4-V** | teamlid (viewer) van T4-A | — | EN | — | — | meekijken: ziet alles van T4-A, kan niets dat geld verplaatst |
 | **T4-U** | affiliate die óók wil adverteren | — | EN | — | — | de "Advertise with us too"-route naar een adverteerdersdashboard |
 | **T4-0** | adverteerder **zonder** plan | — | EN | EUR | — | de lege staten: geen plan, aanvragen geblokkeerd, wat er dan staat |
 
@@ -94,13 +96,11 @@ verandert), ook als je er maar één echt uitvoert.
 - **Randen:** verlopen uitnodiging; e-mail die al een account heeft;
   bevestigingsmail opnieuw (wacht-teller); wachtwoord < 12 tekens;
   "wachtwoord vergeten" → herstellink → nieuw wachtwoord.
-- **Taal vóór inloggen:** open de aanmeldpagina in een browser op
-  Nederlands → het formulier is Nederlands. Engels → Engels.
 - **Database:** `advertisers` (code, tenant), `subscriptions` (plan,
   bedrag, status), `advertiser_plans`, `wallets` (2 rijen per klant),
   `user_profiles.locale`.
 
-### R2 — Taal (T4-B, T4-C, T4-N, T4-R, T4-V in NL; rest EN)
+### R2 — Taal (OPTIONEEL, niet nodig om test 4 af te maken)
 
 - Avatar → EN | NL. Na herladen blijft de keuze (staat in
   `user_profiles.locale`).
@@ -236,7 +236,7 @@ verandert), ook als je er maar één echt uitvoert.
   die melding komt niet meer (in de app), de rest wel.
 - Elke melding uit R3–R11 in de juiste taal, met het juiste bedrag.
 
-### R13 — Partners en hulp (T4-B in NL, T4-A in EN)
+### R13 — Partners en hulp (T4-A, T4-B)
 
 - Partners: tegels, "Meer info" opent in een nieuw tabblad.
 - Hulp: elk hoofdstuk open, in de taal van het account. Klopt wat er
@@ -319,37 +319,37 @@ eigenaar nodig is).
 | reis | account | taal | uitkomst | scherm | database | fix / open |
 |---|---|---|---|---|---|---|
 | R1 | T4-A | EN | | | | |
-| R1 | T4-B | NL | | | | |
-| R1 | T4-C | NL | | | | |
-| R1 | T4-N | NL | | | | |
+| R1 | T4-B | EN | | | | |
+| R1 | T4-C | EN | | | | |
+| R1 | T4-N | EN | | | | |
 | R1 | T4-F | EN | | | | |
-| R1 | T4-R | NL | | | | |
-| R1 | T4-V | NL | | | | |
+| R1 | T4-R | EN | | | | |
+| R1 | T4-V | EN | | | | |
 | R1 | T4-U | EN | | | | |
 | R1 | T4-0 | EN | | | | |
-| R2 | alle NL-accounts | NL | | | | |
+| R2 | (optioneel) | NL | | | | |
 | R3 | T4-A EUR | EN | | | | |
-| R3 | T4-B USD | NL | | | | |
-| R3 | T4-N HK | NL | | | | |
+| R3 | T4-B USD | EN | | | | |
+| R3 | T4-N HK | EN | | | | |
 | R4 | T4-A / T4-B | | | | | |
 | R5 | T4-A Meta API | EN | | | | |
-| R5 | T4-B Google (2e inbegrepen) | NL | | | | |
-| R5 | T4-C TikTok (extra, EUR 50) | NL | | | | |
-| R5 | T4-N Meta-HK | NL | | | | |
+| R5 | T4-B Google (2e inbegrepen) | EN | | | | |
+| R5 | T4-C TikTok (extra, EUR 50) | EN | | | | |
+| R5 | T4-N Meta-HK | EN | | | | |
 | R5 | T4-0 geen plan | EN | | | | |
 | R6 | T4-A API | EN | | | | |
-| R6 | T4-B / T4-C / T4-N handmatig | NL | | | | |
+| R6 | T4-B / T4-C / T4-N handmatig | EN | | | | |
 | R7 | T4-A live plafond | EN | | | | |
-| R7 | T4-C handmatig plafond | NL | | | | |
-| R7 | T4-R clawback | NL | | | | |
+| R7 | T4-C handmatig plafond | EN | | | | |
+| R7 | T4-R clawback | EN | | | | |
 | R8 | T4-A EUR | EN | | | | |
-| R8 | T4-B USD | NL | | | | |
+| R8 | T4-B USD | EN | | | | |
 | R8 | T4-0 geen plan | EN | | | | |
-| R9 | T4-F + T4-R | EN/NL | | | | |
+| R9 | T4-F + T4-R | EN | | | | |
 | R10 | T4-U | EN | | | | |
-| R11 | T4-A + T4-V | NL | | | | |
+| R11 | T4-A + T4-V | EN | | | | |
 | R12 | alle | | | | | |
-| R13 | T4-B NL / T4-A EN | | | | | |
+| R13 | T4-A, T4-B | | | | | |
 | R14 | beheer | EN | | | | |
 | R15 | eigenaar | EN | | | | |
 | R16 | eigenaar | | | | | |

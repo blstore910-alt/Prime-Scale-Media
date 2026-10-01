@@ -1,17 +1,17 @@
-TEST 4 — ELKE REIS, ELKE SOORT, IN TWEE TALEN. Lees docs/TEST_4.md en
+TEST 4 — ELKE REIS, ELKE SOORT. Lees docs/TEST_4.md en
 ga verder bij de EERSTE regel in het logboek onderaan die nog geen
 uitkomst heeft. Zeg in een zin waar je begint, en begin dan.
 
 WAT TEST 4 IS: dezelfde reizen als test 3, maar over elke soort
 account (API en handmatig, EUR en USD, elk plan, NSA, geen plan), elke
-rol (adverteerder, affiliate, teamlid, eigenaar) en twee talen (EN en
-NL). Elke TAK minstens een keer, op het account waar hij van nature
+rol (adverteerder, affiliate, teamlid, eigenaar). Alles in het
+Engels -- test 4 is NIET in twee talen; de vertaling is een later
+rondje. Elke TAK minstens een keer, op het account waar hij van nature
 voorkomt. Een reis is binair: werkt of werkt niet.
 
 DOORWERKEN TOT DE REIS DICHT IS. Niet rapporteren tussendoor. Een reis
 is pas af als zijn regel in het logboek staat met het bedrag dat op
-het scherm stond EN het bedrag uit de database, tot op de cent, in de
-taal van dat account. Openen, meten, fixen, gate, push, nog eens
+het scherm stond EN het bedrag uit de database, tot op de cent. Openen, meten, fixen, gate, push, nog eens
 kijken -- dat is een en dezelfde beurt.
 
 VERSE ACCOUNTS: je weet wat er hoort te staan voordat je kijkt. Een
@@ -49,13 +49,13 @@ LAAG 0 EERST, ELKE OCHTEND:
 Staat er iets op FOUT, of is regel 6 niet 0, dan begint er geen reis.
 
 PER REIS:
-  1. openen op 390px in het juiste venster, in de taal van het account
+  1. openen op 390px in het juiste venster, in het Engels
   2. ELKE TAK van elke dialoog: elke keuze, Next, Back, kijken wat er
      verandert -- pas dan een echt uitvoeren
   3. het bedrag op het scherm tegen de database (npm run check)
   4. EN tegen wat wij op dit verse account deden
   5. de beheerkant in de tweede tab: verifieren EN weigeren met reden
-  6. de melding die de klant krijgt: juiste taal, juist bedrag
+  6. de melding die de klant krijgt: juist bedrag
   7. de JSON achter het scherm: geen leverancier, type of marge
   8. ik zeg wat anders moet -- jij fixt het
   9. gate: npx tsc --noEmit && npx next lint --max-warnings 0 && npm test
@@ -66,11 +66,6 @@ PER REIS:
 PUSHEN per account gebundeld, niet per fix. Iets kapots gaat meteen.
 Een NIEUWE route, pagina of server action: eerst npx next build
 lokaal. Alleen `git push origin feat/redesign-advertiser:main`.
-
-TAAL: in NL moet top-up, exchange, wallet, ad account, fee, referral
-en Pay now Engels blijven (docs/NL_EN.md). Een Engelse zin die er niet
-hoort is een fout; een knop die afbreekt ook. Bekend nog Engels: de
-factuur-pdf, de e-mails, partnerbeschrijvingen, de beheerkant.
 
 DE VIER DINGEN WAAR JE NAAR KIJKT, en niet meer:
   - een cijfer boven een lees die niet aankwam

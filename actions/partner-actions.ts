@@ -112,7 +112,7 @@ function link(v: unknown): { ok: true; value: string | null } | { ok: false } {
 
 export async function savePartner(
   input: PartnerInput,
-): Promise<{ ok: true; data: { id: string } } | { ok: false; error: string }> {
+): Promise<{ ok: true; data: { id: string; ingekort?: boolean } } | { ok: false; error: string }> {
   const res0 = await resolveAdminContext();
   if (!res0.ok) return { ok: false, error: res0.error };
   const { profile } = res0.ctx;
@@ -150,7 +150,9 @@ export async function savePartner(
   // aanroeper; id en de tijden van de database.
   const rij = {
     name,
-    tagline: tekst(input?.tagline, 120),
+    // 400 sinds plak 181. Tot die gedraaid is, weigert de database alles
+    // boven de 120 -- zie inkorten() hieronder.
+    tagline: tekst(input?.tagline, 400),
     category: tekst(input?.category, 40),
     url: url.value,
     logo_url: logo.value,
@@ -163,12 +165,29 @@ export async function savePartner(
 
   const id = String(input?.id ?? "").trim();
 
+  // ── EEN KOLOM DIE DE MIGRATIE NOG NIET HEEFT VERRUIMD ───────────
+  // Zonder plak 181 weigert partners_tagline_check alles boven de 120
+  // tekens. Dan niet het hele opslaan laten mislukken: inkorten, nog een
+  // keer, en zeggen dat het ingekort is.
+  const teLang = (e: { message?: string } | null) =>
+    !!e && /partners_tagline_check/.test(String(e.message ?? ""));
+  const inkorten = () => ({ ...rij, tagline: rij.tagline ? rij.tagline.slice(0, 120) : null });
+
   if (!id) {
-    const { data, error } = await supabase
+    let ingekort = false;
+    let { data, error } = await supabase
       .from("partners")
       .insert({ ...rij, tenant_id: profile.tenant_id })
       .select("id")
       .limit(1);
+    if (teLang(error)) {
+      ingekort = true;
+      ({ data, error } = await supabase
+        .from("partners")
+        .insert({ ...inkorten(), tenant_id: profile.tenant_id })
+        .select("id")
+        .limit(1));
+    }
     if (error) return { ok: false, error: safeErrorMessage(error) };
     const nieuw = (data ?? [])[0];
     // Nul rijen terug is geen succes: RLS geeft geen fout maar een lege
@@ -180,7 +199,7 @@ export async function savePartner(
         error: "The partner was not saved. Run plak 174 first, or tell us.",
       };
     }
-    return { ok: true, data: { id: String(nieuw.id) } };
+    return { ok: true, data: { id: String(nieuw.id), ingekort } };
   }
 
   // ── BESTAANDE RIJ: TENANT EN VERSIE TOETSEN ─────────────────────
@@ -202,15 +221,25 @@ export async function savePartner(
     };
   }
 
-  const { data: bijgewerkt, error: schrijfFout } = await supabase
+  let ingekort = false;
+  let { data: bijgewerkt, error: schrijfFout } = await supabase
     .from("partners")
     .update(rij)
     .eq("id", id)
     .eq("tenant_id", profile.tenant_id)
     .select("id");
+  if (teLang(schrijfFout)) {
+    ingekort = true;
+    ({ data: bijgewerkt, error: schrijfFout } = await supabase
+      .from("partners")
+      .update(inkorten())
+      .eq("id", id)
+      .eq("tenant_id", profile.tenant_id)
+      .select("id"));
+  }
   if (schrijfFout) return { ok: false, error: safeErrorMessage(schrijfFout) };
   if (!(bijgewerkt ?? []).length) {
     return { ok: false, error: "Nothing was changed — the partner may have been removed." };
   }
-  return { ok: true, data: { id } };
+  return { ok: true, data: { id, ingekort } };
 }
