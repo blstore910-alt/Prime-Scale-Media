@@ -106,6 +106,8 @@ export default function InviteForm() {
   // refreshes and the address box is cleared for the next invite.
   const [lastInviteEmail, setLastInviteEmail] = useState("");
   const [lastClientCode, setLastClientCode] = useState("");
+  // Plak 187: de code ligt vast zodra de uitnodiging bestaat.
+  const [codeReserved, setCodeReserved] = useState(false);
   const supabase = createClient();
   // ── THE CONTEXT ALREADY KNOWS ─────────────────────────
   //
@@ -442,7 +444,9 @@ export default function InviteForm() {
         setCreatedLink((data.inviteLink as string) ?? null);
         setEmailWasSent(data.emailSent === true);
         setLastInviteEmail(String(values.email ?? "").trim());
-        setLastClientCode(nextClientCodeRef.current);
+        const vast = typeof data.clientCode === "string" && data.clientCode ? data.clientCode : null;
+        setLastClientCode(vast ?? `${tenant?.initials ?? ""}${nextClientCodeRef.current}`);
+        setCodeReserved(!!vast);
         toast.success(data.message);
       }
     } catch (error) {
@@ -646,7 +650,15 @@ export default function InviteForm() {
                   <dt className="w-24 shrink-0 text-muted-foreground">
                     Client code
                   </dt>
-                  {/* ── NOTHING IS RESERVED ────────────────────────
+                  {/* ── RESERVED SINCE PLAK 187 ─────────────────────
+                      The owner, 01-10: "if they sign up next is onhandig,
+                      ik maak altijd direct de WhatsApp-groep aan -- beter
+                      vast, en anders is hij verbrand". The server now
+                      returns invitations.client_code; only without that
+                      plak does this fall back to the preview below.
+
+                      The history: this used to read "PSM0015 is reserved
+                      for them" when nothing was.
                       This used to read "PSM0015 is reserved for them".
                       Measured on production 27-09: an affiliate invite
                       was created saying exactly that, and the tenant's
@@ -666,10 +678,9 @@ export default function InviteForm() {
                       help text already says "Given out on signup"; only
                       this panel overstated it. */}
                   <dd className="min-w-0 flex-1 truncate font-medium">
-                    {tenant?.initials}
                     {lastClientCode}
                     <span className="ml-2 font-normal text-muted-foreground">
-                      if they sign up next
+                      {codeReserved ? "reserved for them" : "if they sign up next"}
                     </span>
                   </dd>
                 </div>
@@ -820,8 +831,9 @@ export default function InviteForm() {
                     <InputGroupInput value={nextClientCode} disabled />
                   </InputGroup>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Given out on signup. It is the first half of every
-                    payment reference.
+                    Reserved the moment you create the invite, so you can
+                    name the WhatsApp group straight away. It is the first
+                    half of every payment reference.
                   </p>
                 </div>
 

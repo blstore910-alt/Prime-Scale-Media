@@ -8,6 +8,9 @@ import { ALERT_EMAIL_TYPES, sendAlertEmail } from "@/lib/alert-emails";
 import { BILLING_EMAIL_TYPES } from "@/lib/pure-billing-email";
 
 export const runtime = "nodejs";
+// Een factuurmail maakt de pdf met een headless Chrome: dat duurt een
+// paar seconden, meer dan de standaardlimiet toelaat.
+export const maxDuration = 60;
 
 // Lazy-init: touching env at module scope makes Next.js's
 // page-data collection step fail during `next build` when the

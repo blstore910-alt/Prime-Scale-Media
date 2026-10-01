@@ -386,7 +386,9 @@ export async function POST(request: NextRequest) {
     // and the validated body above; nothing from the caller is spread
     // in.
     const adminDb = await createAdminClient();
-    let { error } = await adminDb.from("invitations").insert(payload);
+    // .select() geeft de rij terug: plak 187 zet er de gereserveerde
+    // klantcode op (invitations.client_code), en die toont het formulier.
+    let { data: ingevoegd, error } = await adminDb.from("invitations").insert(payload).select().single();
 
     // ── AND IT HOLDS BEFORE THE PLAK LANDS ───────────────────────
     //
@@ -405,7 +407,7 @@ export async function POST(request: NextRequest) {
         unknown
       >;
       void _dropped;
-      ({ error } = await adminDb.from("invitations").insert(withoutBankGroup));
+      ({ data: ingevoegd, error } = await adminDb.from("invitations").insert(withoutBankGroup).select().single());
     }
 
     if (error) {
@@ -522,6 +524,9 @@ export async function POST(request: NextRequest) {
         success: true,
         emailSent,
         inviteLink,
+        // Null zolang plak 187 er niet is: dan toont het formulier de
+        // voorspelling, zoals eerst.
+        clientCode: ((ingevoegd as { client_code?: string | null } | null)?.client_code ?? null),
         message: !wantsEmail
           ? "Invite created — share the link below."
           : emailSent

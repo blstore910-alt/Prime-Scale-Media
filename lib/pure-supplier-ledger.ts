@@ -32,6 +32,12 @@ export type LedgerLine = {
    *  wat zij in USD bijschreven. */
   sentAmount?: number | null;
   sentCurrency?: "EUR" | "USD" | null;
+  /** Alleen voor het scherm: de klantnaam, wie hem invoerde, wanneer,
+   *  en bij een app-top-up wat wij aan fee verdienden. */
+  clientName?: string | null;
+  addedBy?: string | null;
+  createdAt?: string | null;
+  ourFee?: string | null;
 };
 
 export type DayBalance = { day: string; actualEnd: number; note?: string | null };

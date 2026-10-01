@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { sendEmail } from "@/lib/email-sender";
+import { invoicePdfFor } from "@/lib/invoice-pdf-for";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { BILLING_EMAIL_TYPES, billingEmail, type BillingInvoice } from "@/lib/pure-billing-email";
 
@@ -97,8 +98,21 @@ export async function sendBillingEmail(
     return "skipped:claim failed";
   }
 
+  // De factuur zelf als bijlage (de eigenaar, 01-10: "moet ook als
+  // bestand in de mail komen, pdf"). Lukt de pdf niet, dan gaat de mail
+  // toch -- zonder bijlage, met de knop naar de app -- in plaats van niet.
+  let attachments: { filename: string; content: Buffer; contentType: string }[] | undefined;
+  if (invoiceId && (row.type === "subscription_invoice" || row.type === "subscription_invoice_due_soon")) {
+    try {
+      const f = await invoicePdfFor(admin, invoiceId);
+      attachments = [{ filename: `Invoice ${f.filename}`, content: f.content, contentType: "application/pdf" }];
+    } catch (e) {
+      console.warn("[billing-email] pdf failed, sending without", row.id, safeErrorMessage(e));
+    }
+  }
+
   try {
-    await sendEmail({ to, subject: content.subject, html: content.html, text: content.text });
+    await sendEmail({ to, subject: content.subject, html: content.html, text: content.text, attachments });
     return "sent";
   } catch (e) {
     // Give the claim back so a retry can try again.

@@ -85,7 +85,7 @@ export function billingEmail(
         lead,
         cta: { label: "Open billing", href: billing },
         bodyHtml: panel,
-        footnoteHtml: "You can see every invoice, and pay it in one tap, under Billing in the app.",
+        footnoteHtml: "The invoice is attached as a PDF. You can see every invoice, and pay it in one tap, under Billing in the app.",
       }),
       text: [
         "Your invoice is ready.",

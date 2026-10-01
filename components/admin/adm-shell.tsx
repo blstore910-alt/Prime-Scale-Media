@@ -5,6 +5,7 @@ import { signOutCompletely } from "@/lib/auth/sign-out";
 import { useAppContext } from "@/context/app-provider";
 import { usePendingCounts } from "@/hooks/use-pending-counts";
 import { PSM_APP_CSS } from "@/components/advertiser/psm-shell-css";
+import { BankDetailsButton } from "@/components/admin/bank-details-button";
 import {
   Bell,
   BookOpen,
@@ -517,6 +518,8 @@ export default function AdminShell({
                 control here that is about the screen rather than about
                 the work. */}
             <ThemeToggle />
+            {/* Alle bankgegevens met een WhatsApp-bericht, voor elke admin. */}
+            <BankDetailsButton />
             {/* ── THE BELL GOES BOTH WAYS ────────────────────────────
                 It was a one-way Link. You are halfway through reviewing
                 a top-up, you check whether anything came in, and then
