@@ -396,21 +396,17 @@ export default function PsmVerifyAdTopups() {
                     moment a top-up is verified is exactly when
                     somebody goes looking for it. It returns null by
                     itself when there is no link. */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    marginTop: 12,
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    rowGap: 8,
-                  }}
-                >
-                  <SupplierPill link={supplierFor(t.account_id)} />
-                </div>
+                {supplierFor(t.account_id) ? (
+                  <div style={{ display: "flex", marginTop: 12 }}>
+                    <SupplierPill link={supplierFor(t.account_id)} />
+                  </div>
+                ) : null}
                 {/* Same layout as the wallet queue (de eigenaar, 01-10):
                     Verify across the top, the rest on one row. */}
-                <div className="actrow tupacts" style={{ marginTop: 10 }}>
+                <div
+                  className="actrow tupacts"
+                  style={{ marginTop: 10, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}
+                >
                   {pend && (
                     <>
                       <button

@@ -284,7 +284,7 @@ export function ChoiceCard({
  * When the rate was last written, and where it comes from -- small, under
  * the rate (de eigenaar, 01-10: "mensen moeten zeer klein subtiel zien
  * wanneer last synced en waar"). The stored row is refreshed from an open
- * market-rate feed (lib/get-exchange-rates.ts); a stale row is refreshed
+ * market-rate source (Wise first, the open feed as fallback); a stale row is refreshed
  * on read (hooks/use-usd-to-eur.ts).
  */
 export function RateStamp({

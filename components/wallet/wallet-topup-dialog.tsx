@@ -501,7 +501,7 @@ export default function WalletTopupDialog({
   // When they pay in another currency the box is in THAT currency, so
   // the floor is too -- converted and rounded up, as step 1 states it.
   const cross = transferCurrency !== currency;
-  const crossRate = (() => {
+  const crossRateLive = (() => {
     const per: Record<string, number> = {
       USD: 1,
       EUR: Number(rate?.eur ?? 0),
@@ -512,6 +512,19 @@ export default function WalletTopupDialog({
     const b = per[currency];
     return a > 0 && b > 0 ? b / a : 0;
   })();
+  // ── THE RATE THEY WERE SHOWN IS THE RATE WE FILE ────────────────────
+  // Steps 2 and 3 use the rate from the moment they pressed Continue: a
+  // refetch in between moved the credit, and could push the minimum
+  // above a sum they had already wired.
+  const [lockedRate, setLockedRate] = useState<number | null>(null);
+  useEffect(() => {
+    if (step === STEPS.SELECTION) setLockedRate(null);
+  }, [step]);
+  const crossRate = step !== STEPS.SELECTION && lockedRate ? lockedRate : crossRateLive;
+  // The dialog is mounted all day: read the rate again on every opening.
+  useEffect(() => {
+    if (open) void refetchRates();
+  }, [open, refetchRates]);
   const minInBox = !cross
     ? minTopupAmount
     : minTopupAmount > 0 && crossRate > 0
@@ -1278,7 +1291,10 @@ export default function WalletTopupDialog({
                     className="tpx-cta"
                     disabled={cross && (Number(currentAmount) || 0) > 0 && !(crossRate > 0)}
                     onClick={async () => {
-                      if (await trigger("amount")) handleNextStep();
+                      if (await trigger("amount")) {
+                        setLockedRate(crossRateLive > 0 ? crossRateLive : null);
+                        handleNextStep();
+                      }
                     }}
                   >
                     {tr("label.wtop.continue")}

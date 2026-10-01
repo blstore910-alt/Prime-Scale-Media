@@ -38,6 +38,18 @@ function SlipThumb({ path }: { path: string | null | undefined }) {
     return <p className="mb-3 text-sm font-medium text-destructive">No slip uploaded.</p>;
   }
   const isPdf = path.toLowerCase().split("?")[0].endsWith(".pdf");
+  // A legacy row can hold any URL a customer typed. Fetching it on open
+  // would hand that server the admin's IP: link to it, never load it.
+  const external = /^https?:/i.test(path) && !(url ?? "").includes(".supabase.co/storage/");
+  if (external && url) {
+    return (
+      <p className="mb-3 text-sm">
+        <a href={url} target="_blank" rel="noreferrer noopener" className="font-semibold underline">
+          Open the slip (external link)
+        </a>
+      </p>
+    );
+  }
   return (
     <div className="mb-3 overflow-hidden rounded-xl border bg-muted/30">
       {failed ? (

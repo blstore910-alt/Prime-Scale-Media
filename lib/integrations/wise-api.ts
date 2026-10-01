@@ -169,6 +169,8 @@ async function wiseFetch(
     headers: { Authorization: `Bearer ${token}` },
     // Never cache a financial fetch.
     cache: "no-store",
+    // A hung Wise call must not hold up the fallback (or the cron).
+    signal: AbortSignal.timeout(8000),
   });
   const challenge = first.headers.get("x-2fa-approval");
   if (first.ok || !challenge) {
@@ -220,6 +222,7 @@ async function wiseFetch(
       "X-Signature": signature,
     },
     cache: "no-store",
+    signal: AbortSignal.timeout(8000),
   });
   return { res: second, sca: true, signed: true };
 }

@@ -73,6 +73,9 @@ export function useFormDraft<T>({
     // over it -- typing lost on the second close (CLAUDE.md: never).
     initialLoadDone.current = false;
     setDismissed(false);
+    // ...and the previous opening's draft, or it is restored a render
+    // before the fresh load lands and then saved over the newer one.
+    setRestoredDraft(null);
     loadDraft<T>(formKey, userScope).then((d) => {
       if (!cancelled) {
         setRestoredDraft(d);
