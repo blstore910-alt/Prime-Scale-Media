@@ -68,6 +68,7 @@ export default function PlansCard() {
       return r.data;
     },
   });
+  const [affVraag, setAffVraag] = useState<{ id: string; name: string; enabled: boolean } | null>(null);
   const affToggle = useMutation({
     mutationFn: async (v: { id: string; enabled: boolean }) => {
       const r = await setPlanAffiliate(v);
@@ -75,6 +76,7 @@ export default function PlansCard() {
       return v.enabled;
     },
     onSuccess: (on) => {
+      setAffVraag(null);
       toast.success(on ? "Affiliate program switched ON for this plan" : "Affiliate program switched OFF for this plan");
       queryClient.invalidateQueries({ queryKey: ["plan-affiliate-flags"] });
     },
@@ -451,7 +453,9 @@ export default function PlansCard() {
                           disabled={affToggle.isPending}
                           onClick={(e) => {
                             e.preventDefault();
-                            affToggle.mutate({ id: r.id, enabled: !on });
+                            // Eerst vragen (de eigenaar, 01-10: "als ik hierop
+                            // klik eerst een modal -- wat doet dit echt?").
+                            setAffVraag({ id: r.id, name: r.name, enabled: !on });
                           }}
                           title="Can customers on this plan join the affiliate program?"
                           className={`mt-1 inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${on ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"}`}
@@ -740,6 +744,30 @@ export default function PlansCard() {
           Save changes
         </Button>
       </CardFooter>
+
+      <ConfirmModal
+        open={!!affVraag}
+        onOpenChange={(next) => {
+          if (!next) setAffVraag(null);
+        }}
+        title={affVraag?.enabled ? `Switch the affiliate program ON for ${affVraag?.name}?` : `Switch the affiliate program OFF for ${affVraag?.name}?`}
+        lead={
+          affVraag?.enabled
+            ? "Customers on this plan see Earn again and can apply to become an affiliate. Nothing else changes."
+            : "Customers on this plan no longer see Earn and cannot apply to become an affiliate. Safe to switch back at any time."
+        }
+        cta={affVraag?.enabled ? "Yes, switch it on" : "Yes, switch it off"}
+        busy={affToggle.isPending}
+        busyLabel="Saving…"
+        onConfirm={() => {
+          if (affVraag) affToggle.mutate({ id: affVraag.id, enabled: affVraag.enabled });
+        }}
+      >
+        <ConfirmFact label="Plan" value={affVraag?.name ?? "—"} strong />
+        <ConfirmFact label="Customers who are already affiliates" value="keep their link, referrals and earnings" />
+        <ConfirmFact label="Money, commissions, invoices" value="not touched" />
+        <ConfirmFact label="Undo" value="switch it back — nothing is deleted" />
+      </ConfirmModal>
 
       <ConfirmModal
         open={!!pendingDelete}

@@ -6696,11 +6696,13 @@ export default function AdvertiserApp() {
                     anders noemen kosten een telefoontje. Een lege regel
                     is geen antwoord, en een verdwenen regel is er nog
                     minder een. */}
-                <div className="plan-name">
+                {/* Zonder plan stond "No plan" er drie keer (de eigenaar,
+                    01-10: "hoeft niet 3x"): alleen de grote kop blijft. */}
+                <div className="plan-name" style={noPlan ? { visibility: "hidden" } : undefined}>
                   {shownPlanName ??
                     (subscription ? tr("label.adv.noPlanSet") : tr("label.adv.noPlanYet"))}
                 </div>
-                <span className="pill pill-tr">
+                <span className="pill pill-tr" style={noPlan ? { display: "none" } : undefined}>
                   <Ic name="i-shield" />{" "}
                   {/* A failed read is not "no plan". Telling a paying
                       customer they have no subscription because a query
@@ -6785,7 +6787,7 @@ export default function AdvertiserApp() {
                 </div>
                 {/* A free plan renews nothing, so the line under the
                     headline was a bare em dash. Gone rather than empty. */}
-                <div className="meta" style={freePlan ? { display: "none" } : undefined}>
+                <div className="meta" style={freePlan || noPlan ? { display: "none" } : undefined}>
                   {/* ── "RENEWS" A DATE THAT HAS ALREADY PASSED ──────
                       next_payment_date only moves forward when the invoice
                       for the period is PAID, so between the invoice being
@@ -7299,7 +7301,7 @@ export default function AdvertiserApp() {
                         </p>
                         <p
                           className="cap"
-                          style={{ marginTop: 14, display: "flex", gap: 8 }}
+                          style={{ marginTop: 14, display: "flex", gap: 8, alignItems: "center" }}
                         >
                           <WhatsappIcon />{" "}
                           {stoppedSub
