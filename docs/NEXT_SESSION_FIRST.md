@@ -1,3 +1,53 @@
+# 01-10 — DE LIJST AF, TEST 4 KLAAR OM TE BEGINNEN
+
+**Begin hier met `docs/TEST_4_PROMPT.md`** (de prompt) en
+`docs/TEST_4.md` (de reizen, de verse accounts, het logboek).
+
+Gedaan op 01-10, allemaal live:
+
+- **Nederlands** door de hele klantkant: adverteerder-app, affiliate-app,
+  elke dialoog, meldingen, rapport, hulp (de gids compleet), quotes,
+  datums, formuliervelden, kolomkoppen op mobiel, en de schermen voor het
+  inloggen (die volgen de browsertaal). ~1100 sleutels in `lib/i18n`.
+- **SeamX heet Falkyn** in alles wat je ziet; identifiers, env en
+  `supplier1` bleven.
+- **Team** opnieuw ontworpen (wat een collega wel/niet kan).
+- **Backups**: `/api/cron/system-backup` (01:30) en
+  `/api/cron/invoice-drive` (02:00). **Doen niets tot Drive gekoppeld
+  is** -- `docs/BACKUP_DRIVE_SETUP.md`. Draaiboek:
+  `docs/RESTORE_DRILL.md`.
+- **Nachtrun 01-10 nagelopen**: deed het goed, maar het plan van PSM0020
+  bleef op 30-09 staan (betaald voor de trigger bestond) -> **plak 180**.
+
+## Wat op de eigenaar wacht
+
+1. **Plak 180** draaien (PSM0020 een maand doorschuiven).
+2. **Drive koppelen** volgens `docs/BACKUP_DRIVE_SETUP.md`, dan in
+   Vercel -> Cron Jobs beide backup-taken een keer op Run.
+3. **Nagaan of PITR aanstaat** in Supabase (Database -> Backups). Zonder
+   PITR is het slechtste geval 24 uur werk kwijt; zie RESTORE_DRILL.
+
+## Nog Engels (bewust, staat op de lijst)
+
+- de e-mails en de factuur-pdf (server-side, per taal van de klant --
+  `user_profiles.locale` is er al);
+- de server-pagina's rond het aanmelden (`app/auth/sign-up/page.tsx`,
+  `app/complete-profile/page.tsx`): hun formulieren zijn NL, de
+  omringende tekst niet;
+- partnerbeschrijvingen (komen uit de database);
+- de beheerkant (bewust Engels).
+
+## Nog niet gebouwd
+
+- team: de rol **manager** (mag geld verplaatsen) -- vraagt wijzigingen
+  in de geld-RPC's;
+- **view as** voor de eigenaar (meekijken als een klant);
+- een plan **zetten** op een bestaand abonnement vanuit de admin;
+- een ad account aanmaken vanuit de leverancierslijst (Meta-ID
+  opslaan).
+
+---
+
 # 30-09, EIND VAN DE MIDDAG — EEN VRAAG DIE VAN DE EIGENAAR IS
 
 **Mag een klant zijn eigen opnameverzoek intrekken?**
