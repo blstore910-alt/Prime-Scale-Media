@@ -3226,6 +3226,8 @@ export default function AdvertiserApp() {
   // antwoord "wacht op ons" is. Dan is een knop juist verkeerd.
   const requestBlockedAction = (): { label: string; go: () => void } | null => {
     if (canRequestAccount) return null;
+    // Een teamlid zonder aanvraagrecht krijgt geen taak van de eigenaar.
+    if (isTeamMember && !teamPerms.includes("request")) return null;
     if (!companyComplete && !companyUnknown) {
       return {
         label: tr("adv.addYourCompanyDetails"),
@@ -3244,6 +3246,7 @@ export default function AdvertiserApp() {
 
   const requestBlockedReason = (): string | null => {
     if (canRequestAccount) return null;
+    if (isTeamMember && !teamPerms.includes("request")) return null;
     if (!companyComplete && !companyUnknown) {
       return companyMissing.length && companyMissing.length <= 2
         ? `Still needed first: ${companyMissing.join(" and ")}`
@@ -6229,7 +6232,7 @@ export default function AdvertiserApp() {
                           this file makes that point about the Requests
                           tab and the Accounts header was missed. */}
                       {requestBlockedReason() ? (
-                        <span className="phead-why">
+                        <span className="phead-why" data-perm="request">
                           {requestBlockedReason()}
                         </span>
                       ) : null}
@@ -6237,6 +6240,7 @@ export default function AdvertiserApp() {
                         const act = requestBlockedAction();
                         return act ? (
                           <button
+                            data-perm="request"
                             className="btn sm"
                             style={{ marginTop: 8 }}
                             onClick={act.go}
@@ -6514,6 +6518,7 @@ export default function AdvertiserApp() {
                   const act = requestBlockedAction();
                   return act ? (
                     <button
+                      data-perm="request"
                       className="btn sm"
                       style={{ marginTop: 8 }}
                       onClick={act.go}
