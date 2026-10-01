@@ -50,7 +50,7 @@ import type { BankOverride } from "@/lib/pure-bank-override";
 
 
 // Canonical display order for currency chips.
-const CURRENCY_ORDER: TransferCurrency[] = ["USD", "EUR", "GBP", "HKD"];
+const CURRENCY_ORDER: TransferCurrency[] = ["EUR", "USD", "GBP", "HKD"];
 
 // The transfer currencies a bank group can receive, in canonical order.
 export function bankTransferCurrencies(group: BankGroup): TransferCurrency[] {

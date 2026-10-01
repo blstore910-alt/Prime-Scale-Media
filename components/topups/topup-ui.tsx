@@ -62,7 +62,7 @@ const CSS = `
 .tpx-bank-desc{font-size:12px;color:rgba(255,255,255,.72);line-height:1.4;margin:0 0 6px}
 .tpx-bank-row{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid rgba(255,255,255,.1)}
 .tpx-bank-row>div{min-width:0}
-.tpx-lbl{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tpx-mut)}
+.tpx-lbl{display:block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tpx-mut)}
 .tpx-bank .tpx-lbl{color:rgba(255,255,255,.55)}
 .tpx-val{display:block;font-size:14px;font-weight:650;line-height:1.3;margin-top:2px;white-space:pre-wrap;word-break:break-word}
 .tpx-bank .tpx-val{font-size:17px;font-weight:700}

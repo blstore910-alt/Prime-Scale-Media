@@ -86,12 +86,12 @@ export function topupAgainMessage(a: TopupAgain): string | null {
       return null;
     case "probably-the-same":
       return a.minutesAgo < 1
-        ? "We already have a top-up from you, filed a moment ago. It is with us and waiting to be checked — you do not need to send it again. Only carry on if this is a second, separate transfer."
-        : `We already have a top-up from you, filed ${a.minutesAgo} minute${
+        ? "You filed a top-up a moment ago — no need to send it again. Only carry on for a second, separate transfer."
+        : `You filed a top-up ${a.minutesAgo} minute${
             a.minutesAgo === 1 ? "" : "s"
-          } ago. It is with us and waiting to be checked — you do not need to send it again. Only carry on if this is a second, separate transfer.`;
+          } ago — no need to send it again. Only carry on for a second, separate transfer.`;
     case "several-waiting":
-      return `You have ${a.pending} top-ups waiting for us to check. Only add another if it is a separate transfer you have actually made.`;
+      return `You have ${a.pending} top-ups waiting to be checked. Only add another for a separate transfer you have made.`;
     case "too-many":
       return `You have ${a.pending} top-ups waiting already. We will get to those first — message us if one of them is wrong and we will sort it out.`;
   }

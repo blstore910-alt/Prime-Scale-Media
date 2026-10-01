@@ -377,6 +377,7 @@ export default function WalletTopupDialog({
   // instead of leaving that to the browser's own "Geen bestand gekozen".
   const [slipName, setSlipName] = useState<string | null>(null);
   const [slipDrag, setSlipDrag] = useState(false);
+  const [useNewRef, setUseNewRef] = useState(false);
   const [filedReference, setFiledReference] = useState<string | null>(null);
   const [filedAmount, setFiledAmount] = useState<number | null>(null);
 
@@ -564,7 +565,9 @@ export default function WalletTopupDialog({
   useEffect(() => {
     if (!open || !draft.hasDraft || !draft.restoredDraft) return;
     const v = draft.restoredDraft.values;
-    setValue("amount", v.amount || 0);
+    // An empty draft stays EMPTY: a restored 0 put "0" in the box, and
+    // a typed 300 then reads 0300 (the note on the schema below).
+    if (v.amount) setValue("amount", v.amount);
     draft.dismissDraft();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, draft.hasDraft, draft.restoredDraft]);
@@ -615,6 +618,7 @@ export default function WalletTopupDialog({
     setPaymentSlipError(null);
     setSlipName(null);
     setIsUploadingSlip(false);
+    setUseNewRef(false);
   }, [open, initialCurrency]);
 
   // ── AN UNCANCELLED TIMER OUTLIVES THE CLOSE THAT STARTED IT ────────
@@ -887,6 +891,15 @@ export default function WalletTopupDialog({
     setStep((prev) => prev - 1);
   };
 
+  // The one code step 2 shows: the open top-up's when there is one (use
+  // it if that money has not gone yet), the wallet's next one on request.
+  const shownRef: string | null =
+    openTopup && !useNewRef
+      ? openTopup.reference_no == null
+        ? null
+        : String(openTopup.reference_no)
+      : referenceNo == null ? null : String(referenceNo);
+
   const handleSubmitForm = (values: FormValues) => {
     // Slip required for every topup, both account groups.
     if (isUploadingSlip) {
@@ -1150,8 +1163,10 @@ export default function WalletTopupDialog({
                   </div>
                 ) : null}
                 {openTopup ? (
-                  <div className="tpx-note" data-tone="warn" style={{ flexDirection: "column", gap: 6 }}>
-                    <strong>{tr("wtop.youAlreadyHaveATop")}</strong>
+                  <div className="tpx-note" data-tone="warn" >
+                    <AlertTriangle />
+                    <span>
+                    <strong>{tr("wtop.youAlreadyHaveATop")}</strong>{" "}
                     <span>
                       {tr("wtop.filedIfYouHaveNot", { v: String(formatCurrency(
                         Number(openTopup.amount) || 0,
@@ -1159,24 +1174,7 @@ export default function WalletTopupDialog({
                           ? "USD"
                           : "EUR",
                       )), v2: String(new Date(openTopup.created_at).toLocaleDateString()) })}</span>
-                    <button
-                      type="button"
-                      onClick={() => copyReference(
-                        openTopup.reference_no == null
-                          ? null
-                          : String(openTopup.reference_no),
-                      )}
-                      className="tpx-ref-code tpx-mono"
-                      style={{ background: "#fff", fontSize: 18, marginTop: 4 }}
-                    >
-                      {formatPaymentReference(
-                        clientCode,
-                        openTopup.reference_no == null
-                          ? null
-                          : String(openTopup.reference_no),
-                      )}
-                      <Copy />
-                    </button>
+                    </span>
                   </div>
                 ) : null}
 
@@ -1195,15 +1193,15 @@ export default function WalletTopupDialog({
                     this says why, instead of an empty box whose tap does
                     nothing -- an unreferenced deposit is one nothing can
                     match. */}
-                {formatPaymentReference(clientCode, referenceNo) ? (
+                {formatPaymentReference(clientCode, shownRef) ? (
                   <div className="tpx-ticket">
                     <span className="tpx-lbl">{tr("wtop.paymentReference")}</span>
                     <span className="tpx-ticket-code tpx-mono">
-                      {formatPaymentReference(clientCode, referenceNo)}
+                      {formatPaymentReference(clientCode, shownRef)}
                     </span>
                     <div className="tpx-ticket-foot">
                       <p>
-                        {openTopup
+                        {openTopup && useNewRef
                           ? tr("wtop.forANewTransferUse")
                           : tr("wtop.putThisReferenceInThe")}
                       </p>
@@ -1211,8 +1209,8 @@ export default function WalletTopupDialog({
                         type="button"
                         className="tpx-pill"
                         data-done={refCopied}
-                        onClick={() => copyReference()}
-                        aria-label={tr("wtop.copyReference", { v: String(formatPaymentReference(clientCode, referenceNo)) })}
+                        onClick={() => copyReference(shownRef)}
+                        aria-label={tr("wtop.copyReference", { v: String(formatPaymentReference(clientCode, shownRef)) })}
                       >
                         {refCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                         {refCopied ? tr("wtop.copied") : tr("wtop.copyShort")}
@@ -1223,6 +1221,17 @@ export default function WalletTopupDialog({
                   <p className="tpx-note" data-tone="warn">
                     {tr("wtop.weCouldNotProduceA")}</p>
                 )}
+
+                {openTopup ? (
+                  <button
+                    type="button"
+                    className="tpx-link"
+                    style={{ alignSelf: "center", marginTop: -6 }}
+                    onClick={() => setUseNewRef((v) => !v)}
+                  >
+                    {useNewRef ? tr("wtop.useOpenRef") : tr("wtop.separateNewTransfer")}
+                  </button>
+                ) : null}
 
                 {/* ── THE FLOOR, IN THE MONEY THEY ARE ABOUT TO SEND ──
                     One figure, in the transfer currency, rounded UP: a
@@ -1388,15 +1397,13 @@ export default function WalletTopupDialog({
                     about to file the second one. The tick is deliberate. */}
                 {againMessage ? (
                   <div
-                    className={`rounded-xl border p-4 text-left ${
-                      againBlocks
-                        ? "border-destructive/40 bg-destructive/5"
-                        : "border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10"
-                    }`}
+                    className="tpx-note"
+                    data-tone="warn"
+                    style={{ flexDirection: "column", gap: 8, ...(againBlocks ? { background: "#FDECEC", color: "#8A1F1F" } : {}) }}
                   >
-                    <p className="text-sm">{againMessage}</p>
+                    <span>{againMessage}</span>
                     {!againBlocks && (
-                      <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm font-medium">
+                      <label className="flex cursor-pointer items-center gap-2 font-semibold" style={{ color: "var(--tpx-ink)" }}>
                         <input
                           type="checkbox"
                           className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer"
