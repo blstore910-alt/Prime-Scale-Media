@@ -567,5 +567,5 @@ eigenaar nodig is).
 | R17 | de nacht | | | | | |
 | R18 | doorlopend | | | | | |
 | R19 | beheertools | EN | | | | |
-| R20 | lekcontrole | EN | | | | |
-| R21 | schermmaten 360/390/430/768/1440 | EN | | | | |
+| R20 | lekcontrole | EN | deels | affiliate (T4-F): 29 geladen JS-bundels, 0 treffers op RockAds/SeamX/Falkyn/Bestads/Muxue/Gradyn/hk-meta/eu-meta/meta-hk/meta-eu/supplier/slash; schermtekst Home, Referrals, Wallet, Alerts, Settings schoon. Adverteerder T4-A: accounts tonen alleen 'Meta', geen type (zie R6) | data-kant niet gelopen: het scanscript leest de sessie uit de cookie en dat is geweigerd -- de klantregels op ad_accounts zijn dicht (plak 198) | open: zelfde scan als adverteerder (T4-B), mails/pdf |
+| R21 | schermmaten 360/390/430/768/1440 | EN | deels | affiliate (T4-F): Home, Referrals, Wallet, Alerts, Settings op 360 / 768 / 1440 -- scrollWidth = breedte, niets steekt uit. Top-up (390), exchange (390, na fix 6283bdc9), /exchanges (na fix 7f25e40f) | n.v.t. | open: adverteerdersschermen op 360/430/768/1440, beheer op 768/1440 |

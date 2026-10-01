@@ -1,3 +1,26 @@
+# 02-10, NACHT — TEST 4 HALVERWEGE: WAT OPEN STAAT
+
+Test 4 staat op ~40% (logboek in `docs/TEST_4.md`). Ga verder bij de
+eerste lege regel. Wat NIET in het logboek past, maar wel open staat:
+
+| # | wat | waarom open | wat nodig is |
+|---|---|---|---|
+| 1 | Ad-account top-up pas "completed" als de leverancier bevestigt (eigenaar, 01-10) | ontwerpvraag, niet beantwoord. Nu: Verify vraagt "ik heb het bij Rockads gefund" + "de klant krijgt bericht"; auto-push staat uit (0 jobs ooit) | status "Paid – funding at supplier" tussen betaald en completed; completed alleen na API-bevestiging + saldocheck, of een admin met het transactie-id van de leverancier; mislukt = terug in de rij met alarm. Bij reis 4 |
+| 2 | Slip-voorbeeld in de Verify-bevestiging laadt ~20 s | serveracties lopen één voor één; het voorbeeld wacht achter de rest van de pagina | sneller kan via een route-handler (fetch) met dezelfde controles (actief account, tenant, padvorm) -- NIET via ondertekenen in de browser |
+| 3 | Teamleden: fee-offerte en Fund werken (03864342); live saldo, financieel rapport, terugboeken nog niet | die paden zoeken nog de EIGEN advertiser van de aanvrager | per pad `_psm_can(advertiser, perm)` zoals de geldfuncties zelf |
+| 4 | Leverancier-saldo bij terugboeken "not read" | leverancier staat in mock-modus | pas te testen met SUPPLIER1_MODE=live |
+| 5 | Lekscan data-kant (alle tabellen als klant) | het scanscript leest de sessie uit de cookie; dat is geweigerd | eigenaar draait `scripts/leak-scan-browser.js` zelf in de klant-tab, of een plak die als rol `authenticated` met een klant-id leest |
+| 6 | Affiliate-uitbetaling boven het minimum + beheer betaalt uit / weigert | T4-F staat op EUR 75, minimum EUR 200 | meer commissie op T4-R (bv. een ad top-up met fee) of een tweede referral |
+| 7 | Bestads-saldo: regels toevoegen (R19) | het grootboek bevat ECHTE bedragen ($3.500 echt gestuurd) | testen op een kopie, of de eigenaar zegt welke testregel mag (en verwijdert hem daarna) |
+| 8 | Koersbron | Wise werkt (exchange_rates.source = wise, plak 200); valt terug op de open feed bij een fout | niets -- alleen weten |
+
+Logins die nog nodig zijn voor Test 4: T4-U (R10 goedkeuren), T4-B
+(R1 onboarding, R3 USD, R4 USD->EUR, R5 Google, R8 USD), T4-C (R5 extra
+EUR 50), T4-N (R3 HK-route, R5 Meta-HK, Bestads-regel), T4-0 (R5
+geblokkeerd, R8 geen plan), en R2 NL kort.
+
+---
+
 # 01-10, MIDDAG — DE LIJST VAN DE EIGENAAR, IN VOLGORDE
 
 Gevraagd op 01-10, na de backups. Afgevinkt wat klaar is; de rest in
