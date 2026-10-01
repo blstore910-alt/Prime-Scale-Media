@@ -1335,4 +1335,7 @@ export const nl: Record<Key, string> = {
   "label.logout.logOut": "Uitloggen",
   "label.sor.signingOut": "Uitloggen…",
   "sor.signOutAndContinue": "Uitloggen en doorgaan",
+  // ── partnertegel ──
+  "label.partners.more": "Lees meer",
+  "label.partners.less": "Minder",
 };

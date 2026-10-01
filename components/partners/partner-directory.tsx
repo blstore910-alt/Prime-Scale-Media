@@ -41,6 +41,7 @@ import { useT } from "@/hooks/use-t";
 // vullen (plak 181). Zonder die plak valt de tegel terug op naam,
 // categorie, beschrijving en een "Meer info"-knop.
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { AlertTriangle, ArrowUpRight, Check, Handshake } from "lucide-react";
@@ -63,76 +64,97 @@ export type Partner = {
 };
 
 export const PARTNER_CSS = `
+/* Ronde vijf (01-10): de blauwe banner terug, maar slank; de website op
+   een eigen regel en helemaal; de vier USP's in een strak raster van
+   twee bij twee, allemaal even groot; minder hoogte -- de beschrijving
+   op drie regels met "Lees meer". */
 .pdir{display:grid;grid-template-columns:1fr;gap:14px}
 @media (min-width:760px){.pdir{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (min-width:1180px){.pdir{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 .ptile{position:relative;display:flex;flex-direction:column;min-width:0;
-  padding:16px;border-radius:20px;color:inherit;overflow:hidden;isolation:isolate;
+  border-radius:20px;color:inherit;overflow:hidden;isolation:isolate;
   border:1px solid transparent;
   background:
     linear-gradient(var(--panel),var(--panel)) padding-box,
     linear-gradient(135deg,color-mix(in srgb,var(--acc) 45%,var(--line)),var(--line) 40%,var(--line) 65%,color-mix(in srgb,#8B5CF6 40%,var(--line))) border-box;
   box-shadow:0 1px 2px rgba(15,23,60,.05),0 16px 36px -24px color-mix(in srgb,var(--acc) 55%,rgba(15,23,60,.35));
   transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s}
-/* Een aurora achter de kop: de kleur van de partner linksboven, paars
-   rechts. Zacht genoeg om de tekst niet te raken, sterk genoeg om de
-   tegel af te maken. */
-.ptile::before{content:"";position:absolute;inset:-40% -20% auto -20%;height:190px;z-index:-1;
-  background:
-    radial-gradient(50% 60% at 18% 40%,color-mix(in srgb,var(--acc) 26%,transparent),transparent 70%),
-    radial-gradient(45% 55% at 85% 30%,rgba(139,92,246,.18),transparent 70%);
-  filter:blur(6px);transition:opacity .3s;opacity:.9}
 .ptile:hover{transform:translateY(-3px);
   background:
     linear-gradient(var(--panel),var(--panel)) padding-box,
     linear-gradient(135deg,var(--acc),#8B5CF6) border-box;
   box-shadow:0 1px 2px rgba(15,23,60,.05),0 26px 50px -26px color-mix(in srgb,var(--acc) 75%,rgba(15,23,60,.45))}
 
-.ptile .pt-top{display:flex;align-items:flex-start;gap:12px;min-width:0}
-.ptile .pt-ic{width:48px;height:48px;border-radius:15px;flex:0 0 auto;display:grid;place-items:center;
-  overflow:hidden;color:#fff;background:linear-gradient(135deg,var(--acc),#8B5CF6);
-  box-shadow:0 10px 22px -10px color-mix(in srgb,var(--acc) 90%,transparent),inset 0 1px 0 rgba(255,255,255,.35);
+/* De banner: blauw naar paars, een stippenraster en een glans. 58px --
+   genoeg voor kleur, niet genoeg om hoogte te kosten. */
+.ptile .pt-hero{position:relative;height:58px;overflow:hidden;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:11px 12px 0 14px;
+  background:
+    radial-gradient(80% 140% at 0% 0%,color-mix(in srgb,var(--acc) 95%,#fff 5%),transparent 70%),
+    linear-gradient(120deg,var(--acc),#8B5CF6)}
+.ptile .pt-hero::before{content:"";position:absolute;inset:0;opacity:.45;pointer-events:none;
+  background-image:radial-gradient(rgba(255,255,255,.55) 1px,transparent 1.3px);background-size:13px 13px;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 60%);mask-image:linear-gradient(90deg,transparent,#000 60%)}
+.ptile .pt-hero::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);
+  transform:skewX(-18deg);transition:left .7s cubic-bezier(.2,.8,.2,1)}
+.ptile:hover .pt-hero::after{left:125%}
+.ptile .pt-cat,.ptile .pt-badge{position:relative;font-size:.6rem;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;padding:4px 9px;border-radius:99px;color:#fff;white-space:nowrap;
+  background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.ptile .pt-badge{text-transform:none;letter-spacing:.01em;font-size:.68rem;background:rgba(255,255,255,.95);
+  color:color-mix(in srgb,var(--acc) 75%,#1b1f4a);box-shadow:0 6px 14px -8px rgba(0,0,0,.35)}
+
+.ptile .pt-body{padding:0 14px 14px}
+/* Het icoon steekt half in de banner; naam en website staan ernaast. */
+.ptile .pt-top{display:flex;align-items:flex-end;gap:11px;min-width:0;margin-top:-22px}
+.ptile .pt-ic{position:relative;z-index:1;width:50px;height:50px;border-radius:15px;flex:0 0 auto;
+  display:grid;place-items:center;overflow:hidden;color:#fff;
+  background:linear-gradient(135deg,var(--acc),#8B5CF6);
+  box-shadow:0 0 0 3px var(--panel),0 10px 22px -10px color-mix(in srgb,var(--acc) 90%,transparent);
   transition:transform .25s cubic-bezier(.2,.8,.2,1)}
 .ptile:hover .pt-ic{transform:rotate(-5deg) scale(1.04)}
 .ptile .pt-ic svg{width:23px;height:23px}
-.ptile .pt-ic.logo{background:#fff;box-shadow:inset 0 0 0 1px var(--line),0 8px 18px -12px rgba(15,23,60,.4)}
+.ptile .pt-ic.logo{background:#fff}
 .ptile .pt-ic img{width:100%;height:100%;object-fit:contain;padding:7px}
-.ptile .pt-head{min-width:0;flex:1 1 auto}
-.ptile .pt-name{font-family:var(--hd);font-weight:800;font-size:1.06rem;line-height:1.2;
+.ptile .pt-head{min-width:0;flex:1 1 auto;padding-bottom:1px}
+.ptile .pt-name{font-family:var(--hd);font-weight:800;font-size:1.04rem;line-height:1.2;
   letter-spacing:-.02em;color:var(--ink);overflow-wrap:anywhere}
-.ptile .pt-meta{margin-top:3px;font-size:.72rem;font-weight:600;color:var(--faint);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ptile .pt-meta b{font-weight:800;letter-spacing:.06em;text-transform:uppercase;font-size:.62rem;
-  color:color-mix(in srgb,var(--acc) 70%,var(--ink))}
-.ptile .pt-badge{flex:0 0 auto;align-self:flex-start;font-size:.64rem;font-weight:800;letter-spacing:.02em;
-  padding:5px 9px;border-radius:99px;color:#fff;white-space:nowrap;
-  background:linear-gradient(135deg,var(--acc),#8B5CF6);
-  box-shadow:0 6px 14px -8px color-mix(in srgb,var(--acc) 90%,transparent)}
+/* De website HEEL: een eigen regel, mag afbreken op een punt, nooit
+   afgekapt met een puntje. */
+.ptile .pt-host{display:block;margin-top:2px;font-size:.74rem;font-weight:700;
+  color:color-mix(in srgb,var(--acc) 70%,var(--ink));text-decoration:none;overflow-wrap:anywhere}
 
-.ptile .pt-tag{margin-top:11px;font-size:.86rem;line-height:1.5;color:var(--txt-2);white-space:pre-line}
+.ptile .pt-tag{margin-top:10px;font-size:.84rem;line-height:1.45;color:var(--txt-2);
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.ptile .pt-tag.open{display:block;-webkit-line-clamp:unset}
+.ptile .pt-more{margin-top:2px;padding:0;border:0;background:none;font:inherit;font-size:.76rem;
+  font-weight:800;color:color-mix(in srgb,var(--acc) 75%,var(--ink));cursor:pointer}
 
-.ptile .pt-hl{margin-top:11px;display:flex;flex-wrap:wrap;gap:6px}
-.ptile .pt-hl span{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:700;
-  padding:5px 9px 5px 6px;border-radius:99px;color:var(--ink);
-  background:color-mix(in srgb,var(--acc) 9%,var(--panel));
+/* De USP's: twee bij twee, elke pil even breed en even hoog. */
+.ptile .pt-hl{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ptile .pt-hl span{display:flex;align-items:center;gap:6px;min-width:0;min-height:32px;box-sizing:border-box;
+  font-size:.74rem;font-weight:700;line-height:1.2;padding:6px 9px 6px 7px;border-radius:10px;color:var(--ink);
+  background:color-mix(in srgb,var(--acc) 8%,var(--panel));
   box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc) 18%,transparent)}
-.ptile .pt-hl svg{width:13px;height:13px;padding:2px;border-radius:99px;color:#fff;
-  background:color-mix(in srgb,var(--acc) 85%,#8B5CF6)}
+.ptile .pt-hl svg{width:15px;height:15px;flex:0 0 auto;padding:2.5px;box-sizing:border-box;border-radius:99px;color:#fff;
+  background:linear-gradient(135deg,var(--acc),#8B5CF6)}
 
-.ptile .pt-cta{margin-top:auto;padding-top:14px;display:flex;gap:8px}
+.ptile .pt-cta{margin-top:12px;display:flex;gap:8px}
 .ptile .pt-btn{flex:1 1 0;min-width:0;display:inline-flex;flex-direction:row;align-items:center;justify-content:center;gap:6px;
-  padding:10px 12px;border-radius:12px;font-size:.84rem;font-weight:800;text-decoration:none;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:transform .2s,box-shadow .2s,background .2s}
+  padding:9px 10px;border-radius:12px;font-size:.82rem;font-weight:800;text-decoration:none;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:transform .2s,box-shadow .2s}
 .ptile .pt-btn svg{width:15px;height:15px;flex:0 0 auto;display:inline-block}
 .ptile .pt-btn.main{color:#fff;background:linear-gradient(135deg,var(--acc),#8B5CF6);
   box-shadow:0 10px 20px -12px color-mix(in srgb,var(--acc) 95%,transparent)}
-.ptile .pt-btn.main:hover{transform:translateY(-1px);box-shadow:0 14px 26px -12px color-mix(in srgb,var(--acc) 100%,transparent)}
+.ptile .pt-btn.main:hover{transform:translateY(-1px)}
 .ptile .pt-btn.alt{color:var(--ink);background:var(--panel);box-shadow:inset 0 0 0 1px var(--line-2)}
 .ptile .pt-btn.alt:hover{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc) 60%,var(--line-2))}
 .ptile .pt-btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 
-.pdir .skel{border-radius:20px;height:230px;background:var(--panel-2)}
+.pdir .skel{border-radius:20px;height:250px;background:var(--panel-2)}
 .pdir-note{display:flex;gap:10px;align-items:flex-start;padding:14px;
   border-radius:14px;border:1px solid var(--line);background:var(--panel);
   font-size:.86rem;color:var(--txt-2)}
@@ -140,7 +162,7 @@ export const PARTNER_CSS = `
 .pdir-note b{display:block;color:var(--ink);font-family:var(--hd);margin-bottom:2px}
 
 @media (prefers-reduced-motion:reduce){
-  .ptile,.ptile .pt-ic,.ptile .pt-btn{transition:none}
+  .ptile,.ptile .pt-ic,.ptile .pt-btn,.ptile .pt-hero::after{transition:none}
   .ptile:hover,.ptile:hover .pt-ic,.ptile .pt-btn.main:hover{transform:none}
 }
 `;
@@ -156,73 +178,88 @@ function domein(url: string | null | undefined): string | null {
 /** Een tegel. Ook gebruikt als live voorbeeld in de admin. */
 export function PartnerTile({ p }: { p: Partner }) {
   const { t: tr } = useT();
+  const [open, setOpen] = useState(false);
   const acc = p.accent && /^#[0-9a-fA-F]{6}$/.test(p.accent) ? p.accent : "#5B8DFF";
   const Icon = partnerIcon(p.icon, p.category);
   const host = domein(p.url);
   const hl = (p.highlights ?? []).filter(Boolean).slice(0, 4);
   const stijl = { ["--acc" as string]: acc } as React.CSSProperties;
+  // Drie regels is ongeveer 150 tekens op een telefoon. Korter: geen knop.
+  const lang = (p.tagline ?? "").length > 150;
 
   return (
     <div className="ptile" style={stijl}>
-      <div className="pt-top">
-        <span className={`pt-ic${p.logo_url ? " logo" : ""}`}>
-          {p.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={p.logo_url} alt="" loading="lazy" />
-          ) : (
-            <Icon />
-          )}
-        </span>
-        <div className="pt-head">
-          <div className="pt-name">{p.name}</div>
-          {p.category || host ? (
-            <div className="pt-meta">
-              {p.category ? <b>{p.category}</b> : null}
-              {p.category && host ? " · " : null}
-              {host}
-            </div>
-          ) : null}
-        </div>
+      <div className="pt-hero">
+        {p.category ? <span className="pt-cat">{p.category}</span> : <span />}
         {p.badge ? <span className="pt-badge">{p.badge}</span> : null}
       </div>
-
-      {p.tagline ? <div className="pt-tag">{p.tagline}</div> : null}
-
-      {hl.length ? (
-        <div className="pt-hl">
-          {hl.map((h, i) => (
-            <span key={i}>
-              <Check strokeWidth={3} />
-              {h}
-            </span>
-          ))}
+      <div className="pt-body">
+        <div className="pt-top">
+          <span className={`pt-ic${p.logo_url ? " logo" : ""}`}>
+            {p.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={p.logo_url} alt="" loading="lazy" />
+            ) : (
+              <Icon />
+            )}
+          </span>
+          <div className="pt-head">
+            <div className="pt-name">{p.name}</div>
+            {host && p.url ? (
+              <a className="pt-host" href={p.url} target="_blank" rel="noopener noreferrer">
+                {host}
+              </a>
+            ) : null}
+          </div>
         </div>
-      ) : null}
 
-      {/* Zonder link geen knop: een knop die nergens heen gaat is een
-          knop die niets doet. */}
-      {p.url || p.cta2_url ? (
-        <div className="pt-cta">
-          {p.url ? (
-            <a
-              className="pt-btn main"
-              href={p.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={tr("partners.opensInANewTab", { name: String(p.name) })}
-            >
-              {p.cta_label || tr("label.onb.learnMore")}
-              <ArrowUpRight />
-            </a>
-          ) : null}
-          {p.cta2_url ? (
-            <a className="pt-btn alt" href={p.cta2_url} target="_blank" rel="noopener noreferrer">
-              {p.cta2_label || tr("label.onb.learnMore")}
-              <ArrowUpRight />
-            </a>
-          ) : null}
-        </div>
-      ) : null}
+        {p.tagline ? (
+          <>
+            <div className={`pt-tag${open ? " open" : ""}`}>{p.tagline}</div>
+            {lang ? (
+              <button type="button" className="pt-more" onClick={() => setOpen((o) => !o)}>
+                {open ? tr("label.partners.less") : tr("label.partners.more")}
+              </button>
+            ) : null}
+          </>
+        ) : null}
+
+        {hl.length ? (
+          <div className="pt-hl">
+            {hl.map((h, i) => (
+              <span key={i}>
+                <Check strokeWidth={3} />
+                {h}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        {/* Zonder link geen knop: een knop die nergens heen gaat is een
+            knop die niets doet. */}
+        {p.url || p.cta2_url ? (
+          <div className="pt-cta">
+            {p.url ? (
+              <a
+                className="pt-btn main"
+                href={p.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={tr("partners.opensInANewTab", { name: String(p.name) })}
+              >
+                {p.cta_label || tr("label.onb.learnMore")}
+                <ArrowUpRight />
+              </a>
+            ) : null}
+            {p.cta2_url ? (
+              <a className="pt-btn alt" href={p.cta2_url} target="_blank" rel="noopener noreferrer">
+                {p.cta2_label || tr("label.onb.learnMore")}
+                <ArrowUpRight />
+              </a>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -1327,6 +1327,9 @@ export const en = {
   "label.logout.logOut": "Log out",
   "label.sor.signingOut": "Signing out…",
   "sor.signOutAndContinue": "Sign out and continue",
+  // ── partnertegel ──
+  "label.partners.more": "Read more",
+  "label.partners.less": "Show less",
 } as const;
 
 export type Key = keyof typeof en;
