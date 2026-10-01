@@ -379,7 +379,15 @@ export default function WalletExchangeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tpx sm:max-w-[440px]">
+      <DialogContent
+        className="tpx sm:max-w-[440px]"
+        // Straight into the amount (de eigenaar, 01-10: "moet direct
+        // ingevuld, tikken op bedrag"), not the close button.
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          document.getElementById("from-amount")?.focus();
+        }}
+      >
         <TopupStyles />
         <DialogHeader>
           <DialogTitle>{tr("label.exch.exchangeBalance")}</DialogTitle>
