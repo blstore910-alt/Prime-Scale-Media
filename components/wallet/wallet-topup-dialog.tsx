@@ -7,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 // Alleen de bankGROEPEN (turlit/zanel), nooit de typeslugs: dit bestand
 // laadt in de browser van de klant. Lekcontrole 01-10, L2.
 import {
@@ -41,7 +40,6 @@ import { formatCurrency } from "@/lib/utils-pure";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Loader2,
-  CheckCircle2,
   ArrowLeft,
   ArrowRight,
   AlertTriangle,
@@ -69,6 +67,14 @@ type CurrencyCode = "USD" | "EUR";
 type FormValues = {
   amount: number;
 };
+
+const CONFETTI = [
+  { x: -58, y: -40, color: "#5B8DFF" }, { x: 60, y: -44, color: "#8B5CF6" },
+  { x: -66, y: 10, color: "#22C08A" }, { x: 68, y: 6, color: "#F2A516" },
+  { x: -40, y: 56, color: "#8B5CF6" }, { x: 44, y: 58, color: "#5B8DFF" },
+  { x: -10, y: -66, color: "#F2A516" }, { x: 14, y: 66, color: "#22C08A" },
+  { x: -72, y: -14, color: "#FF6B9A" }, { x: 74, y: -18, color: "#FF6B9A" },
+];
 
 const STEPS = {
   SELECTION: 1,
@@ -372,6 +378,7 @@ export default function WalletTopupDialog({
   const [slipName, setSlipName] = useState<string | null>(null);
   const [slipDrag, setSlipDrag] = useState(false);
   const [filedReference, setFiledReference] = useState<string | null>(null);
+  const [filedAmount, setFiledAmount] = useState<number | null>(null);
 
   // ── A CLAIM ALREADY WAITING, AND THE CODE IT CARRIES ──────────────
   //
@@ -798,7 +805,8 @@ export default function WalletTopupDialog({
       }
       return row;
     },
-    onSuccess: async (row) => {
+    onSuccess: async (row, values) => {
+      setFiledAmount(Number(values.amount) || null);
       // ── THE REFERENCE THE CLAIM WAS FILED WITH ──────────────────
       //
       // wallet_topup_advertiser_create stamps the wallet's current
@@ -957,7 +965,10 @@ export default function WalletTopupDialog({
 
             overscroll-contain so flicking past the end scrolls the
             dialog, not the page behind it. */}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2">
+        <div
+          key={step /* a new step starts at its top, not where the last one was scrolled to */}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2"
+        >
           <div className="px-1 py-2">
             {step !== STEPS.SUCCESS && (
               <TopupStepper
@@ -1012,7 +1023,7 @@ export default function WalletTopupDialog({
                     flight AND a read that failed; the sentence keeps those
                     apart so a flaky connection is never told "you don't
                     have an ad account with us yet" over the wrong bank. */}
-                {routingUnknown && (
+                {routingUnknown && (accountsUnknown || accountTypeSlugs.length > 0) && (
                   <div className="tpx-note">
                     <Info />
                     <span>
@@ -1064,10 +1075,10 @@ export default function WalletTopupDialog({
                       </button>
                     ))}
                   </div>
-                  <p className="tpx-hint">
+                  {transferCurrency !== currency && <p className="tpx-hint">
                     {tr("wtop.receives", { v: String(bankBeneficiary(bankGroup)), v2: String(availableTransferCurrencies.join(" / ")), v3: String(transferCurrency !== currency
                       ? ` You'll pay in ${transferCurrency}; your ${currency} wallet is credited from the slip.`
-                      : "") })}</p>
+                      : "") })}</p>}
                 </div>
 
                 {/* ── SAY THE MINIMUM BEFORE THEY SEND THE MONEY ────────
@@ -1184,30 +1195,34 @@ export default function WalletTopupDialog({
                     this says why, instead of an empty box whose tap does
                     nothing -- an unreferenced deposit is one nothing can
                     match. */}
-                <div className="tpx-ref">
-                  <p>
-                    {openTopup
-                      ? tr("wtop.forANewTransferUse")
-                      : tr("wtop.putThisReferenceInThe")}
-                  </p>
-                  {formatPaymentReference(clientCode, referenceNo) ? (
-                    <>
+                {formatPaymentReference(clientCode, referenceNo) ? (
+                  <div className="tpx-ticket">
+                    <span className="tpx-lbl">{tr("wtop.paymentReference")}</span>
+                    <span className="tpx-ticket-code tpx-mono">
+                      {formatPaymentReference(clientCode, referenceNo)}
+                    </span>
+                    <div className="tpx-ticket-foot">
+                      <p>
+                        {openTopup
+                          ? tr("wtop.forANewTransferUse")
+                          : tr("wtop.putThisReferenceInThe")}
+                      </p>
                       <button
                         type="button"
+                        className="tpx-pill"
+                        data-done={refCopied}
                         onClick={() => copyReference()}
-                        className="tpx-ref-code tpx-mono"
                         aria-label={tr("wtop.copyReference", { v: String(formatPaymentReference(clientCode, referenceNo)) })}
                       >
-                        {formatPaymentReference(clientCode, referenceNo)}
-                        {refCopied ? <Check style={{ color: "#22C08A" }} /> : <Copy />}
+                        {refCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        {refCopied ? tr("wtop.copied") : tr("wtop.copyShort")}
                       </button>
-                      <small>{refCopied ? tr("wtop.copied") : tr("wtop.tapToCopy")}</small>
-                    </>
-                  ) : (
-                    <p className="tpx-note" data-tone="warn" style={{ marginTop: 10 }}>
-                      {tr("wtop.weCouldNotProduceA")}</p>
-                  )}
-                </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="tpx-note" data-tone="warn">
+                    {tr("wtop.weCouldNotProduceA")}</p>
+                )}
 
                 {/* ── THE FLOOR, IN THE MONEY THEY ARE ABOUT TO SEND ──
                     One figure, in the transfer currency, rounded UP: a
@@ -1266,20 +1281,27 @@ export default function WalletTopupDialog({
                 style={{ gap: 14 }}
                 onSubmit={handleSubmit(handleSubmitForm)}
               >
-                <div className="tpx-sum">
-                  <span className="tpx-coin">{currencySymbol(currency)}</span>
-                  <div>
+                <div className="tpx-route">
+                  <div className="tpx-route-head">
                     <span className="tpx-lbl">{tr("label.wtop.transferringTo")}</span>
-                    <b>
-                      {bankBeneficiary(bankGroup)} · {transferCurrency} → {currency === "EUR" ? tr("wtop.walletEur") : tr("wtop.walletUsd")}
-                    </b>
+                    <button
+                      type="button"
+                      className="tpx-link"
+                      onClick={() => setStep(STEPS.SELECTION)}
+                    >
+                      {tr("label.wtop.change")}</button>
                   </div>
-                  <button
-                    type="button"
-                    className="tpx-link"
-                    onClick={() => setStep(STEPS.SELECTION)}
-                  >
-                    {tr("label.wtop.change")}</button>
+                  <div className="tpx-route-row">
+                    <div className="tpx-route-box">
+                      <small>{tr("wtop.youSend", { c: transferCurrency })}</small>
+                      <b>{bankBeneficiary(bankGroup)}</b>
+                    </div>
+                    <span className="tpx-route-arrow"><ArrowRight className="h-4 w-4" /></span>
+                    <div className="tpx-route-box">
+                      <small>{tr("wtop.weCredit")}</small>
+                      <b>{currency === "EUR" ? tr("wtop.walletEur") : tr("wtop.walletUsd")}</b>
+                    </div>
+                  </div>
                 </div>
 
                 {/* ── ASK FOR THE FIGURE THAT IS ACTUALLY WRITTEN ──
@@ -1515,58 +1537,71 @@ export default function WalletTopupDialog({
 
             {/* STEP 4: SUCCESS */}
             {step === STEPS.SUCCESS && (
-              <div className="flex flex-col items-center justify-center py-6 space-y-4 text-center">
-                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+              <div className="tpx-done">
+                <div className="tpx-burst" aria-hidden>
+                  <span className="tpx-burst-ring" />
+                  <span className="tpx-burst-ring" />
+                  {CONFETTI.map((c, i) => (
+                    <span
+                      key={i}
+                      className="tpx-confetti"
+                      style={{ background: c.color, ["--x" as string]: c.x + "px", ["--y" as string]: c.y + "px", animationDelay: 0.2 + (i % 4) * 0.05 + "s" } as React.CSSProperties}
+                    />
+                  ))}
+                  <span className="tpx-burst-core">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12.5l4.5 4.5L19 7.5" />
+                    </svg>
+                  </span>
                 </div>
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">{tr("wtop.requestSuccessful")}</h3>
-                  <p className="text-sm text-muted-foreground max-w-[18rem] mx-auto">
-                    {/* NOT "quoting this reference" — that is bank
-                        jargon for an instruction with a concrete place
-                        to put it. Step 2 of this same dialog already
-                        says it plainly ("Put this reference in the
-                        description of your transfer"); this screen, the
-                        last one before somebody opens their banking
-                        app, said it in the vaguest form. */}
-                    {filedReference
-                      ? tr("wtop.nowSendTheTransferAnd")
-                      : tr("wtop.yourTopupRequestHasBeen")}
-                  </p>
-                </div>
+                <h3>{tr("wtop.requestSuccessful")}</h3>
+                {filedAmount ? (
+                  <div className="tpx-amt">{formatCurrency(filedAmount, currency)}</div>
+                ) : null}
+                <span className="tpx-status"><i />{tr("wtop.beingChecked")}</span>
+                {/* The slip is already in, so the money has gone: this
+                    screen confirms, it does not instruct (de eigenaar,
+                    01-10: "klanten hebben al slip geupload dus ze hebben
+                    al gestuurd"). */}
+                <p>{tr("wtop.doneLead")}</p>
 
                 {/* THE CODE THIS CLAIM CARRIES -- not the wallet's, which
                     has already rotated to the next one. This is the last
                     screen before somebody opens their banking app. */}
                 {filedReference ? (
-                  <div className="w-full rounded-xl border bg-muted/20 p-4">
-                    <button
-                      type="button"
-                      onClick={() => copyReference(filedReference)}
-                      className="flex w-full items-center justify-center gap-2.5 rounded-lg border bg-background px-3 py-3 font-mono text-xl font-bold tracking-wide transition hover:border-ring hover:bg-accent/40"
-                      aria-label={tr("wtop.copyReference", { v: String(formatPaymentReference(clientCode, filedReference)) })}
-                    >
-                      {/* No icon — see the same button on the details
-                          step. The line under it carries the state. */}
+                  <div className="tpx-ticket" style={{ width: "100%", textAlign: "left" }}>
+                    <span className="tpx-lbl">{tr("wtop.paymentReference")}</span>
+                    <span className="tpx-ticket-code tpx-mono">
                       {formatPaymentReference(clientCode, filedReference)}
-                    </button>
-                    <p className="mt-2 text-center text-xs text-muted-foreground">
-                      {refCopied
-                        ? tr("wtop.copied")
-                        : /* NOT "find it again on your wallet page": the
-                             whole point of this block is that the
-                             wallet has already rotated to the NEXT
-                             code, so that page shows a different one. */
-                          tr("wtop.tapToCopyThenPaste")}
-                    </p>
+                    </span>
+                    <div className="tpx-ticket-foot">
+                      <p>{tr("wtop.keepRef")}</p>
+                      <button
+                        type="button"
+                        className="tpx-pill"
+                        data-done={refCopied}
+                        onClick={() => copyReference(filedReference)}
+                        aria-label={tr("wtop.copyReference", { v: String(formatPaymentReference(clientCode, filedReference)) })}
+                      >
+                        {refCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        {refCopied ? tr("wtop.copied") : tr("wtop.copyShort")}
+                      </button>
+                    </div>
                   </div>
-                ) : null}
+                ) : (
+                  <p className="tpx-hint">{tr("wtop.yourTopupRequestHasBeen")}</p>
+                )}
 
-                <Button
-                  onClick={() => onOpenChange(false)}
-                  className="w-full mt-2"
-                >
-                  {tr("btn.close")}</Button>
+                <div className="tpx-next">
+                  <div className="tpx-next-row"><span>1</span>{tr("wtop.next1")}</div>
+                  <div className="tpx-next-row"><span>2</span>{tr("wtop.next2")}</div>
+                  <div className="tpx-next-row"><span>3</span>{tr("wtop.next3")}</div>
+                </div>
+
+                <div className="tpx-actions" style={{ width: "100%" }}>
+                  <button type="button" className="tpx-cta" onClick={() => onOpenChange(false)}>
+                    {tr("btn.close")}</button>
+                </div>
               </div>
             )}
           </div>

@@ -157,7 +157,19 @@ export function BankTransferInstructions({
         ))}
       </div>
 
-      {groups.map((g, gi) => (
+      {groups.map((g, gi) =>
+        // A group with nothing to copy ("Transfer type: SEPA preferred,
+        // SWIFT if not") is advice, not data -- one line, not two tiles.
+        g.items.every((it) => !it.copyable) && g.title ? (
+          <p key={gi} className="tpx-hint" style={{ margin: 0 }}>
+            {g.items.map((it, i) => (
+              <span key={it.label}>
+                {i > 0 ? " · " : ""}
+                <strong style={{ color: "var(--tpx-ink)" }}>{it.label}</strong> {it.value}
+              </span>
+            ))}
+          </p>
+        ) : (
         <div key={gi}>
           {meaningful(g.title) ? <p className="tpx-sec" style={{ margin: "4px 0 6px" }}>{g.title}</p> : null}
           <div className="tpx-tiles">
@@ -166,7 +178,8 @@ export function BankTransferInstructions({
             ))}
           </div>
         </div>
-      ))}
+        ),
+      )}
 
       {/* The one sentence that stops a deposit being rejected. */}
       <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
@@ -217,7 +230,7 @@ function CopyRow({
   const body = (
     <div>
       <span className="tpx-lbl">{label}</span>
-      <span className={cn("tpx-val", MONO_LABELS.test(label) && "tpx-mono")}>{value}</span>
+      <span className={cn("tpx-val", MONO_LABELS.test(label) && !/\s[a-z]/i.test(value) && "tpx-mono")}>{value}</span>
     </div>
   );
   const button = copyable ? (
