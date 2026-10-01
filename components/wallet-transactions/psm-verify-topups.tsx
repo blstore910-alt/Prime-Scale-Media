@@ -753,13 +753,6 @@ export default function PsmVerifyTopups({
                         >
                           <Check /> Verify
                         </button>
-                        {!voorstel && !proposals.data?.plakNodig ? (
-                          <OtherAmountButton
-                            topupId={t.id}
-                            claimed={Number(t.amount)}
-                            currency={String(t.currency ?? "EUR")}
-                          />
-                        ) : null}
                         {/* A reason that lives only in a title attribute
                             is invisible on a phone and unreliable on a
                             disabled button -- and it named "the Advances
@@ -787,32 +780,6 @@ export default function PsmVerifyTopups({
                             : queueAdvances[t.id]
                               ? "Cancel advance first"
                               : "Reject"}
-                        </button>
-                        <button
-                          className="btn ghost sm"
-                          disabled={
-                            prechargingId === t.id ||
-                            !!queueAdvances[t.id] ||
-                            advancesUnknown
-                          }
-                          title={
-                            advancesUnknown
-                              ? "Checking whether this top-up carries an advance."
-                              : queueAdvances[t.id]
-                                ? "Already advanced — verify it to settle"
-                                : "Advance-credit the wallet now; settles on verify"
-                          }
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPrechargeAsk(t);
-                          }}
-                        >
-                          <Zap />{" "}
-                          {advancesUnknown
-                            ? "Checking…"
-                            : queueAdvances[t.id]
-                              ? "Advanced"
-                              : "Precharge"}
                         </button>
                       </>
                     )}
@@ -974,6 +941,41 @@ export default function PsmVerifyTopups({
         open={!!detailsId}
         onOpenChange={(o) => !o && setDetailsId(null)}
         topupId={detailsId}
+        actions={(() => {
+          // Other amount and Precharge live here, not on the queue card
+          // (de eigenaar, 01-10): rare, and both move money.
+          const t = transactions.find((x) => x.id === detailsId);
+          if (!t || t.status !== "pending") return null;
+          const voorstel = (proposals.data?.proposals ?? []).find((x) => x.topupId === t.id);
+          return (
+            <>
+              {!voorstel && !proposals.data?.plakNodig ? (
+                <OtherAmountButton
+                  topupId={t.id}
+                  claimed={Number(t.amount)}
+                  currency={String(t.currency ?? "EUR")}
+                />
+              ) : null}
+              <button
+                className="btn ghost sm"
+                disabled={prechargingId === t.id || !!queueAdvances[t.id] || advancesUnknown}
+                title={
+                  advancesUnknown
+                    ? "Checking whether this top-up carries an advance."
+                    : queueAdvances[t.id]
+                      ? "Already advanced — verify it to settle"
+                      : "Advance-credit the wallet now; settles on verify"
+                }
+                onClick={() => {
+                  setDetailsId(null);
+                  setPrechargeAsk(t);
+                }}
+              >
+                <Zap /> {advancesUnknown ? "Checking…" : queueAdvances[t.id] ? "Advanced" : "Precharge"}
+              </button>
+            </>
+          );
+        })()}
       />
       <PaymentSlipDialog
         open={slipOpen}

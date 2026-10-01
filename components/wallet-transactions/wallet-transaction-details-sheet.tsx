@@ -48,10 +48,14 @@ export default function WalletTransactionDetailsSheet({
   open,
   onOpenChange,
   topupId,
+  actions,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   topupId: string | null;
+  /** The rarer actions (another amount, precharge): kept off the queue
+   *  card and offered here (de eigenaar, 01-10). */
+  actions?: React.ReactNode;
 }) {
   const {
     data: topup,
@@ -269,6 +273,9 @@ export default function WalletTransactionDetailsSheet({
                 />
               )}
             </div>
+            {actions ? (
+              <div className="mt-6 flex flex-wrap gap-2 border-t pt-4">{actions}</div>
+            ) : null}
           </div>
         )}
       </SheetContent>
