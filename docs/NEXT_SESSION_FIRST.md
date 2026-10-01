@@ -1,3 +1,23 @@
+# 01-10, MIDDAG — DE LIJST VAN DE EIGENAAR, IN VOLGORDE
+
+Gevraagd op 01-10, na de backups. Afgevinkt wat klaar is; de rest in
+deze volgorde, één voor één.
+
+| # | wat | stand |
+|---|---|---|
+| 1 | UptimeRobot meldde down | ✅ vals alarm: /api/health las met de anon-sleutel; gefixt, 200 |
+| 2 | Plans & Communities + Ad-account types: onduidelijk | ✅ kaarten met kleur, labels, leveranciersblok met marge |
+| 3 | Factuurmail testen met het eigen adres van de eigenaar | ⏳ nodig: een uitnodiging naar een eigen adres (plus-alias), plan erop, aanmelden |
+| 4 | Bestads (= leverancier Muxue, Meta-HK) op het dashboard + dagelijkse reconciliatie zoals de spreadsheet: begin, wat wij erheen sturen (EUR→USD of USD), klant-top-ups eraf, fees, DST, verwacht eind, echt eind, verschil, status, notities | ⏳ high -- nieuwe tabel (plak) + scherm |
+| 5 | Affiliateprogramma per community aan/uit met één knop (bv. heel NSA uit) | ⏳ |
+| 6 | Alle e-mailtemplates "super wow" | ⏳ |
+| 7 | Rooster voor medewerkers: tijdblokken, dagen, voorkeuren; AI vult in en past aan; vastzetten voor weken/maanden; één admin maakt het | ⏳ groot |
+| 8 | Wie er NU live hoort te zijn (uit het rooster): klein en subtiel bovenaan het dashboard | ⏳ na 7 |
+| 9 | Inlog-uren en activiteit per admin bijhouden (in/uit, actieve tijd) -- alleen super-admin (en eventueel één admin) | ⏳ na 7 |
+| 10 | Admin- en super-admin-handboek 10x duidelijker, voor iemand die met nul kennis begint: wat, waarom, hoe, de workflow, de wachtrijen op de homepage -- met een taalkiezer voor heel veel talen | ⏳ |
+
+---
+
 # 01-10 — DE LIJST AF, TEST 4 KLAAR OM TE BEGINNEN
 
 **Begin hier met `docs/TEST_4_PROMPT.md`** (de prompt) en
