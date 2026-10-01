@@ -208,7 +208,7 @@ export const en = {
   "adv.invoicePaidFromYourWallet": "Invoice paid from your wallet.",
   "adv.couldnTPayFromWallet": "Couldn't pay from wallet",
   "adv.noLongTermContract": "No long-term contract",
-  "adv.renewYourPlan": "Renew your plan?",
+  "adv.renewYourPlan": "Pay your plan?",
   "adv.payThisFromYourWallet": "Pay this from your wallet?",
   "adv.weCouldnTReadYour2": "We couldn't read your balance just now",
   "label.adv.noDateSet": "No date set",

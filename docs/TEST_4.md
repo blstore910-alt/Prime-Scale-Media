@@ -543,17 +543,17 @@ eigenaar nodig is).
 | R3 | T4-B USD | EN | | | | |
 | R3 | T4-N HK | EN | | | | |
 | R4 | T4-A EUR -> USD | EN | werkt | cursor meteen in het vak; EUR 100 x 1,1243 = $112,43, fee $0,67, ontvangt $111,76; wallet voor/na klopt; koersregel 'bijgewerkt 22:15' | wallet EUR 400.00 / USD 111.76; ledger -100.00 EUR en +111.76 USD; wallet_exchanges 100 -> 111.76, fee 0.67, koers 0.889442 (Wise); /exchanges toont hem bovenaan | bevestiging opnieuw ontworpen (040bb7d9). Hinderlijk: /exchanges loopt op 455 px rechts buiten beeld. Open: T4-B USD -> EUR |
-| R5 | T4-A Meta API | EN | | | | |
+| R5 | T4-A Meta + TikTok | EN | werkt | aanvragen geblokkeerd tot de abonnementsfactuur betaald is (klopt). Meta: 'inbegrepen, geen kosten, 1 van 1'. TikTok USD: '$56, $111,76 -> $55,76'. Alle drie de platformtakken tonen hun eigen velden. Beide zichtbaar ('$56.00 came off your wallet'). Beheer: Meta goedgekeurd als AA-PSM0030-EU-01 (Meta-EU-PSM-RA, 5%) | Meta: request_fee 0, plan_included, wallet bleef 325.00; TikTok: request_fee 56 USD, ledger -56.00 USD (111.76 -> 55.76, ad_account_request_create_paid); ad_accounts: eu-meta-psm EUR 5% active; Meta-aanvraag completed | — |
 | R5 | T4-B Google (2e inbegrepen) | EN | | | | |
 | R5 | T4-C TikTok (extra, EUR 50) | EN | | | | |
 | R5 | T4-N Meta-HK | EN | | | | |
 | R5 | T4-0 geen plan | EN | | | | |
-| R6 | T4-A API | EN | | | | |
+| R6 | T4-A | EN | werkt | fee-offerte na L1 werkt: EUR 100 -> fee 5% EUR 5,00 -> landt EUR 95,00, wallet 325 -> 225; klant ziet alleen 'Meta', geen type. Beheer: Verify vraagt 'ik heb het bij Rockads gefund' + 'de klant krijgt bericht' | top_ups #13: 100.00 / fee 5.00 / 95.00, wallet_debited, pending -> completed; ledger -100.00 (325 -> 225, top_up_create_for_advertiser); melding topup_completed | bevestiging opnieuw ontworpen (b7899347) |
 | R6 | T4-B / T4-C / T4-N handmatig | EN | | | | |
 | R7 | T4-A live plafond | EN | | | | |
 | R7 | T4-C handmatig plafond | EN | | | | |
 | R7 | T4-R clawback | EN | | | | |
-| R8 | T4-A EUR | EN | | | | |
+| R8 | T4-A EUR | EN | werkt | Billing: Flex EUR 75, 'Pay EUR 75.00 from wallet' -> bevestiging 'EUR 400 -> 325' -> 'This month is paid, next 1 Nov' | invoice 150: total 75.00, paid, paid_from wallet; ledger -75.00 (400 -> 325, invoice_pay_from_wallet); subscription active | hinderlijk: titel 'Renew your plan?' bij de EERSTE betaling |
 | R8 | T4-B USD | EN | | | | |
 | R8 | T4-0 geen plan | EN | | | | |
 | R9 | T4-F + T4-R | EN | | | | |

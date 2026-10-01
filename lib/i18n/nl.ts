@@ -216,7 +216,7 @@ export const nl: Record<Key, string> = {
   "adv.invoicePaidFromYourWallet": "Factuur betaald uit je wallet.",
   "adv.couldnTPayFromWallet": "Betalen uit wallet mislukt",
   "adv.noLongTermContract": "Geen langlopend contract",
-  "adv.renewYourPlan": "Je plan verlengen?",
+  "adv.renewYourPlan": "Je plan betalen?",
   "adv.payThisFromYourWallet": "Dit uit je wallet betalen?",
   "adv.weCouldnTReadYour2": "We konden je saldo net niet lezen",
   "label.adv.noDateSet": "Geen datum",
