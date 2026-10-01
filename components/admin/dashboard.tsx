@@ -28,6 +28,7 @@ import Link from "next/link";
 import { dailyQuote } from "@/lib/pure-daily-quote";
 import { dstBehind } from "@/lib/pure-dst-behind";
 import { createClient } from "@/lib/supabase/client";
+import { LiveNow } from "@/components/admin/live-now";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
@@ -592,6 +593,8 @@ export default function AdminDashboard() {
           <p className={quote ? "quote" : undefined}>
             {quote ?? "What needs your action right now."}
           </p>
+          {/* Wie heeft er nu dienst, volgens het rooster. Plak 189. */}
+          <LiveNow />
         </div>
         {/* ── OWNER ONLY, LIKE EVERYTHING ELSE ABOUT INVITES ──────
             /invites is requireSuperAdmin and the sidebar entry is

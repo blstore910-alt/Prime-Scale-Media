@@ -6,10 +6,12 @@ import { useAppContext } from "@/context/app-provider";
 import { usePendingCounts } from "@/hooks/use-pending-counts";
 import { PSM_APP_CSS } from "@/components/advertiser/psm-shell-css";
 import { BankDetailsButton } from "@/components/admin/bank-details-button";
+import { useStaffHeartbeat } from "@/hooks/use-staff-heartbeat";
 import {
   Bell,
   BookOpen,
   Building2,
+  CalendarDays,
   Repeat,
   ChevronDown,
   Coins,
@@ -151,6 +153,9 @@ export default function AdminShell({
   const myCapabilities = caps.data ?? [];
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Actieve tijd voor de urenregistratie (plak 189): elke minuut, alleen
+  // zolang dit tabblad zichtbaar is.
+  useStaffHeartbeat();
   const [signOutOpen, setSignOutOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -215,6 +220,9 @@ export default function AdminShell({
         // De partnergids: de klant ziet de tegels, hier worden ze gezet.
         // Onder "More" en niet onder "Money" -- het raakt geen euro.
         { title: "Partners", href: "/partners", icon: Building2 },
+        // Het rooster: wie wanneer. Voor elke admin -- iedereen moet zijn
+        // eigen diensten en voorkeuren kunnen zien. Plak 189.
+        { title: "Schedule", href: "/schedule", icon: CalendarDays },
         { title: "Manual", href: "/manual", icon: BookOpen },
         { title: "Get Help", href: "/help", icon: HelpCircle },
       ],
