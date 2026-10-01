@@ -185,4 +185,5 @@ Uit `RESTORE-DRILL-TELLING.sql`, om een eerste oefening tegen te houden:
 
 | datum | wie | soort (A zip / B herstel) | hersteltijd | telling klopt? | wat viel op |
 |---|---|---|---|---|---|
+| 01-10-2026 | eigenaar + Claude | A zip (psm-backup-2026-10-01.zip, 10:52 UTC, versie e6b7557) | n.v.t. | ja: backup:verify exit 0 (63 tabellen, 5253 rijen, 44 bestanden); wallets 22, invoices 39, advertisers 22, profiles 28, saldo EUR 1593.50 / USD 1668.37 -- gelijk aan live | backupmail ging niet uit (eigenaren op het verkeerde id gezocht) -- gefixt; 27/27 betaalde facturen op Drive |
 | | | | | | |
