@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -159,6 +160,7 @@ export default function AffiliateCommissionsCard({
    *  the sums below for why this card needs it. */
   payableAllTime?: { eur: number; usd: number } | null;
 }) {
+  const { t: tr } = useT();
   const [sort, setSort] = useState<Sort>("newest");
   // Five is enough to see what is going on; the rest is one tap away.
   const [showAll, setShowAll] = useState(false);
@@ -267,17 +269,17 @@ export default function AffiliateCommissionsCard({
           <Ic name="i-wallet" />
         </span>
         <div className="xl-ttl">
-          <h2>Every commission</h2>
+          <h2>{tr("label.comm.everyCommission")}</h2>
           <span className="xl-sub">
-            {periodLabel ?? "All time"}
+            {periodLabel ?? tr("label.comm.allTime")}
             {!dash ? ` · ${rows.length} ${rows.length === 1 ? "commission" : "commissions"}` : null}
           </span>
         </div>
         <label className="xsel xl-sort">
-          <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-            <option value="largest">Largest</option>
+          <select aria-label={tr("comm.sort")} value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            <option value="newest">{tr("label.comm.newest")}</option>
+            <option value="oldest">{tr("label.comm.oldest")}</option>
+            <option value="largest">{tr("label.comm.largest")}</option>
           </select>
           <Ic name="i-chev" />
         </label>
@@ -285,10 +287,9 @@ export default function AffiliateCommissionsCard({
 
       {focusCode ? (
         <div className="xl-focus">
-          Only <b>{focusCode}</b>
-          <button type="button" onClick={onClearFocus} title="Show every referral again">
-            Show all ✕
-          </button>
+          {tr("label.comm.only")}{" "}<b>{focusCode}</b>
+          <button type="button" onClick={onClearFocus} title={tr("comm.showEveryReferralAgain")}>
+            {tr("label.comm.showAll")}</button>
         </div>
       ) : null}
 
@@ -300,7 +301,7 @@ export default function AffiliateCommissionsCard({
         active={kind}
         options={(["all", "topup", "subscription", "onetime"] as KindFilter[]).map((k) => ({
           key: k,
-          label: k === "all" ? "All" : k === "topup" ? "Top-ups" : k === "subscription" ? "Plans" : "Bonus",
+          label: k === "all" ? tr("label.comm.all") : k === "topup" ? "Top-ups" : k === "subscription" ? tr("label.comm.plans") : "Bonus",
           onClick: () => setKind(k),
         }))}
       />
@@ -334,10 +335,7 @@ export default function AffiliateCommissionsCard({
               card cannot tell the two apart -- and saying which one it was
               is not what the sentence is for. What it owes the reader is
               the figure a payout would be. */}
-          {money({ [leadCurrency]: clawedBack }, leadCurrency)} of this
-          isn&apos;t free to ask for: it is either already in a payout you
-          asked for, or it came back to the customer and was taken off
-          again. A payout right now would be{" "}
+          {money({ [leadCurrency]: clawedBack }, leadCurrency)} {" "}{tr("comm.ofThisIsnTFree")}{" "}
           <b>{money({ [leadCurrency]: payableLead ?? 0 }, leadCurrency)}</b>.
         </p>
       ) : null}
@@ -365,9 +363,7 @@ export default function AffiliateCommissionsCard({
 
       {!dash && notCounted ? (
         <p className="xl-note">
-          {notCounted} {notCounted === 1 ? "commission is" : "commissions are"} listed
-          but not counted above — still being calculated, or taken back.
-        </p>
+          {tr("comm.listedButNotCountedAbove", { notCounted: String(notCounted), v: String(notCounted === 1 ? "commission is" : "commissions are") })}</p>
       ) : null}
 
       {/* isLoading is FALSE for a disabled query in react-query v5, and
@@ -378,13 +374,12 @@ export default function AffiliateCommissionsCard({
           above. One card, two answers: "we don't know" over "you have
           earned nothing", to an affiliate who is owed money. */}
       {!enabled || q.isPending ? (
-        <p className="xl-empty">Loading your commissions…</p>
+        <p className="xl-empty">{tr("comm.loadingYourCommissions")}</p>
       ) : q.isError ? (
         <p className="xl-empty">
-          We couldn&apos;t read your commissions just now — this is not a zero. Reload to try again.
-        </p>
+          {tr("comm.weCouldnTReadYour")}</p>
       ) : q.data?.missing ? (
-        <p className="xl-empty">The detailed list is being switched on. Your totals above are up to date.</p>
+        <p className="xl-empty">{tr("comm.theDetailedListIsBeing")}</p>
       ) : rows.length ? (
         (showAll ? rows : rows.slice(0, PAGE)).map((r) => {
           const reversed = r.status === "reversed";
@@ -394,7 +389,7 @@ export default function AffiliateCommissionsCard({
               {kindMark(r)}
               <span className="mid">
                 <span className="nm">
-                  <span className="t">{r.referred_advertiser_name || "Advertiser"}</span>
+                  <span className="t">{r.referred_advertiser_name || tr("label.adv.advertiser")}</span>
                 </span>
                 <span className="sm">
                   {[
@@ -456,16 +451,16 @@ export default function AffiliateCommissionsCard({
       ) : (
         <p className="xl-empty">
           {all.length
-            ? "Nothing matches these filters."
+            ? tr("comm.nothingMatchesTheseFilters")
             : from || to
-              ? "No commission in this period."
-              : "No commission yet — it appears here the moment one is earned."}
+              ? tr("comm.noCommissionInThisPeriod")
+              : tr("comm.noCommissionYetItAppears")}
         </p>
       )}
 
       {rows.length > PAGE ? (
         <button className="xl-more" onClick={() => setShowAll((v) => !v)}>
-          {showAll ? "Show fewer" : `View all ${rows.length}`}
+          {showAll ? tr("label.adv.showFewer") : tr("adv.viewAll", { length: String(rows.length) })}
           <Ic name="i-chev" />
         </button>
       ) : null}

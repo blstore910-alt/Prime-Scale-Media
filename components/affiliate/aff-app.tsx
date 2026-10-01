@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import PrivacyControls from "@/components/profile/privacy-controls";
 
 import { copyText } from "@/lib/copy-text";
@@ -139,6 +140,7 @@ function monthStartIso() {
 }
 
 export default function AffiliateApp() {
+  const { t: tr } = useT();
   const { profile } = useAppContext();
   // ── OPEN ON THE ONE THE NAV CALLS HOME ────────────────────────────
   //
@@ -598,17 +600,17 @@ export default function AffiliateApp() {
 
   const copyLink = async () => {
     if (!referralLink) {
-      toast.error("Your referral link isn't set up yet", {
+      toast.error(tr("aff.yourReferralLinkIsnT"), {
         description:
-          "Your affiliate account isn't linked to a customer record yet — ask us to finish setting it up.",
+          tr("aff.yourAffiliateAccountIsnT"),
       });
       return;
     }
     try {
       if (!(await copyText(referralLink))) throw new Error("copy refused");
-      toast.success("Referral link copied.");
+      toast.success(tr("adv.referralLinkCopied"));
     } catch {
-      toast.error("Couldn't copy the link.");
+      toast.error(tr("adv.couldnTCopyTheLink"));
     }
   };
 
@@ -617,7 +619,7 @@ export default function AffiliateApp() {
 
   const shareWhatsApp = () => {
     if (!referralLink) {
-      toast.error("Your referral link isn't set up yet.");
+      toast.error(tr("aff.yourReferralLinkIsnT2"));
       return;
     }
     window.open(
@@ -637,14 +639,14 @@ export default function AffiliateApp() {
     // Export and was told they have nothing -- about their own
     // customers, on the file they hand a bookkeeper.
     if (portalInert) {
-      toast.error("Your account isn't finished yet, so there is nothing we can export", {
-        description: "This is not an empty list. Contact us and we'll complete it.",
+      toast.error(tr("aff.yourAccountIsnTFinished"), {
+        description: tr("aff.thisIsNotAnEmpty"),
       });
       return;
     }
     if (refs.isError) {
-      toast.error("We couldn't read your referrals, so there is nothing to export yet", {
-        description: "This is not an empty list. Reload and try again.",
+      toast.error(tr("adv.weCouldnTReadYour"), {
+        description: tr("adv.thisIsNotAnEmpty"),
       });
       return;
     }
@@ -652,11 +654,11 @@ export default function AffiliateApp() {
     // reports isLoading FALSE, and the guard below then toasted
     // "Nothing to export for this range" about a read that never ran.
     if (refs.isPending) {
-      toast.info("Still loading your referrals — try again in a moment.");
+      toast.info(tr("adv.stillLoadingYourReferralsTry"));
       return;
     }
     if (!refs.rows.length) {
-      toast.info("Nothing to export for this range.");
+      toast.info(tr("aff.nothingToExportForThis"));
       return;
     }
     try {
@@ -675,7 +677,7 @@ export default function AffiliateApp() {
       // mojibake in a European Windows Excel.
       downloadCsv(csv, "my_referrals.csv");
     } catch (e) {
-      toast.error("Export failed", {
+      toast.error(tr("label.adv.exportFailed"), {
         description: e instanceof Error ? e.message : undefined,
       });
     }
@@ -683,18 +685,18 @@ export default function AffiliateApp() {
 
   const NAV: { v: View; icon: string; label: string; n?: number }[] = [
     { v: "dash", icon: "i-home", label: "Dashboard" },
-    { v: "refs", icon: "i-target", label: "My Referrals" },
+    { v: "refs", icon: "i-target", label: tr("label.aff.myReferrals") },
     { v: "pay", icon: "i-wallet", label: "Wallet" },
-    { v: "notif", icon: "i-bell", label: "Notifications" },
-    { v: "set", icon: "i-settings", label: "Settings" },
-    { v: "help", icon: "i-help", label: "Get Help" },
+    { v: "notif", icon: "i-bell", label: tr("tab.notifications") },
+    { v: "set", icon: "i-settings", label: tr("tab.settings") },
+    { v: "help", icon: "i-help", label: tr("label.aff.getHelp") },
   ];
   const BOTTOM: { v: View; icon: string; label: string }[] = [
     { v: "refs", icon: "i-target", label: "Referrals" },
     { v: "pay", icon: "i-wallet", label: "Wallet" },
     { v: "dash", icon: "i-home", label: "Home" },
-    { v: "notif", icon: "i-bell", label: "Alerts" },
-    { v: "set", icon: "i-settings", label: "Settings" },
+    { v: "notif", icon: "i-bell", label: tr("aff.alerts") },
+    { v: "set", icon: "i-settings", label: tr("tab.settings") },
   ];
 
   return (
@@ -718,14 +720,14 @@ export default function AffiliateApp() {
           type="button"
           className="logo"
           onClick={() => go("dash")}
-          aria-label="Go to the dashboard"
+          aria-label={tr("adv.goToTheDashboard")}
           style={{ border: 0, background: "none", cursor: "pointer", textAlign: "left", width: "100%", font: "inherit", color: "inherit" }}
         >
           <span className="mark">
             <Ic name="i-rocket" />
           </span>
           <span className="name">
-            Prime Scale Media<small>Affiliate portal</small>
+            Prime Scale Media<small>{tr("label.aff.affiliatePortal")}</small>
           </span>
         </button>
         {NAV.map((item) => (
@@ -749,7 +751,7 @@ export default function AffiliateApp() {
           </div>
           <div className="who">
             {name}
-            <small>{tierUnknown ? "Partner" : `${tier.name} partner`}</small>
+            <small>{tierUnknown ? "Partner" : tr("aff.partner", { name: String(tier.name) })}</small>
           </div>
         </div>
       </aside>
@@ -776,7 +778,7 @@ export default function AffiliateApp() {
                 type="button"
                 className="mark"
                 onClick={() => go("dash")}
-                aria-label="Go to the dashboard"
+                aria-label={tr("adv.goToTheDashboard")}
                 title="Dashboard"
                 style={{ border: 0, padding: 0, cursor: "pointer" }}
               >
@@ -789,7 +791,7 @@ export default function AffiliateApp() {
               type="button"
               className="mark"
               onClick={() => go("dash")}
-              aria-label="Go to the dashboard"
+              aria-label={tr("adv.goToTheDashboard")}
               title="Dashboard"
               style={{ border: 0, padding: 0, cursor: "pointer" }}
             >
@@ -806,7 +808,7 @@ export default function AffiliateApp() {
             >
               <Ic name="i-trend" />
               <span className="e">
-                <small>This month</small>
+                <small>{tr("label.adv.thisMonth")}</small>
                 {/* twoLeg, NOT eur(). This pill is rendered on all six
                     views, and it was the one total on the screen that did
                     not go through the helper written to stop exactly this:
@@ -820,7 +822,7 @@ export default function AffiliateApp() {
             <button
               className="tool tier2"
               onClick={() => go("refs")}
-              title="Your tier"
+              title={tr("label.aff.yourTier")}
             >
               <Ic name="i-trophy" /> {tierUnknown ? dash : tier.name}
             </button>
@@ -831,7 +833,7 @@ export default function AffiliateApp() {
             <button
               className="tool ic-btn"
               onClick={() => go("notif")}
-              aria-label="Notifications"
+              aria-label={tr("tab.notifications")}
             >
               <Ic name="i-bell" />
               {/* Server-counted, like the advertiser shell: counting off
@@ -841,8 +843,8 @@ export default function AffiliateApp() {
               {notifsCountError || notifsCountPending ? (
                 <span
                   className="badge-n unknown"
-                  title="We couldn't check for new notifications — this is not a zero."
-                  aria-label="Unread count unavailable"
+                  title={tr("adv.weCouldnTCheckFor")}
+                  aria-label={tr("adv.unreadCountUnavailable")}
                 />
               ) : (unreadCount ?? 0) > 0 ? (
                 <span className="badge-n">
@@ -897,7 +899,7 @@ export default function AffiliateApp() {
                           we ask for on the phone and what every payment
                           reference starts with. */}
                       <span className="sub">
-                        {tierUnknown ? "Partner" : `${tier.name} partner`}
+                        {tierUnknown ? "Partner" : tr("aff.partner", { name: String(tier.name) })}
                         {referralCode ? (
                           <>
                             {" · "}
@@ -915,8 +917,7 @@ export default function AffiliateApp() {
                       go("set");
                     }}
                   >
-                    <Ic name="i-user" /> Profile
-                  </button>
+                    <Ic name="i-user" /> {" "}{tr("menu.profile")}</button>
                   <button
                     className="umenu-item danger"
                     role="menuitem"
@@ -925,8 +926,7 @@ export default function AffiliateApp() {
                       setSignOutOpen(true);
                     }}
                   >
-                    <LogoutGlyph /> Sign out
-                  </button>
+                    <LogoutGlyph /> {" "}{tr("menu.signOut")}</button>
                 </div>
               )}
             </div>
@@ -935,8 +935,8 @@ export default function AffiliateApp() {
             <button
               className="tool ic-btn so-btn"
               onClick={() => setSignOutOpen(true)}
-              aria-label="Sign out"
-              title="Sign out"
+              aria-label={tr("menu.signOut")}
+              title={tr("menu.signOut")}
             >
               <LogoutGlyph />
             </button>
@@ -953,13 +953,9 @@ export default function AffiliateApp() {
                 month, or an account that was never finished. */}
             {portalInert && (
               <div className="notice warn" style={{ marginBottom: 14 }}>
-                <b>Your affiliate account isn&apos;t finished yet.</b>
+                <b>{tr("aff.yourAffiliateAccountIsnT2")}</b>
                 <span>
-                  It isn&apos;t linked to a customer record, so we
-                  can&apos;t show your referrals, your earnings or your
-                  link. Nothing is lost — ask us to finish it and
-                  everything appears here.
-                </span>
+                  {tr("aff.itIsnTLinkedTo")}</span>
               </div>
             )}
             {/* ── THE EARNINGS CARD ───────────────────────────────────
@@ -1015,7 +1011,7 @@ export default function AffiliateApp() {
                     !n ? "there" : n.length <= 20 ? n : n.split(/\s+/)[0];
                   return (
                     <p className="xh-who">
-                      Welcome back, <b>{shown}</b>
+                      {tr("label.aff.welcomeBack")}{" "}<b>{shown}</b>
                     </p>
                   );
                 })()}
@@ -1025,8 +1021,7 @@ export default function AffiliateApp() {
                     scherm, zodat hij een dag lang dezelfde blijft. */}
                 {affQuote ? <p className="xh-quote">{affQuote}</p> : null}
                 <p className="xh-eyebrow">
-                  <Ic name="i-gift" /> Your total earnings
-                </p>
+                  <Ic name="i-gift" /> {" "}{tr("adv.yourTotalEarnings")}</p>
                 {statsUnavailable ? (
                   <>
                     <h1 className="xh-amt">
@@ -1034,10 +1029,10 @@ export default function AffiliateApp() {
                     </h1>
                     <p className="xh-sub">
                       {all.isError
-                        ? "We couldn't load your earnings just now. This is NOT a zero \u2014 reload to try again."
+                        ? tr("aff.weCouldnTLoadYour")
                         : portalInert
-                          ? "Your affiliate account isn't finished yet \u2014 we're on it."
-                          : "Counting your earnings\u2026"}
+                          ? tr("aff.yourAffiliateAccountIsnT3")
+                          : tr("adv.countingYourEarnings")}
                     </p>
                   </>
                 ) : (
@@ -1070,11 +1065,11 @@ export default function AffiliateApp() {
                     <div className="xh-tiles">
                       <button type="button" className="xh-t" onClick={() => go("refs")}>
                         <span className="v">{referredCount}</span>
-                        <span className="l">Referred</span>
+                        <span className="l">{tr("label.adv.referred")}</span>
                       </button>
                       <button type="button" className="xh-t win" onClick={() => go("refs")}>
                         <span className="v">{activeCount}</span>
-                        <span className="l">Active</span>
+                        <span className="l">{tr("label.adv.active")}</span>
                       </button>
                     </div>
                     {/* The one month figure with no guard used to sit in
@@ -1085,8 +1080,8 @@ export default function AffiliateApp() {
                     <span className="xh-pill">
                       <Ic name="i-trend" />{" "}
                       {monthUnavailable
-                        ? "this month \u2014 not loaded"
-                        : `+${twoLeg(monthEur, monthUsd)} this month`}
+                        ? tr("adv.thisMonthNotLoaded")
+                        : tr("adv.thisMonth", { v: String(twoLeg(monthEur, monthUsd)) })}
                     </span>
                   </>
                 )}
@@ -1098,8 +1093,7 @@ export default function AffiliateApp() {
                   <span className="ci g">
                     <Ic name="i-trophy" />
                   </span>{" "}
-                  Lifetime
-                </div>
+                  {tr("label.aff.lifetime")}</div>
                 {/* This printed twoLeg() AND a second dollar span under
                     it, so a USD affiliate read "$1,400.00 · $1,400.00"
                     — $2,800 to anyone glancing at it. One helper, one
@@ -1113,8 +1107,7 @@ export default function AffiliateApp() {
                   <span className="ci t">
                     <Ic name="i-trend" />
                   </span>{" "}
-                  This month
-                </div>
+                  {tr("label.adv.thisMonth")}</div>
                 {/* Same fault, mirrored: eur() was printed unconditionally,
                     so a USD-only affiliate read "€0.00 · $500.00" here
                     while the toolbar pill said "$500.00". */}
@@ -1127,8 +1120,7 @@ export default function AffiliateApp() {
                   <span className="ci b">
                     <Ic name="i-users" />
                   </span>{" "}
-                  Referred
-                </div>
+                  {tr("label.adv.referred")}</div>
                 <div className="v blue">
                   {statsUnavailable ? dash : referredCount}
                 </div>
@@ -1138,8 +1130,7 @@ export default function AffiliateApp() {
                   <span className="ci p">
                     <Ic name="i-chart" />
                   </span>{" "}
-                  Spend driven
-                </div>
+                  {tr("label.adv.spendDriven")}</div>
                 <div className="v">
                   {statsUnavailable
                     ? dash
@@ -1163,8 +1154,8 @@ export default function AffiliateApp() {
           {/* MY REFERRALS */}
           <div className={`view${view === "refs" ? " on" : ""}`}>
             <div className="phead">
-              <h1>Affiliate program</h1>
-              <p>Everyone you brought in, and what they earned you.</p>
+              <h1>{tr("label.affiliateProgram")}</h1>
+              <p>{tr("aff.everyoneYouBroughtInAnd")}</p>
             </div>
             {/* ── AND ON THIS SCREEN TOO ────────────────────────────
                 The Dashboard and the Wallet each say it; this one did
@@ -1177,12 +1168,9 @@ export default function AffiliateApp() {
                 never finished. */}
             {portalInert && (
               <div className="notice warn" style={{ marginBottom: 14 }}>
-                <b>Your affiliate account isn&apos;t finished yet.</b>
+                <b>{tr("aff.yourAffiliateAccountIsnT2")}</b>
                 <span>
-                  It isn&apos;t linked to a customer record, so we can&apos;t
-                  show your referrals or what they earned you. Nothing is
-                  lost — ask us to finish it and everything appears here.
-                </span>
+                  {tr("aff.itIsnTLinkedTo2")}</span>
               </div>
             )}
             <section className="tierx">
@@ -1191,8 +1179,7 @@ export default function AffiliateApp() {
               <div className="tx-in">
                 <div className="tx-head">
                   <p className="tx-eyebrow">
-                    <Ic name="i-medal" /> Your tier
-                  </p>
+                    <Ic name="i-medal" /> {" "}{tr("label.aff.yourTier")}</p>
                   {/* Not a tier number we cannot vouch for. On a failed
                       read lifetimeCombined is 0, which puts the medal back
                       to Starter, resets the track to 0% and tells the
@@ -1210,10 +1197,10 @@ export default function AffiliateApp() {
                       wait. */}
                   <span className="tx-pill">
                     {all.isPending
-                      ? "Checking\u2026"
+                      ? tr("label.adv.checking")
                       : portalInert || all.isError || tierUnknown
-                        ? `Tier \u2014 / ${TIERS.length}`
-                        : `Tier ${tierIndex + 1} / ${TIERS.length}`}
+                        ? tr("aff.tier", { length: String(TIERS.length) })
+                        : tr("aff.tier2", { v: String(tierIndex + 1), length: String(TIERS.length) })}
                   </span>
                 </div>
 
@@ -1240,10 +1227,10 @@ export default function AffiliateApp() {
                   </div>
                   <div className="tx-sub">
                     {statsUnavailable
-                      ? "We couldn't read your earnings just now \u2014 this is not a reset."
+                      ? tr("aff.weCouldnTReadYour")
                       : tierBlind
-                        ? "Your USD earnings can't be converted today, so we can't place your tier yet."
-                        : `You're a ${tier.name} partner`}
+                        ? tr("aff.yourUsdEarningsCanT")
+                        : tr("aff.youReAPartner", { name: String(tier.name) })}
                   </div>
                   </div>
                 </div>
@@ -1284,32 +1271,26 @@ export default function AffiliateApp() {
                   <p className="tx-note">
                     {tierBlind ? (
                       <>
-                        Your USD earnings aren&apos;t counted here yet
-                        {rateError
+                        {tr("aff.yourUsdEarningsArenT", { v: String(rateError
                           ? " \u2014 we couldn't read today's rate"
                           : rateLoading
                             ? " \u2014 we're still reading today's rate"
-                            : " \u2014 there is no rate set today"}
-                        . This shows your EUR progress only.
-                      </>
+                            : " \u2014 there is no rate set today") })}</>
                     ) : nextTier ? (
                       <>
-                        <b>{eur(nextTier.min - lifetimeCombined)}</b> more in
-                        lifetime earnings to reach{" "}
+                        <b>{eur(nextTier.min - lifetimeCombined)}</b> {" "}{tr("aff.moreInLifetimeEarningsTo")}{" "}
                         <b className="gold">{nextTier.name}</b>.
                       </>
                     ) : (
                       <>
-                        You&apos;ve reached the top tier {"\u2014"}{" "}
+                        {tr("aff.youVeReachedTheTop")}{" "}{"\u2014"}{" "}
                         <b className="gold">{tier.name}</b>. {"\ud83c\udf89"}
                       </>
                     )}
                   </p>
                 )}
                 <p className="tx-legend">
-                  Your <b>lifetime earnings</b> move you up the tiers. Your
-                  commission rate stays whatever was agreed per referral.
-                </p>
+                  {tr("label.aff.your")}{" "}<b>{tr("label.aff.lifetimeEarnings")}</b> {" "}{tr("aff.moveYouUpTheTiers")}</p>
               </div>
             </section>
 
@@ -1333,8 +1314,7 @@ export default function AffiliateApp() {
                   <span className="ci b">
                     <Ic name="i-trend" />
                   </span>{" "}
-                  Earned
-                </div>
+                  {tr("label.adv.earned")}</div>
                 <div className="v win">
                   {refsUnavailable
                     ? dash
@@ -1349,8 +1329,7 @@ export default function AffiliateApp() {
                   {/* "To be paid" over an affiliate's own earnings reads
                       as though a CUSTOMER still owes it. What is pending
                       is our payout to them. */}
-                  Awaiting payout
-                </div>
+                  {tr("label.adv.awaitingPayout")}</div>
                 {/* ── THIS ONE DOES NOT OBEY THE PERIOD ──────────────
                     The three tiles beside it are period figures and read
                     correctly as such. This one cannot be: there is only
@@ -1384,12 +1363,10 @@ export default function AffiliateApp() {
                 (Number(all.payable.eur) < -0.005 ||
                   Number(all.payable.usd) < -0.005) ? (
                   <div className="k" style={{ marginTop: 4, opacity: 0.85 }}>
-                    More came back than was earned — nothing is waiting.
-                  </div>
+                    {tr("aff.moreCameBackThanWas")}</div>
                 ) : (
                   <div className="k" style={{ marginTop: 4, opacity: 0.7 }}>
-                    All time, not this period.
-                  </div>
+                    {tr("aff.allTimeNotThisPeriod")}</div>
                 )}
               </div>
               <div className="stat g-win">
@@ -1397,8 +1374,7 @@ export default function AffiliateApp() {
                   <span className="ci t">
                     <Ic name="i-check" />
                   </span>{" "}
-                  Paid out
-                </div>
+                  {tr("label.stPaidOut")}</div>
                 <div className="v">
                   {/* Nothing referred is nothing paid: with no rows there
                       is no "unpaid" column to read, and a dash there reads
@@ -1419,8 +1395,7 @@ export default function AffiliateApp() {
                   <span className="ci p">
                     <Ic name="i-chart" />
                   </span>{" "}
-                  Spend driven
-                </div>
+                  {tr("label.adv.spendDriven")}</div>
                 <div className="v">
                   {refsUnavailable
                     ? dash
@@ -1438,16 +1413,14 @@ export default function AffiliateApp() {
                   <Ic name="i-gift" />
                 </span>
                 <div style={{ minWidth: 0 }}>
-                  <h2>Your referral link</h2>
+                  <h2>{tr("label.adv.yourReferralLink")}</h2>
                   {/* Not "a percentage of every wallet top-up".
                       Commission is not one shape \u2014 some referrals pay on
                       what the advertiser spends, some a monthly amount,
                       some a one-off at the start. Naming top-ups promises
                       the one arrangement this affiliate may not be on. */}
                   <p className="cap">
-                    Anyone who signs up through it is yours, and stays
-                    yours. Your terms are agreed per referral.
-                  </p>
+                    {tr("aff.anyoneWhoSignsUpThrough")}</p>
                 </div>
               </div>
               {referralLink ? (
@@ -1457,8 +1430,7 @@ export default function AffiliateApp() {
                   </div>
                   <div className="xs-acts">
                     <button className="btn sm" onClick={copyLink}>
-                      <Ic name="i-copy" /> Copy link
-                    </button>
+                      <Ic name="i-copy" /> {" "}{tr("label.adv.copyLink")}</button>
                     <button className="btn ghost sm wa" onClick={shareWhatsApp}>
                       <WhatsappIcon /> WhatsApp
                     </button>
@@ -1473,8 +1445,8 @@ export default function AffiliateApp() {
               ) : (
                 <p className="cap" style={{ margin: "10px 0 0" }}>
                   {portalInert
-                    ? "Your affiliate account isn't finished yet, so we couldn't build your link. Nothing is lost \u2014 ask us to finish it."
-                    : "We couldn't build your referral link just now \u2014 reload, and tell us if it stays away."}
+                    ? tr("aff.yourAffiliateAccountIsnT4")
+                    : tr("adv.weCouldnTBuildYour")}
                 </p>
               )}
             </div>
@@ -1489,8 +1461,7 @@ export default function AffiliateApp() {
             >
               <div className="xl-head">
                 <h2>
-                  <Ic name="i-user" /> Your referrals
-                </h2>
+                  <Ic name="i-user" /> {" "}{tr("label.adv.yourReferrals")}</h2>
                 {!refsUnavailable ? (
                   <span className="xl-count">{refs.rows.length}</span>
                 ) : null}
@@ -1510,7 +1481,7 @@ export default function AffiliateApp() {
                           .getElementById("aff-commissions")
                           ?.scrollIntoView({ behavior: "smooth", block: "start" });
                       }}
-                      title="Show every commission from this referral"
+                      title={tr("adv.showEveryCommissionFromThis")}
                     >
                       <span className="av">
                         {initials(r.referred_advertiser_name)}
@@ -1518,15 +1489,14 @@ export default function AffiliateApp() {
                       <span className="mid">
                         <span className="nm">
                           <span className="t">
-                            {r.referred_advertiser_name || "Advertiser"}
+                            {r.referred_advertiser_name || tr("label.adv.advertiser")}
                           </span>
                           {waiting ? (
                             <span
                               className="badge pend xs"
-                              title="We check every new referral. What they do in the meantime counts once it is approved."
+                              title={tr("adv.weCheckEveryNewReferral")}
                             >
-                              Waiting for approval
-                            </span>
+                              {tr("adv.waitingForApproval")}</span>
                           ) : null}
                         </span>
                         <span className="sm">
@@ -1554,17 +1524,17 @@ export default function AffiliateApp() {
                       paused, so an offline phone fell all the way through
                       to "No referrals yet" under four dashes. */}
                   {refs.isError
-                    ? "We couldn't read your referrals just now \u2014 this is not a zero. Reload to try again."
+                    ? tr("adv.weCouldnTReadYour3")
                     : refs.isPending
-                      ? "Loading your referrals\u2026"
+                      ? tr("adv.loadingYourReferrals")
                       : portalInert
-                        ? "Your account isn't finished yet, so we can't show your referrals. This is not an empty list \u2014 contact us and we'll complete it."
-                        : "No referrals yet \u2014 share your link and they appear here."}
+                        ? tr("aff.yourAccountIsnTFinished2")
+                        : tr("adv.noReferralsYetShareYour")}
                 </p>
               )}
               {refs.rows.length > 5 ? (
                 <button className="xl-more" onClick={() => setRefsAll((v) => !v)}>
-                  {refsAll ? "Show fewer" : `View all ${refs.rows.length}`}
+                  {refsAll ? tr("label.adv.showFewer") : tr("adv.viewAll", { length: String(refs.rows.length) })}
                   <Ic name="i-chev" />
                 </button>
               ) : null}
@@ -1606,16 +1576,13 @@ export default function AffiliateApp() {
           <div className={`view${view === "pay" ? " on" : ""}`}>
             <div className="phead">
               <h1>Wallet</h1>
-              <p>What you have earned, and asking to be paid it.</p>
+              <p>{tr("aff.whatYouHaveEarnedAnd")}</p>
             </div>
             {portalInert && (
               <div className="notice warn" style={{ marginBottom: 14 }}>
-                <b>Your affiliate account isn&apos;t finished yet.</b>
+                <b>{tr("aff.yourAffiliateAccountIsnT2")}</b>
                 <span>
-                  It isn&apos;t linked to a customer record, so we can&apos;t
-                  read your balance or your payouts. Nothing is lost — ask
-                  us to finish it and everything appears here.
-                </span>
+                  {tr("aff.itIsnTLinkedTo3")}</span>
               </div>
             )}
             {/* WHAT IS ACTUALLY IN IT. The two figures went out with
@@ -1636,8 +1603,8 @@ export default function AffiliateApp() {
                         unpaid_usd; EUR 0,00 IS their outstanding
                         figure. */}
                     {all.payable.isLifetime && all.rows.length > 0
-                      ? "Earned to date"
-                      : "Still owed to you"}
+                      ? tr("label.aff.earnedToDate")
+                      : tr("label.aff.stillOwedToYou")}
                   </p>
                   <span className="wal-tier">
                     {tierUnknown ? "\u2014" : tier.name}
@@ -1676,8 +1643,8 @@ export default function AffiliateApp() {
                             disabled ABOUT used to print as a confident 0. */}
                         <span className="n">
                           {statsUnavailable
-                            ? "we couldn't read this"
-                            : `${c === "EUR" ? eur(lifetime) : usd(lifetime)} earned in total`}
+                            ? tr("aff.weCouldnTReadThis")
+                            : tr("aff.earnedInTotal", { v: String(c === "EUR" ? eur(lifetime) : usd(lifetime)) })}
                         </span>
                       </div>
                     );
@@ -1685,10 +1652,10 @@ export default function AffiliateApp() {
                 </div>
                 <p className="wal-sub">
                   {statsUnavailable
-                    ? "We couldn't read your balance just now \u2014 this is not a zero. Reload to try again."
+                    ? tr("aff.weCouldnTReadYour2")
                     : all.payable.isLifetime && all.rows.length > 0
-                      ? "That is everything you have earned, not what is still outstanding \u2014 we'll confirm the exact figure when you ask."
-                      : "Paid by hand, always. Nothing leaves automatically, and we confirm every transfer here with its reference."}
+                      ? tr("aff.thatIsEverythingYouHave")
+                      : tr("aff.paidByHandAlwaysNothing")}
                 </p>
               </div>
             </section>
@@ -1712,10 +1679,9 @@ export default function AffiliateApp() {
             </div>
             <div className="card feed">
               <div className="prog-head">
-                <h2>Recent commission</h2>
+                <h2>{tr("label.aff.recentCommission")}</h2>
                 <button className="btn ghost sm" onClick={() => go("refs")}>
-                  View all
-                </button>
+                  {tr("btn.viewAll")}</button>
               </div>
               {all.rows.length ? (
                 all.rows.slice(0, 5).map((r) => (
@@ -1725,11 +1691,10 @@ export default function AffiliateApp() {
                     </span>
                     <div>
                       <div style={{ fontWeight: 600 }}>
-                        {r.referred_advertiser_name || "Advertiser"}
+                        {r.referred_advertiser_name || tr("label.adv.advertiser")}
                         {String(r.link_status ?? "active") === "pending" ? (
                           <span className="badge pending" style={{ marginLeft: 8 }}>
-                            Waiting for approval
-                          </span>
+                            {tr("adv.waitingForApproval")}</span>
                         ) : null}
                       </div>
                       {/* ── TWO ZEROS ARE NOT A STATUS ────────────────
@@ -1747,9 +1712,9 @@ export default function AffiliateApp() {
                           useful sentence is what happens next. */}
                       <div style={{ color: "var(--faint)", fontSize: ".83rem" }}>
                         {String(r.link_status ?? "active") === "pending"
-                          ? "Signed up. You earn from their first top-up, once we approve the referral."
+                          ? tr("aff.signedUpYouEarnFrom")
                           : r.topup_count === 0
-                            ? "No top-ups yet."
+                            ? tr("acct.noTopUpsYet")
                             : `${r.topup_count} top-ups · ${twoLeg(r.spend_eur, r.spend_usd)} spend`}
                       </div>
                     </div>
@@ -1763,13 +1728,10 @@ export default function AffiliateApp() {
                    read failed, and on an affiliate's own screen that
                    sentence means "you have earned nothing". */
                 <p className="cap" style={{ margin: "8px 0 0" }}>
-                  We couldn&apos;t read your commission just now. This is not
-                  a zero — reload to try again.
-                </p>
+                  {tr("aff.weCouldnTReadYour3")}</p>
               ) : (
                 <p className="cap" style={{ margin: "8px 0 0" }}>
-                  No commission yet.
-                </p>
+                  {tr("aff.noCommissionYet")}</p>
               )}
             </div>
           </div>
@@ -1791,8 +1753,7 @@ export default function AffiliateApp() {
                   className="btn ghost sm"
                   onClick={() => markAllAsRead.mutate()}
                 >
-                  Mark all read
-                </button>
+                  {tr("label.adv.markAllRead")}</button>
               )}
             </div>
             <div
@@ -1837,17 +1798,17 @@ export default function AffiliateApp() {
                   <div>
                     <div className="t">
                       {notifsError
-                        ? "We couldn't load your notifications"
+                        ? tr("adv.weCouldnTLoadYour4")
                         : notifsLoading || notifsPending
-                          ? "Loading your notifications…"
-                          : "You're all caught up"}
+                          ? tr("aff.loadingYourNotifications")
+                          : tr("adv.youReAllCaughtUp")}
                     </div>
                     <div className="d">
                       {notifsError
-                        ? "This is not an empty list — reload to try again."
+                        ? tr("adv.thisIsNotAnEmpty2")
                         : notifsLoading || notifsPending
-                          ? "One moment."
-                          : "New referrals, commission and payout updates will appear here."}
+                          ? tr("adv.oneMoment")
+                          : tr("aff.newReferralsCommissionAndPayout")}
                     </div>
                   </div>
                 </div>
@@ -1867,21 +1828,19 @@ export default function AffiliateApp() {
                       alignItems: "center",
                     }}
                   >
-                    <Ic name="i-user" /> Profile
-                  </span>
+                    <Ic name="i-user" /> {" "}{tr("menu.profile")}</span>
                 </h2>
                 <div style={{ marginTop: 16 }}>
                   <div className="field">
-                    <label>Full name</label>
+                    <label>{tr("label.aff.fullName")}</label>
                     <input defaultValue={name} disabled />
                   </div>
                   <div className="field">
-                    <label>Email</label>
+                    <label>{tr("label.aff.email")}</label>
                     <input defaultValue={profile?.email ?? ""} disabled />
                   </div>
                   <p className="cap" style={{ margin: "2px 0 0" }}>
-                    Your name and email are on your account record — they go
-                    on your payouts, so we change them with you.{" "}
+                    {tr("aff.yourNameAndEmailAre")}{" "}
                     {/* Een ZIN en geen knop. Dit was een knop die een
                         privéchat met de eigenaar opende; die gaan eruit
                         (zie lib/whatsapp.ts). Er een uitgeschakelde
@@ -1894,8 +1853,7 @@ export default function AffiliateApp() {
                         fontWeight: 700,
                       }}
                     >
-                      Ask us in your WhatsApp group.
-                    </span>
+                      {tr("aff.askUsInYourWhatsapp")}</span>
                   </p>
                   {/* THE CURRENCY PICKER THAT NO LONGER DID ANYTHING.
                       "Request payouts in EUR / USD" set a default for a
@@ -1906,7 +1864,7 @@ export default function AffiliateApp() {
                 </div>
               </div>
               <div className="card">
-                <h2>Notification preferences</h2>
+                <h2>{tr("adv.notificationPreferences")}</h2>
                 {/* ── THEY WERE BEING SENT ALL ALONG ───────────────────
                     The note that stood here said the affiliate alerts
                     "aren't being sent yet", so four switches wrote
@@ -1927,7 +1885,7 @@ export default function AffiliateApp() {
                     "Tier changes" is gone with the fake ones: there is no
                     such notification type, so there was nothing to
                     switch. */}
-                <p className="cap">Pick what&apos;s worth a ping.</p>
+                <p className="cap">{tr("adv.pickWhatSWorthA")}</p>
                 {groupsForRole("affiliate").map((g) => (
                   <GroupToggle key={g.id} group={g} />
                 ))}
@@ -1938,38 +1896,35 @@ export default function AffiliateApp() {
                 <span
                   style={{ display: "inline-flex", gap: 8, alignItems: "center" }}
                 >
-                  <Ic name="i-card" /> Payout details
-                </span>
+                  <Ic name="i-card" /> {" "}{tr("aff.payoutDetails")}</span>
               </h2>
               <p className="cap">
-Where your payouts go. Saved on your account, and filled in
-                for you every time you ask to be paid.
-              </p>
+{tr("aff.whereYourPayoutsGoSaved")}</p>
               <div className="field">
-                <label htmlFor="po-holder">Business / account holder</label>
+                <label htmlFor="po-holder">{tr("aff.businessAccountHolder")}</label>
                 <input
                   id="po-holder"
                   value={payout.holder}
                   onChange={(e) =>
                     setPayout({ ...payout, holder: e.target.value })
                   }
-                  placeholder="Your company or name"
+                  placeholder={tr("aff.yourCompanyOrName")}
                 />
               </div>
               <div className="frow">
                 <div className="field">
-                  <label htmlFor="po-type">Account type</label>
+                  <label htmlFor="po-type">{tr("label.aff.accountType")}</label>
                   <input
                     id="po-type"
                     value={payout.accountType}
                     onChange={(e) =>
                       setPayout({ ...payout, accountType: e.target.value })
                     }
-                    placeholder="Business / Personal"
+                    placeholder={tr("aff.businessPersonal")}
                   />
                 </div>
                 <div className="field">
-                  <label htmlFor="po-tax">VAT / Tax ID</label>
+                  <label htmlFor="po-tax">{tr("label.adv.vatTaxId")}</label>
                   <input
                     id="po-tax"
                     className="mono"
@@ -1977,24 +1932,23 @@ Where your payouts go. Saved on your account, and filled in
                     onChange={(e) =>
                       setPayout({ ...payout, taxId: e.target.value })
                     }
-                    placeholder="Optional"
+                    placeholder={tr("label.payout.optional")}
                   />
                 </div>
               </div>
               <div className="field">
-                <label htmlFor="po-addr">Billing address</label>
+                <label htmlFor="po-addr">{tr("label.payout.billingAddress")}</label>
                 <input
                   id="po-addr"
                   value={payout.address}
                   onChange={(e) =>
                     setPayout({ ...payout, address: e.target.value })
                   }
-                  placeholder="Street, city, country"
+                  placeholder={tr("payout.streetCityCountry")}
                 />
               </div>
               <div className="subhead2">
-                <Ic name="i-wallet" /> EUR bank (SEPA)
-              </div>
+                <Ic name="i-wallet" /> {" "}{tr("label.aff.eurBankSepa")}</div>
               <div className="frow">
                 <div className="field">
                   <label htmlFor="po-iban">IBAN</label>
@@ -2056,11 +2010,11 @@ Where your payouts go. Saved on your account, and filled in
                   }
                   title={
                     portalInert
-                      ? "Your affiliate account isn't finished yet, so there is nowhere to keep these."
+                      ? tr("aff.yourAffiliateAccountIsnT5")
                       : savedDetails.isError
-                        ? "We couldn't read what is stored, so saving now would overwrite it with this form. Reload first."
+                        ? tr("aff.weCouldnTReadWhat")
                         : savedDetails.isPending
-                          ? "Reading what is stored…"
+                          ? tr("aff.readingWhatIsStored")
                           : undefined
                   }
                   onClick={async () => {
@@ -2068,15 +2022,15 @@ Where your payouts go. Saved on your account, and filled in
                     try {
                       const res = await saveMyPayoutDetails(payout);
                       if (!res.ok) {
-                        toast.error("Couldn't save your payout details", {
+                        toast.error(tr("aff.couldnTSaveYourPayout"), {
                           description: res.error,
                         });
                         return;
                       }
                       setPayoutSaved(payout);
-                      toast.success("Saved", {
+                      toast.success(tr("label.aff.saved"), {
                         description:
-                          "Every new payout request starts with these.",
+                          tr("aff.everyNewPayoutRequestStarts"),
                       });
                     } finally {
                       setSavingPayout(false);
@@ -2084,30 +2038,27 @@ Where your payouts go. Saved on your account, and filled in
                   }}
                 >
                   <Ic name="i-check" />{" "}
-                  {savingPayout ? "Saving\u2026" : "Save as my default"}
+                  {savingPayout ? tr("label.adv.saving") : tr("label.aff.saveAsMyDefault")}
                 </button>
                 {/* A title attribute is invisible on a phone, and this is
                     a phone app -- the point this repo makes wherever a
                     control greys out. */}
                 {savedDetails.isError ? (
                   <span className="pd-dirty">
-                    We couldn&apos;t read what is stored — reload before
-                    saving
-                  </span>
+                    {tr("aff.weCouldnTReadWhat2")}</span>
                 ) : savedDetails.isPending && !portalInert ? (
-                  <span className="pd-dirty">Reading what is stored…</span>
+                  <span className="pd-dirty">{tr("aff.readingWhatIsStored")}</span>
                 ) : payoutDirty ? (
-                  <span className="pd-dirty">Not saved yet</span>
+                  <span className="pd-dirty">{tr("label.aff.notSavedYet")}</span>
                 ) : payoutSaved ? (
                   <span className="pd-ok">
-                    <Ic name="i-check" /> Saved
-                  </span>
+                    <Ic name="i-check" /> {" "}{tr("label.aff.saved")}</span>
                 ) : null}
               </div>
               <p className="cap" style={{ marginTop: 8 }}>
                 {portalInert
-                  ? "Your affiliate account isn't finished yet, so there is nowhere to keep these. Ask us to finish it."
-                  : "Kept on your account and filled in for you on every payout request. You can still change them per request."}
+                  ? tr("aff.yourAffiliateAccountIsnT6")
+                  : tr("aff.keptOnYourAccountAnd")}
               </p>
             </div>
             {/* -- GDPR, WHERE THE CUSTOMER CAN ACTUALLY REACH IT ------
@@ -2119,10 +2070,9 @@ Where your payouts go. Saved on your account, and filled in
                 who have them, while /help still told them to go to
                 Profile. Same component, mounted where they land. */}
             <div className="card">
-              <h2>Your data</h2>
+              <h2>{tr("label.adv.yourData")}</h2>
               <p className="cap" style={{ margin: "0 0 12px" }}>
-                Sign out everywhere, or ask us to delete your account.
-              </p>
+                {tr("adv.signOutEverywhereOrAsk")}</p>
               {/* heading={false}: this card already has one. The component
                   printed a second, "Privacy", with a sentence saying
                   nearly the same thing as the one above it. */}
@@ -2147,7 +2097,7 @@ Where your payouts go. Saved on your account, and filled in
           <div className={`view${view === "help" ? " on" : ""}`}>
             <div className="grid">
               <div className="card">
-                <h2>How the affiliate program works</h2>
+                <h2>{tr("aff.howTheAffiliateProgramWorks")}</h2>
                 {/* Het handboek in plaats van drie vragen -- zie de
                     uitleg bij de adverteerder-app. De drie antwoorden
                     zitten er allemaal in; "wat zijn tiers", het ene dat
@@ -2161,10 +2111,9 @@ Where your payouts go. Saved on your account, and filled in
                 </div>
               </div>
               <div className="card">
-                <h2>Need a hand?</h2>
+                <h2>{tr("aff.needAHand")}</h2>
                 <p className="cap">
-                  Questions about a referral or a payout? We&apos;re here.
-                </p>
+                  {tr("aff.questionsAboutAReferralOr")}</p>
                 {/* Naar de groep. Zie lib/whatsapp.ts -- deze knop
                     opende een chat met het privénummer van de eigenaar. */}
                 <p
@@ -2177,8 +2126,7 @@ Where your payouts go. Saved on your account, and filled in
                     marginTop: 8,
                   }}
                 >
-                  <WhatsappIcon /> Message us in your WhatsApp group.
-                </p>
+                  <WhatsappIcon /> {" "}{tr("aff.messageUsInYourWhatsapp")}</p>
               </div>
             </div>
           </div>
@@ -2215,23 +2163,22 @@ Where your payouts go. Saved on your account, and filled in
           <div className="mback" onClick={() => setSignOutOpen(false)} />
           <div className="mcard" style={{ width: "min(400px,100%)" }}>
             <div className="mhead">
-              <h2>Sign out?</h2>
+              <h2>{tr("adv.signOut")}</h2>
               <button
                 className="iconbtn"
                 onClick={() => setSignOutOpen(false)}
-                aria-label="Close"
+                aria-label={tr("btn.close")}
               >
                 ✕
               </button>
             </div>
-            <p className="cap">You&apos;ll need to log in again.</p>
+            <p className="cap">{tr("adv.youLlNeedToLog")}</p>
             <div className="mfoot">
               <button
                 className="btn ghost"
                 onClick={() => setSignOutOpen(false)}
               >
-                Cancel
-              </button>
+                {tr("btn.cancel")}</button>
               <button
                 className="btn"
                 onClick={() => {
@@ -2239,8 +2186,7 @@ Where your payouts go. Saved on your account, and filled in
                   logout();
                 }}
               >
-                <LogoutGlyph /> Sign out
-              </button>
+                <LogoutGlyph /> {" "}{tr("menu.signOut")}</button>
             </div>
           </div>
         </div>

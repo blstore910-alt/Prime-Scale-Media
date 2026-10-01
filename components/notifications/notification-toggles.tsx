@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useState } from "react";
 
 import useNotificationPreferences from "@/hooks/use-notification-preferences";
@@ -32,6 +33,7 @@ import type { NotificationType } from "@/lib/types/notification";
  * said in words instead.
  */
 export function GroupToggle({ group }: { group: NotificationGroupForRole }) {
+  const { t: tr } = useT();
   const { isEnabled, setPreference, setGroup, isError, isLoading } =
     useNotificationPreferences();
   const [open, setOpen] = useState(false);
@@ -49,9 +51,9 @@ export function GroupToggle({ group }: { group: NotificationGroupForRole }) {
           <div className="t">{group.label}</div>
           <div className="d">
             {isError
-              ? "We couldn't read your settings just now."
+              ? tr("notif.weCouldnTReadYour")
               : isLoading
-                ? "Reading your settings…"
+                ? tr("notif.readingYourSettings")
                 : group.description}
           </div>
           {!isError && !isLoading ? (
@@ -70,12 +72,12 @@ export function GroupToggle({ group }: { group: NotificationGroupForRole }) {
               }}
             >
               {open
-                ? "Hide the individual notices"
+                ? tr("notif.hideTheIndividualNotices")
                 : mixed
-                  ? `${onCount} of ${types.length} on — show them`
+                  ? tr("notif.ofOnShowThem", { onCount: String(onCount), length: String(types.length) })
                   : types.length === 1
-                    ? "Show the one notice"
-                    : `Show the ${types.length} notices`}
+                    ? tr("notif.showTheOneNotice")
+                    : tr("notif.showTheNotices", { length: String(types.length) })}
             </button>
           ) : null}
         </div>
@@ -124,6 +126,7 @@ export function Toggle({
   desc: string;
   notifType: NotificationType;
 }) {
+  const { t: tr } = useT();
   const { isEnabled, setPreference, isError, isLoading } =
     useNotificationPreferences();
   const on = isEnabled(notifType);
@@ -141,9 +144,9 @@ export function Toggle({
             we do not have. */}
         <div className="d">
           {isError
-            ? "We couldn't read your setting just now."
+            ? tr("notif.weCouldnTReadYour2")
             : isLoading
-              ? "Reading your setting…"
+              ? tr("notif.readingYourSetting")
               : desc}
         </div>
         {/* ---- THIS ONE SWITCHES THE PING, NOT THE EMAIL ----------
@@ -156,8 +159,7 @@ export function Toggle({
         */}
         {ALWAYS_EMAILED.has(notifType) ? (
           <div className="d" style={{ opacity: 0.85 }}>
-            We always email this one — this switches the phone ping.
-          </div>
+            {tr("notif.weAlwaysEmailThisOne")}</div>
         ) : null}
       </div>
       <button

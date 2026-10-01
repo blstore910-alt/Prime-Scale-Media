@@ -1,3 +1,4 @@
+import { useT } from "@/hooks/use-t";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +28,7 @@ export default function RequestAdAccountDialog({
   children,
   onNeedTopUp,
 }: RequestAdAccountDialogProps) {
+  const { t: tr } = useT();
   const [open, setOpen] = useState(false);
 
   return (
@@ -35,8 +37,7 @@ export default function RequestAdAccountDialog({
         {children || (
           <Button>
             <Plus className="mr-2 h-4 w-4" />
-            Request Ad Account
-          </Button>
+            {tr("label.req.requestAdAccount")}</Button>
         )}
       </DialogTrigger>
       {/* ONE SCROLLPORT. The form inside carries its own
@@ -46,16 +47,14 @@ export default function RequestAdAccountDialog({
           whole thing. The outer box holds still; the form scrolls. */}
       <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Request an ad account</DialogTitle>
+          <DialogTitle>{tr("req.requestAnAdAccount")}</DialogTitle>
           <DialogDescription>
             {/* "Submit a request for a new ad account" told the customer
                 nothing they could not read off the button. What they need to
                 know before filling this in is that a person picks it up —
                 and no promised turnaround, because one that is missed is
                 worse than none. */}
-            We set it up on our verified Business Manager. You&apos;ll see it
-            here as soon as it is ready.
-          </DialogDescription>
+            {tr("req.weSetItUpOn")}</DialogDescription>
         </DialogHeader>
         <AdAccountRequestForm setOpen={setOpen} onNeedTopUp={onNeedTopUp} />
       </DialogContent>

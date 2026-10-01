@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 
@@ -86,6 +87,7 @@ export default function RangePicker({
    *  the advertiser's screen had no export at all. */
   onExport?: () => void;
 }) {
+  const { t: tr } = useT();
   // Typed dates are held here until both make sense, so the figures do not
   // jump on every keystroke of a half-typed date.
   const [draftFrom, setDraftFrom] = useState(value.from ?? dayjs().startOf("month").format("YYYY-MM-DD"));
@@ -115,14 +117,14 @@ export default function RangePicker({
     { key: "all", label: LABELS.all, onClick: () => pick("all") },
     { key: "month", label: LABELS.month, onClick: () => pick("month") },
     { key: "last", label: LABELS.last, onClick: () => pick("last") },
-    { key: "30d", label: "30 days", wide: true, onClick: () => pick("30d") },
+    { key: "30d", label: tr("label.range.30Days"), wide: true, onClick: () => pick("30d") },
     { key: "year", label: LABELS.year, wide: true, onClick: () => pick("year") },
     {
       key: "custom",
       label: (
         <>
           <Ic name="i-cal" />
-          <span className="wide-lbl">Custom</span>
+          <span className="wide-lbl">{tr("label.range.custom")}</span>
         </>
       ),
       className: `cal${open ? " open" : ""}`,
@@ -152,8 +154,7 @@ export default function RangePicker({
           </div>
           <div className="xr-dates">
             <label>
-              From
-              <input
+              {tr("label.range.from")}<input
                 type="date"
                 value={draftFrom}
                 max={draftTo || undefined}
@@ -161,8 +162,7 @@ export default function RangePicker({
               />
             </label>
             <label>
-              To
-              <input
+              {tr("label.range.to")}<input
                 type="date"
                 value={draftTo}
                 min={draftFrom || undefined}
@@ -179,14 +179,13 @@ export default function RangePicker({
                 onChange({ key: "custom", from: draftFrom, to: draftTo });
               }}
             >
-              Apply
-            </button>
+              {tr("label.range.apply")}</button>
           </div>
           {!draftOk ? (
             <p className="xr-hint">
               {draftFrom && draftTo
-                ? "The first date has to come before the second."
-                : "Pick both dates."}
+                ? tr("range.theFirstDateHasTo")
+                : tr("range.pickBothDates")}
             </p>
           ) : null}
         </div>
@@ -194,7 +193,7 @@ export default function RangePicker({
 
       <div className="xr-meta" aria-live="polite">
         <span className={`dot${busy ? " busy" : ""}`} />
-        Showing <b>{rangeCaption(value)}</b>
+        {tr("label.range.showing")}{" "}<b>{rangeCaption(value)}</b>
         {busy ? <span className="xr-busy">updating…</span> : null}
         {onExport ? (
           <button type="button" className="xr-exp" onClick={onExport}>

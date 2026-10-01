@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -41,6 +42,7 @@ function isoDay(d: Date): string {
 export default function InvoiceExportButton({
   className = "btn ghost sm",
 }: Props) {
+  const { t: tr } = useT();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   // A sensible period rather than an empty form: this year so far is
@@ -72,7 +74,7 @@ export default function InvoiceExportButton({
         } catch {
           // A non-JSON failure keeps the general sentence.
         }
-        toast.error("Not downloaded", { description: message });
+        toast.error(tr("label.invexp.notDownloaded"), { description: message });
         return;
       }
 
@@ -93,7 +95,7 @@ export default function InvoiceExportButton({
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       setOpen(false);
     } catch (e) {
-      toast.error("Not downloaded", {
+      toast.error(tr("label.invexp.notDownloaded"), {
         description: e instanceof Error ? e.message : undefined,
       });
     } finally {
@@ -107,7 +109,7 @@ export default function InvoiceExportButton({
         type="button"
         className={className}
         onClick={() => setOpen(true)}
-        title="Download a period of invoices"
+        title={tr("invexp.downloadAPeriodOfInvoices")}
       >
         Export
       </button>
@@ -120,14 +122,13 @@ export default function InvoiceExportButton({
           }}
         />
         <div className="mcard" style={{ width: "min(420px,100%)" }}>
-          <h2 style={{ marginBottom: 4 }}>Download invoices</h2>
+          <h2 style={{ marginBottom: 4 }}>{tr("label.invexp.downloadInvoices")}</h2>
           <p className="cap" style={{ marginBottom: 14 }}>
-            One PDF per invoice, together in a single zip.
-          </p>
+            {tr("invexp.onePdfPerInvoiceTogether")}</p>
 
           <div style={{ display: "flex", gap: 10 }}>
             <div className="field" style={{ flex: 1, minWidth: 0 }}>
-              <label htmlFor="inv-exp-from">From</label>
+              <label htmlFor="inv-exp-from">{tr("label.range.from")}</label>
               <input
                 id="inv-exp-from"
                 type="date"
@@ -137,7 +138,7 @@ export default function InvoiceExportButton({
               />
             </div>
             <div className="field" style={{ flex: 1, minWidth: 0 }}>
-              <label htmlFor="inv-exp-to">To</label>
+              <label htmlFor="inv-exp-to">{tr("label.range.to")}</label>
               <input
                 id="inv-exp-to"
                 type="date"
@@ -165,8 +166,7 @@ export default function InvoiceExportButton({
 
           {badRange ? (
             <p className="cap" style={{ color: "var(--danger)" }}>
-              The start date is after the end date.
-            </p>
+              {tr("invexp.theStartDateIsAfter")}</p>
           ) : null}
 
           <div
@@ -177,21 +177,18 @@ export default function InvoiceExportButton({
               onClick={download}
               disabled={busy || badRange}
             >
-              {busy ? "Preparing…" : "Download zip"}
+              {busy ? tr("label.invexp.preparing") : "Download zip"}
             </button>
             <button
               className="btn ghost"
               onClick={() => setOpen(false)}
               disabled={busy}
             >
-              Cancel
-            </button>
+              {tr("btn.cancel")}</button>
           </div>
           {busy ? (
             <p className="cap" style={{ marginTop: 10 }}>
-              Each invoice is drawn as its own PDF, so a long period takes
-              a moment. Leave this open.
-            </p>
+              {tr("invexp.eachInvoiceIsDrawnAs")}</p>
           ) : null}
         </div>
       </div>

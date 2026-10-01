@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +61,7 @@ export default function WithdrawDialog({
   /** True when an admin is raising this for the customer. */
   onBehalf?: boolean;
 }) {
+  const { t: tr } = useT();
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
   // NOT state. The account decides this, and holding it in state froze it
@@ -144,7 +146,7 @@ export default function WithdrawDialog({
       if (put.error) throw new Error(put.error);
       if (put.truncated) {
         throw new Error(
-          "This account has more top-ups than we can add up at once — ask us and we will work the figure out by hand.",
+          tr("wd.thisAccountHasMoreTop"),
         );
       }
       const off = await pageAllRows<{
@@ -162,7 +164,7 @@ export default function WithdrawDialog({
       if (off.error) throw new Error(off.error);
       if (off.truncated) {
         throw new Error(
-          "This account has more withdrawals than we can add up at once — ask us and we will work the figure out by hand.",
+          tr("wd.thisAccountHasMoreWithdrawals"),
         );
       }
       // Only what landed in THIS account's currency. Rows in another
@@ -266,7 +268,7 @@ export default function WithdrawDialog({
         // after it.
         if (reason.trim().length < 3) {
           throw new Error(
-            "Say why — this moves someone else's money, so it needs a note.",
+            tr("wd.sayWhyThisMovesSomeone"),
           );
         }
         const { requestAdAccountWithdrawalAsAdmin } = await import(
@@ -293,8 +295,8 @@ export default function WithdrawDialog({
     onSuccess: () => {
       toast.success(
         onBehalf
-          ? "Raised for the customer — it still needs approving."
-          : "Request sent — an admin will review it.",
+          ? tr("wd.raisedForTheCustomerIt")
+          : tr("wd.requestSentAnAdminWill"),
       );
       queryClient.invalidateQueries({ queryKey: ["ad-account-withdrawals"] });
       // ── THE CUSTOMER'S OWN SCREENS ────────────────────────────────
@@ -325,7 +327,7 @@ export default function WithdrawDialog({
       // Back to the form, not stuck on the confirmation: whatever was wrong,
       // the next thing they need is the fields.
       setConfirming(false);
-      toast.error("Couldn't send the request", { description: e.message });
+      toast.error(tr("wd.couldnTSendTheRequest"), { description: e.message });
     },
   });
 
@@ -397,8 +399,8 @@ export default function WithdrawDialog({
         <DialogHeader>
           <DialogTitle>
             {confirming
-              ? "Send this request?"
-              : "Request a withdrawal"}
+              ? tr("req.sendThisRequest")
+              : tr("wd.requestAWithdrawal")}
           </DialogTitle>
           {/* -- ONE SENTENCE, AND THE CODE AS A CHIP --------------------
               This was a three-line paragraph with a client code in the
@@ -407,16 +409,16 @@ export default function WithdrawDialog({
               at the end of the third line. */}
           <DialogDescription asChild>
             {confirming ? (
-              <p>Nothing moves until an admin approves it.</p>
+              <p>{tr("wd.nothingMovesUntilAnAdmin")}</p>
             ) : (
               <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                <span>Bring money back from</span>
+                <span>{tr("wd.bringMoneyBackFrom")}</span>
                 <span className="inline-flex max-w-full items-center rounded-md border bg-muted/60 px-1.5 py-0.5 font-mono text-[0.78rem] font-semibold tracking-tight text-foreground">
                   <span className="truncate">
-                    {adAccountName ?? "this ad account"}
+                    {adAccountName ?? tr("label.wd.thisAdAccount")}
                   </span>
                 </span>
-                <span>to your wallet.</span>
+                <span>{tr("wd.toYourWallet")}</span>
               </div>
             )}
           </DialogDescription>
@@ -428,32 +430,29 @@ export default function WithdrawDialog({
               <div className="flex items-baseline justify-between gap-4 px-3 py-2.5">
                 <dt className="text-muted-foreground">Ad account</dt>
                 <dd className="font-semibold text-right truncate">
-                  {adAccountName ?? "This ad account"}
+                  {adAccountName ?? tr("label.wd.thisAdAccount2")}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-4 px-3 py-2.5">
-                <dt className="text-muted-foreground">Amount</dt>
+                <dt className="text-muted-foreground">{tr("label.amount")}</dt>
                 <dd className="font-semibold tabular-nums">{formatted}</dd>
               </div>
               <div className="flex items-baseline justify-between gap-4 px-3 py-2.5">
-                <dt className="text-muted-foreground">Returns to</dt>
-                <dd className="font-semibold">Your wallet</dd>
+                <dt className="text-muted-foreground">{tr("label.wd.returnsTo")}</dt>
+                <dd className="font-semibold">{tr("label.wd.yourWallet")}</dd>
               </div>
               {reason.trim() && (
                 <div className="flex items-baseline justify-between gap-4 px-3 py-2.5">
-                  <dt className="text-muted-foreground">Note</dt>
+                  <dt className="text-muted-foreground">{tr("payout.note")}</dt>
                   <dd className="text-right">{reason.trim()}</dd>
                 </div>
               )}
             </dl>
 
             <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 text-xs text-amber-900 dark:text-amber-100 space-y-1.5">
-              <p className="font-semibold">Only send this if you are sure.</p>
+              <p className="font-semibold">{tr("wd.onlySendThisIfYou")}</p>
               <p>
-                Anything still running on this ad account is left without that
-                budget once the balance is pulled back. To undo it you would
-                have to top the account up again.
-              </p>
+                {tr("wd.anythingStillRunningOnThis")}</p>
             </div>
           </div>
         ) : (
@@ -467,7 +466,7 @@ export default function WithdrawDialog({
         <div className="space-y-5">
           <div className="space-y-2">
             <div className="flex items-baseline justify-between gap-3">
-              <Label htmlFor="wd-amount">Amount to bring back</Label>
+              <Label htmlFor="wd-amount">{tr("wd.amountToBringBack")}</Label>
               {/* The ceiling as a figure you can tap, not a sentence
                   buried under the field. Never a 0 over a failed read. */}
               {ceilingError ? (
@@ -479,15 +478,14 @@ export default function WithdrawDialog({
                 <span className="text-xs text-muted-foreground">
                   <span className="text-destructive">
                     {(ceilingErrorObj as Error | null)?.message ??
-                      "We couldn't read this account's balance."}
+                      tr("wd.weCouldnTReadThis")}
                   </span>{" "}
                   <button
                     type="button"
                     className="font-medium underline underline-offset-2"
                     onClick={() => void refetchCeiling()}
                   >
-                    Try again
-                  </button>
+                    {tr("label.req.tryAgain")}</button>
                 </span>
               ) : ceiling === null || ceiling === undefined ? (
                 <span className="text-xs text-muted-foreground">
@@ -500,31 +498,24 @@ export default function WithdrawDialog({
                      said there was nothing to bring back. A locked or
                      never-funded account lands here. */
                   <span className="text-xs text-muted-foreground">
-                    Nothing on this account to bring back
-                  </span>
+                    {tr("wd.nothingOnThisAccountTo")}</span>
                 ) : (
                   <button
                     type="button"
                     className="text-xs font-semibold tabular-nums text-primary underline-offset-2 hover:underline"
                     onClick={() => setAmount(String(ceiling))}
                   >
-                    Up to {currency === "EUR" ? "€" : "$"}
-                    {ceiling.toFixed(2)}
-                  </button>
+                    {tr("wd.upTo", { v: String(currency === "EUR" ? "€" : "$"), v2: String(ceiling.toFixed(2)) })}</button>
                 )
               )}
             </div>
             {overCeiling ? (
               <p className="text-destructive text-xs font-medium">
-                That is more than is on this account. The most you can
-                ask back is {currency === "EUR" ? "€" : "$"}
-                {(ceiling as number).toFixed(2)}.
-              </p>
+                {tr("wd.thatIsMoreThanIs", { v: String(currency === "EUR" ? "€" : "$"), v2: String((ceiling as number).toFixed(2)) })}</p>
             ) : null}
             {reasonMissing && amount.trim() ? (
               <p className="text-destructive text-xs font-medium">
-                Say why below — it goes on the record for this customer.
-              </p>
+                {tr("wd.sayWhyBelowItGoes")}</p>
             ) : null}
             <div className="relative">
               <Input
@@ -580,13 +571,13 @@ export default function WithdrawDialog({
                 komt op iets anders uit en vertrouwt geen van beide. */}
             <p className="text-xs text-muted-foreground">
               {liveIsBinding
-                ? "That is what is on the account right now, so anything already spent is off it."
-                : "That is what we funded, less anything already asked back — it does not subtract what the account has spent, so we check the real balance before approving."}
+                ? tr("wd.thatIsWhatIsOn")
+                : tr("wd.thatIsWhatWeFunded")}
               {/* No "it comes back in USD" any more. It comes back in
                   the account's own currency, into the matching wallet —
                   that sentence belonged to the assumption this dialog
                   has just stopped making. */}
-              {" It lands in your "}
+              {` ${tr("label.wd.itLandsInYour")} `}
               {currency}
               {" wallet."}
             </p>
@@ -594,32 +585,28 @@ export default function WithdrawDialog({
 
           <div className="space-y-2">
             <Label htmlFor="wd-reason">
-              {onBehalf ? "Why, and who asked" : "Note for us (optional)"}
+              {onBehalf ? tr("label.wd.whyAndWhoAsked") : tr("wd.noteForUsOptional")}
             </Label>
             <Input
               id="wd-reason"
               placeholder={
                 onBehalf
-                  ? "e.g. customer rang, closing this account"
-                  : "e.g. campaign finished"
+                  ? tr("wd.eGCustomerRangClosing")
+                  : tr("wd.eGCampaignFinished")
               }
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
             {onBehalf && (
               <p className="text-xs text-muted-foreground">
-                Required. This goes on the row, so whoever approves it can
-                see who raised it and why.
-              </p>
+                {tr("wd.requiredThisGoesOnThe")}</p>
             )}
           </div>
 
           <div className="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
-            <span className="shrink-0 font-semibold">Heads up</span>
+            <span className="shrink-0 font-semibold">{tr("label.wd.headsUp")}</span>
             <span>
-              An admin approves this before the money reaches your wallet,
-              and anything still running on the account loses that budget.
-            </span>
+              {tr("wd.anAdminApprovesThisBefore")}</span>
           </div>
         </div>
         )}
@@ -632,20 +619,17 @@ export default function WithdrawDialog({
                 onClick={() => setConfirming(false)}
                 disabled={isPending}
               >
-                Back
-              </Button>
+                {tr("btn.back")}</Button>
               <Button onClick={() => mutate()} disabled={isPending}>
-                {isPending ? "Sending…" : "Yes, send the request"}
+                {isPending ? tr("btn.sending") : tr("wd.yesSendTheRequest")}
               </Button>
             </>
           ) : (
             <>
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                Cancel
-              </Button>
+                {tr("btn.cancel")}</Button>
               <Button onClick={() => setConfirming(true)} disabled={!valid}>
-                Review request
-              </Button>
+                {tr("label.wd.reviewRequest")}</Button>
             </>
           )}
         </DialogFooter>

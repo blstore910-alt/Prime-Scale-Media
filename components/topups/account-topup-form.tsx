@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { useT } from "@/hooks/use-t";
 import { useAppContext } from "@/context/app-provider";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import { createClient } from "@/lib/supabase/client";
@@ -83,6 +84,7 @@ export default function AccountTopupForm({
    */
   onNeedTopUp?: () => void;
 }) {
+  const { t: tr } = useT();
   const { profile } = useAppContext();
   const [selectedAccount, setSelectedAccount] = useState<AccountRecord | null>(
     account ?? null,
@@ -242,7 +244,7 @@ export default function AccountTopupForm({
             ctx.addIssue({
               path: ["currency"],
               code: "custom",
-              message: `Only ${selectedAccountCurrency} wallet is allowed for this account`,
+              message: tr("atop.onlyWalletIsAllowedFor", { selectedAccountCurrency: String(selectedAccountCurrency) }),
             });
           }
 
@@ -252,11 +254,12 @@ export default function AccountTopupForm({
             ctx.addIssue({
               path: ["amount"],
               code: "custom",
-              message: `Amount exceeds available ${values.currency} balance`,
+              message: tr("atop.amountExceedsAvailableBalance", { currency: String(values.currency) }),
             });
           }
         }),
     [
+      tr,
       usdBalance,
       eurBalance,
       hasWallet,
@@ -492,14 +495,14 @@ export default function AccountTopupForm({
             id="account-select"
             control={control}
             options={accountOptions}
-            placeholder={accountsLoading ? "Loading accounts..." : "Select"}
+            placeholder={accountsLoading ? tr("atop.loadingAccounts") : tr("label.atop.select")}
           />
           {accountsError && (
             <div className="flex items-center gap-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
               <span>
                 {(accountsErrorMessage as Error)?.message ??
-                  "Unable to load ad accounts."}
+                  tr("atop.unableToLoadAdAccounts")}
               </span>
             </div>
           )}
@@ -509,7 +512,7 @@ export default function AccountTopupForm({
             name="currency"
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel>Wallet Balance</FieldLabel>
+                <FieldLabel>{tr("label.atop.walletBalance")}</FieldLabel>
                 {visibleCurrencyChoices.length > 0 ? (
                   <RadioGroup
                     value={field.value}
@@ -537,8 +540,8 @@ export default function AccountTopupForm({
                         cannot set one. Found on a live account whose
                         currency column is empty. */}
                     {selectedAccount
-                      ? "This ad account has no currency set yet, so it cannot be funded. Tell us and we will set it — it takes a minute."
-                      : "Pick an ad account first."}
+                      ? tr("atop.thisAdAccountHasNo")
+                      : tr("atop.pickAnAdAccountFirst")}
                     {/* ── "TELL US" MOET IETS ZIJN DAT JE KUNT DOEN ──
                         De zin vroeg de klant contact op te nemen en gaf
                         geen enkele manier om dat te doen, terwijl de
@@ -553,9 +556,7 @@ export default function AccountTopupForm({
                         moeten navragen. */}
                     {selectedAccount ? (
                       <span className="font-semibold ml-1">
-                        Ask us in your WhatsApp group to set the currency on{" "}
-                        {selectedAccount.name ?? "this account"}.
-                      </span>
+                        {tr("atop.askUsInYourWhatsapp", { v: String(selectedAccount.name ?? "this account") })}</span>
                     ) : null}
                   </FieldDescription>
                 )}
@@ -582,7 +583,7 @@ export default function AccountTopupForm({
               // a box labelled just "Amount" over a summary that lists
               // the fee separately reads as though the two add up. They
               // do not: this IS the total.
-              label={`Amount to take from your wallet (${selectedCurrency})`}
+              label={tr("atop.amountToTakeFromYour", { selectedCurrency: String(selectedCurrency) })}
               control={control}
               type="number"
               // Click a money box and you are typing a NEW amount, never
@@ -610,8 +611,7 @@ export default function AccountTopupForm({
                 className="underline underline-offset-2 text-xs font-semibold mt-1 self-start"
                 onClick={onNeedTopUp}
               >
-                Top up your {selectedCurrency} wallet
-              </button>
+                {tr("atop.topUpYourWallet", { selectedCurrency: String(selectedCurrency) })}</button>
             ) : null}
             {/* The amounts people actually move, one tap. A pill above
                 the wallet balance is greyed rather than hidden: a row
@@ -643,15 +643,15 @@ export default function AccountTopupForm({
                 <AlertCircle className="h-4 w-4" />
                 <span>
                   {(walletErrorMessage as Error)?.message ??
-                    "Unable to load wallet balance."}
+                    tr("atop.unableToLoadWalletBalance")}
                 </span>
               </div>
             </div>
           ) : !hasWallet ? (
             <div className="rounded-lg border bg-muted/20 p-3 text-sm text-muted-foreground">
               {advertiserId
-                ? "No wallet found for this advertiser."
-                : "Select an account to load wallet balances."}
+                ? tr("atop.noWalletFoundForThis")
+                : tr("atop.selectAnAccountToLoad")}
             </div>
           ) : (
             <BalanceSummary
@@ -717,19 +717,18 @@ export default function AccountTopupForm({
           }
           title={
             blockedByRate
-              ? "We can't read today's exchange rate, so we can't say what would land on the account. Try again in a moment."
+              ? tr("atop.weCanTReadToday")
               : feeQuote.isError
-                ? "We could not check this account's rate — reload and try again"
+                ? tr("atop.weCouldNotCheckThis")
                 : feeQuote.isLoading
-                  ? "Checking the fee on this account…"
+                  ? tr("atop.checkingTheFeeOnThis")
                   : undefined
           }
         >
           {(isPending || feeQuote.isLoading) && (
             <Loader2 className="animate-spin" />
           )}
-          Top up this account
-        </Button>
+          {tr("atop.topUpThisAccount")}</Button>
       </div>
 
       <ConfirmModal
@@ -737,11 +736,11 @@ export default function AccountTopupForm({
         onOpenChange={(next) => {
           if (!next) setConfirming(null);
         }}
-        title="Move this money to the ad account?"
-        lead="It leaves your wallet now. Money on an ad account can only come back through a withdrawal request, which we have to approve."
-        cta="Yes, top it up"
+        title={tr("atop.moveThisMoneyToThe")}
+        lead={tr("atop.itLeavesYourWalletNow")}
+        cta={tr("label.atop.yesTopItUp")}
         busy={isPending}
-        busyLabel="Sending…"
+        busyLabel={tr("btn.sending")}
         onConfirm={() =>
           confirming &&
           mutate(confirming, {
@@ -771,7 +770,7 @@ export default function AccountTopupForm({
           value={selectedAccount?.name ?? "—"}
         />
         <ConfirmFact
-          label="Out of your wallet"
+          label={tr("label.atop.outOfYourWallet")}
           value={formatCurrency(parseAmount(amount), selectedCurrency)}
           strong
         />
@@ -788,7 +787,7 @@ export default function AccountTopupForm({
             figures on this confirmation are then all in one money and
             the sum can be checked by eye: gross − fee = what lands. */}
         <ConfirmFact
-          label="Lands on the account"
+          label={tr("atop.landsOnTheAccount")}
           // One currency, the account's own. See the note on the
           // summary row: a dollar figure on a euro account contradicts
           // the same screen and leaks the supplier's settlement
@@ -800,7 +799,7 @@ export default function AccountTopupForm({
           strong
         />
         <ConfirmFact
-          label="Wallet afterwards"
+          label={tr("label.atop.walletAfterwards")}
           value={formatCurrency(remainingBalance, selectedCurrency)}
         />
         {/* Said out loud rather than hidden. If the rate could not be
@@ -810,10 +809,7 @@ export default function AccountTopupForm({
             presenting a guess with the same confidence as a fact. */}
         {!feeIsSettled && (
           <p className="pt-2 text-xs text-muted-foreground">
-            We could not confirm this account&apos;s rate just now, so the
-            fee above is the account&apos;s own. The amount charged is
-            always the rate on your account.
-          </p>
+            {tr("atop.weCouldNotConfirmThis")}</p>
         )}
       </ConfirmModal>
     </form>
@@ -835,6 +831,7 @@ function CurrencyChoice({
   icon: React.ReactNode;
   disabled?: boolean;
 }) {
+  const { t: tr } = useT();
   return (
     <div>
       <RadioGroupItem
@@ -864,7 +861,7 @@ function CurrencyChoice({
               load wallet balance" panel rendering directly underneath
               it, which is a screen telling a customer two different
               things about their own money at once. */}
-          Available:{" "}
+          {tr("atop.available")}{" "}
           {balance === null ? "—" : formatCurrency(balance, value)}
         </span>
       </Label>
@@ -900,6 +897,7 @@ function BalanceSummary({
   feeFailed?: boolean;
   /** EUR per 1 USD, or null when it could not be read. */
 }) {
+  const { t: tr } = useT();
   // ── THE FEE COMES OUT OF THE AMOUNT, NOT ON TOP OF IT ──────────────
   //
   // calculateTopupAmount converts what the customer typed, takes the fee
@@ -956,19 +954,18 @@ function BalanceSummary({
   return (
     <div className="rounded-xl border bg-muted/30 p-4">
       <p className="mb-3 text-[0.68rem] font-semibold uppercase tracking-wider text-muted-foreground">
-        What this costs
-      </p>
+        {tr("label.atop.whatThisCosts")}</p>
       <div className="space-y-2.5">
         <Row
-          label="Out of your wallet"
+          label={tr("label.atop.outOfYourWallet")}
           value={formatCurrency(gross, currency)}
           tone="strong"
         />
         <Row
           label={
             feePending
-              ? "Top-up fee (included)"
-              : `Top-up fee (${fee_pct}%, included)`
+              ? tr("atop.topUpFeeIncluded")
+              : tr("atop.topUpFeeIncluded2", { feepct: String(fee_pct) })
           }
           value={
             feePending
@@ -1011,7 +1008,7 @@ function BalanceSummary({
               when it cannot be read; the customer just is not handed a
               number in a currency their account does not have. */}
         <Row
-          label="Lands on the account"
+          label={tr("atop.landsOnTheAccount")}
           value={
             netInWallet === null
               ? "—"
@@ -1022,16 +1019,16 @@ function BalanceSummary({
         />
         <div className="h-px bg-border" />
         <Row
-          label="Wallet now"
+          label={tr("label.atop.walletNow")}
           value={formatCurrency(balance, currency)}
         />
         <Row
-          label="Wallet afterwards"
+          label={tr("label.atop.walletAfterwards")}
           value={formatCurrency(remaining, currency)}
           tone={remaining < 0 ? "danger" : "strong"}
           hint={
             remaining < 0
-              ? "More than you hold — top the wallet up first."
+              ? tr("atop.moreThanYouHoldTop")
               : null
           }
         />

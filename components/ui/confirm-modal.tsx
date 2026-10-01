@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -62,6 +63,7 @@ export default function ConfirmModal({
   /** Why the confirm button is greyed out. Shown while `disabled`. */
   disabledHint?: React.ReactNode;
 }) {
+  const { t: tr } = useT();
   return (
     <Dialog
       open={open}
@@ -109,7 +111,7 @@ export default function ConfirmModal({
             onClick={onConfirm}
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {busy ? (busyLabel ?? "Working…") : cta}
+            {busy ? (busyLabel ?? tr("label.confirm.working")) : cta}
           </Button>
         </div>
       </DialogContent>

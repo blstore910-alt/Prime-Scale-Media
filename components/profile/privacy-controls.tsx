@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -45,6 +46,7 @@ export default function PrivacyControls({
 }: {
   heading?: boolean;
 }) {
+  const { t: tr } = useT();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [signingOutAll, setSigningOutAll] = useState(false);
@@ -94,23 +96,23 @@ export default function PrivacyControls({
     try {
       const result = await requestOwnErasure();
       if (!result.ok) {
-        toast.error("Your request was not sent", { description: result.error });
+        toast.error(tr("privacy.yourRequestWasNotSent"), { description: result.error });
         return;
       }
       // A REQUEST, not a lock: they stay signed in. The owner approves or
       // declines it, and they hear back either way.
       toast.success(
-        result.data.alreadySent ? "You already asked" : "Request sent",
-        { description: "We'll contact you before anything is deleted." },
+        result.data.alreadySent ? tr("label.privacy.youAlreadyAsked") : tr("label.advtoo.requestSent"),
+        { description: tr("privacy.weLlContactYouBefore") },
       );
       setConfirmOpen(false);
       queryClient.invalidateQueries({ queryKey: ["erasure-requested"], exact: false });
     } catch (err) {
-      toast.error("Erasure request failed", {
+      toast.error(tr("privacy.erasureRequestFailed"), {
         description:
           err instanceof Error
             ? err.message
-            : "Something went wrong. Nothing was sent — try again.",
+            : tr("privacy.somethingWentWrongNothingWas"),
       });
     } finally {
       setRequesting(false);
@@ -121,19 +123,17 @@ export default function PrivacyControls({
     <section className="space-y-3">
       {heading ? (
         <div>
-          <h3 className="text-lg font-semibold">Your data</h3>
+          <h3 className="text-lg font-semibold">{tr("label.adv.yourData")}</h3>
           <p className="text-sm text-muted-foreground">
-            Sign out everywhere, or ask us to delete your account.
-          </p>
+            {tr("adv.signOutEverywhereOrAsk")}</p>
         </div>
       ) : null}
 
       <div className="rounded-lg border px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="font-medium">Sign out of all devices</p>
+          <p className="font-medium">{tr("privacy.signOutOfAllDevices")}</p>
           <p className="text-sm text-muted-foreground">
-            Ends every session, everywhere.
-          </p>
+            {tr("privacy.endsEverySessionEverywhere")}</p>
         </div>
         <Button
           variant="outline"
@@ -143,10 +143,10 @@ export default function PrivacyControls({
             try {
               const result = await signOutAllDevices();
               if (!result.ok) {
-                toast.error("Sign-out failed", { description: result.error });
+                toast.error(tr("label.privacy.signOutFailed"), { description: result.error });
                 return;
               }
-              toast.success("All sessions ended. Signing you out.");
+              toast.success(tr("privacy.allSessionsEndedSigningYou"));
               setTimeout(() => {
                 window.location.href = "/auth/login";
               }, 1000);
@@ -161,20 +161,19 @@ export default function PrivacyControls({
           ) : (
             <LogOut className="h-4 w-4 mr-2" />
           )}
-          Sign out everywhere
-        </Button>
+          {tr("privacy.signOutEverywhere")}</Button>
       </div>
 
       <div className="rounded-lg border border-destructive/40 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="font-medium text-destructive">Delete my account</p>
+          <p className="font-medium text-destructive">{tr("label.privacy.deleteMyAccount")}</p>
           {/* A request we review, not a switch (the owner, 21-09: "moet
               een request komen bij admin, daarna pas"). No legal claims:
               "7 years by law" was one nobody here had checked. */}
           <p className="text-sm text-muted-foreground">
             {requestedAt
-              ? `You asked on ${dayjs(requestedAt).format("D MMM YYYY")}. We'll contact you before anything is deleted.`
-              : "We review your request and contact you. Your account stays open until then."}
+              ? tr("privacy.youAskedOnWeLl", { v: String(dayjs(requestedAt).format("D MMM YYYY")) })
+              : tr("privacy.weReviewYourRequestAnd")}
           </p>
         </div>
         <Button
@@ -184,18 +183,16 @@ export default function PrivacyControls({
           disabled={!!requestedAt}
         >
           <ShieldAlert className="h-4 w-4 mr-2" />
-          {requestedAt ? "Request sent" : "Request deletion"}
+          {requestedAt ? tr("label.advtoo.requestSent") : tr("label.privacy.requestDeletion")}
         </Button>
       </div>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Ask us to delete your account?</DialogTitle>
+            <DialogTitle>{tr("privacy.askUsToDeleteYour")}</DialogTitle>
             <DialogDescription>
-              We review your request and contact you. Nothing is deleted,
-              and you stay signed in, until then.
-            </DialogDescription>
+              {tr("privacy.weReviewYourRequestAnd2")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
@@ -203,16 +200,14 @@ export default function PrivacyControls({
               onClick={() => setConfirmOpen(false)}
               disabled={requesting}
             >
-              Cancel
-            </Button>
+              {tr("btn.cancel")}</Button>
             <Button
               variant="destructive"
               onClick={submitErasure}
               disabled={requesting}
             >
               {requesting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Send request
-            </Button>
+              {tr("label.privacy.sendRequest")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

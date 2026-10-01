@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -34,6 +35,7 @@ export default function AdvertiseTooCard({
 }: {
   advertiserId: string | null | undefined;
 }) {
+  const { t: tr } = useT();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
 
@@ -80,11 +82,10 @@ export default function AdvertiseTooCard({
       <div className="card">
         <h2>
           <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-            <Ic name="i-rocket" /> Advertise with us too
-          </span>
+            <Ic name="i-rocket" /> {" "}{tr("advtoo.advertiseWithUsToo")}</span>
         </h2>
         <p className="cap" style={{ margin: "6px 0 0" }}>
-          We couldn&apos;t check this just now.{" "}
+          {tr("advtoo.weCouldnTCheckThis")}{" "}
           <button
             type="button"
             style={{
@@ -98,8 +99,7 @@ export default function AdvertiseTooCard({
             }}
             onClick={() => q.refetch()}
           >
-            Try again
-          </button>
+            {tr("label.req.tryAgain")}</button>
         </p>
       </div>
     );
@@ -120,17 +120,12 @@ export default function AdvertiseTooCard({
       <div className="card">
         <h2>
           <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-            <Ic name="i-rocket" /> Advertising is switched on
-          </span>
+            <Ic name="i-rocket" /> {" "}{tr("advtoo.advertisingIsSwitchedOn")}</span>
         </h2>
         <p className="cap" style={{ margin: "6px 0 12px" }}>
-          You can run your own ad accounts with this same login now. Your
-          link, your referrals and everything you earned are exactly as
-          they were.
-        </p>
+          {tr("advtoo.youCanRunYourOwn")}</p>
         <button className="btn" onClick={() => window.location.assign("/dashboard")}>
-          <Ic name="i-rocket" /> Open your advertiser dashboard
-        </button>
+          <Ic name="i-rocket" /> {" "}{tr("advtoo.openYourAdvertiserDashboard")}</button>
       </div>
     );
 
@@ -145,11 +140,11 @@ export default function AdvertiseTooCard({
       await queryClient.invalidateQueries({ queryKey: ["affiliate-upgrade"] });
       toast.success(
         res.data.alreadySent
-          ? "You've already asked — we're looking at it."
-          : "Request sent. We'll set you up and let you know.",
+          ? tr("advtoo.youVeAlreadyAskedWe")
+          : tr("advtoo.requestSentWeLlSet"),
       );
     } catch {
-      toast.error("We couldn't send your request just now. Try again shortly.");
+      toast.error(tr("advtoo.weCouldnTSendYour"));
     } finally {
       setBusy(false);
     }
@@ -159,26 +154,20 @@ export default function AdvertiseTooCard({
     <div className="card">
       <h2>
         <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-          <Ic name="i-rocket" /> Advertise with us too
-        </span>
+          <Ic name="i-rocket" /> {" "}{tr("advtoo.advertiseWithUsToo")}</span>
       </h2>
       <p className="cap" style={{ margin: "6px 0 12px" }}>
-        Run your own ad accounts on Prime Scale Media with this same login.
-        Your link, your referrals and everything you earned stay exactly as
-        they are.
-      </p>
+        {tr("advtoo.runYourOwnAdAccounts")}</p>
       <button className="btn" disabled={busy || requested} onClick={ask}>
         <Ic name="i-rocket" />{" "}
-        {busy ? "Sending…" : requested ? "Request sent" : refused ? "Ask again" : "Ask to advertise too"}
+        {busy ? tr("btn.sending") : requested ? tr("label.advtoo.requestSent") : refused ? tr("label.advtoo.askAgain") : tr("advtoo.askToAdvertiseToo")}
       </button>
       {requested ? (
         <p className="cap" style={{ margin: "10px 0 0" }}>
-          We&apos;ll look at it and let you know here.
-        </p>
+          {tr("advtoo.weLlLookAtIt")}</p>
       ) : refused ? (
         <p className="cap" style={{ margin: "10px 0 0" }}>
-          Not this time: {q.data.refusalReason} You can ask again whenever you like.
-        </p>
+          {tr("advtoo.notThisTimeYouCan", { refusalReason: String(q.data.refusalReason) })}</p>
       ) : null}
     </div>
   );

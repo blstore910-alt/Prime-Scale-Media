@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -32,6 +33,7 @@ export default function PollCard({
   isAffiliate?: boolean;
   enabled?: boolean;
 }) {
+  const { t: tr } = useT();
   const poll = usePoll({ tenantId, profileId, role, isAffiliate, enabled });
   const vote = usePollVote();
   const [busy, setBusy] = useState<string | null>(null);
@@ -48,8 +50,8 @@ export default function PollCard({
       await vote(id, optionId, answer);
       if (answer !== undefined) setText("");
     } catch (error) {
-      toast.error("We could not record that", {
-        description: error instanceof Error ? error.message : "Try again in a moment.",
+      toast.error(tr("poll.weCouldNotRecordThat"), {
+        description: error instanceof Error ? error.message : tr("poll.tryAgainInAMoment"),
       });
     } finally {
       setBusy(null);
@@ -69,12 +71,9 @@ export default function PollCard({
           <>
             <div className="pmine">{myText}</div>
             <p className="pfoot">
-              Thanks — that reached us. You can write something else while
-              this is open.
-            </p>
+              {tr("poll.thanksThatReachedUsYou")}</p>
             <button className="popt again" onClick={() => setText(myText ?? "")}>
-              Change my answer
-            </button>
+              {tr("label.poll.changeMyAnswer")}</button>
           </>
         ) : (
           <>
@@ -83,19 +82,18 @@ export default function PollCard({
               rows={3}
               value={text}
               maxLength={MAX_ANSWER}
-              placeholder="In your own words…"
+              placeholder={tr("label.poll.inYourOwnWords")}
               onChange={(e) => setText(e.target.value)}
             />
             <div className="prow">
               <span className={`pcount${left < 20 ? " low" : ""}`}>
-                {left} left
-              </span>
+                {tr("poll.left", { left: String(left) })}</span>
               <button
                 className="psend"
                 disabled={!typed || !!busy}
                 onClick={() => send(null, text)}
               >
-                {busy ? "Sending…" : "Send"}
+                {busy ? tr("btn.sending") : tr("label.poll.send")}
               </button>
             </div>
           </>
@@ -119,9 +117,7 @@ export default function PollCard({
             ))}
           </div>
           <p className="pfoot">
-            {pollTotalText(result.total)} You can change your answer while
-            this is open.
-          </p>
+            {tr("poll.youCanChangeYourAnswer", { v: String(pollTotalText(result.total)) })}</p>
           {/* "both": they have picked, now they may say why. Optional,
               and after the bars -- asking first would make the pick
               feel like the easy way out of writing something. */}
@@ -136,17 +132,17 @@ export default function PollCard({
                   rows={2}
                   value={text}
                   maxLength={MAX_ANSWER}
-                  placeholder="Want to say why? (optional)"
+                  placeholder={tr("poll.wantToSayWhyOptional")}
                   onChange={(e) => setText(e.target.value)}
                 />
                 <div className="prow">
-                  <span className={`pcount`}>{left} left</span>
+                  <span className={`pcount`}>{tr("poll.left", { left: String(left) })}</span>
                   <button
                     className="psend"
                     disabled={!typed || !!busy}
                     onClick={() => send(myVote, text)}
                   >
-                    {busy ? "Sending…" : "Add it"}
+                    {busy ? tr("btn.sending") : tr("label.poll.addIt")}
                   </button>
                 </div>
               </>
@@ -157,7 +153,7 @@ export default function PollCard({
         <div className="popts">
           {options.map((o) => (
             <button key={o.id} className="popt" disabled={!!busy} onClick={() => send(o.id)}>
-              {busy === o.id ? "Saving…" : o.label}
+              {busy === o.id ? tr("label.adv.saving") : o.label}
             </button>
           ))}
         </div>

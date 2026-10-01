@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { copyText } from "@/lib/copy-text";
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
@@ -88,14 +89,13 @@ export function BankTransferInstructions({
   transferCurrency,
   override = null,
 }: BankTransferInstructionsProps) {
+  const { t: tr } = useT();
   const detail = bankInstructions[group].accounts[transferCurrency];
 
   if (!detail) {
     return (
       <div className="rounded-md bg-yellow-50 border border-yellow-600 p-3 text-sm text-yellow-700">
-        {bankInstructions[group].beneficiary} does not accept {transferCurrency}.
-        Please choose a different transfer currency.
-      </div>
+        {tr("bank.doesNotAcceptPleaseChoose", { beneficiary: String(bankInstructions[group].beneficiary), transferCurrency: String(transferCurrency) })}</div>
     );
   }
 
@@ -123,7 +123,7 @@ export function BankTransferInstructions({
         {override ? (
           <div>
             <p className="border-b px-3.5 pb-1.5 pt-2.5 text-[10px] font-bold uppercase leading-none tracking-[.1em] text-muted-foreground/75">
-              {override.label || "Bank details"}
+              {override.label || tr("label.bank.bankDetails")}
             </p>
             <div className="divide-y">
               {(
@@ -185,9 +185,7 @@ export function BankTransferInstructions({
           aria-hidden
           className="mt-[3px] inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"
         />
-        Use the exact account holder name shown above — a deposit under a
-        different name can be rejected by the bank.
-      </p>
+        {tr("bank.useTheExactAccountHolder")}</p>
     </div>
   );
 }
@@ -204,6 +202,7 @@ function InstructionItem({
   value: string;
   copyable?: boolean;
 }) {
+  const { t: tr } = useT();
   const [copied, setCopied] = useState(false);
 
   // ── DO NOT SAY "COPIED" WITHOUT CHECKING ───────────────────────────
@@ -276,7 +275,7 @@ function InstructionItem({
               : "text-muted-foreground/70 hover:text-foreground",
           )}
           onClick={handleCopy}
-          aria-label={`Copy ${label}`}
+          aria-label={tr("bank.copy", { label: String(label) })}
         >
           {copied ? (
             <Check className="h-4 w-4" />
@@ -291,28 +290,28 @@ function InstructionItem({
 
 // MUXUE also offers an instant Airwallex channel (USD / EUR).
 export function InstantTransferInstructions() {
+  const { t: tr } = useT();
   return (
     <div className="rounded-lg border bg-muted/20 p-4">
       <p className="text-sm text-muted-foreground mb-4">
-        For instant transfers, use these details below.
-      </p>
+        {tr("bank.forInstantTransfersUseThese")}</p>
       <div className="space-y-2">
         <InstructionItem
-          label="Channel"
+          label={tr("label.bank.channel")}
           value="Airwallex (instant - USD, EUR)"
         />
         <InstructionItem
-          label="Account Name"
+          label={tr("label.bank.accountName")}
           value="牧雪貿易有限公司"
           copyable={true}
         />
         <InstructionItem
-          label="Alternative Account Name"
+          label={tr("bank.alternativeAccountName")}
           value="MUXUE TRADE LIMITED"
           copyable={true}
         />
         <InstructionItem
-          label="Account Number"
+          label={tr("label.bank.accountNumber")}
           value="1011106829132869"
           copyable={true}
         />

@@ -1,3 +1,4 @@
+import { useT } from "@/hooks/use-t";
 import { AdAccount } from "@/lib/types/account";
 import {
   Dialog,
@@ -20,6 +21,7 @@ export default function CreateTopupDialog({
   /** Zie AccountTopupForm: alleen de klantkant geeft dit mee. */
   onNeedTopUp?: () => void;
 }) {
+  const { t: tr } = useT();
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {/* ── ONE SCROLLER, NOT TWO ────────────────────────────────────
@@ -33,7 +35,7 @@ export default function CreateTopupDialog({
           child allowed to be shorter than its content. */}
       <DialogContent className="flex flex-col overflow-hidden gap-0">
         <DialogHeader className="space-y-1 pb-1">
-          <DialogTitle>Fund this ad account</DialogTitle>
+          <DialogTitle>{tr("ctop.fundThisAdAccount")}</DialogTitle>
           {/* ── THE NAME BELONGS IN ONE PLACE ────────────────────────
               It was here AND in the "Ad Account" picker directly below,
               which is also where you change it -- so the code was on
@@ -41,8 +43,7 @@ export default function CreateTopupDialog({
               you could not act on. The picker keeps it; the header says
               what the dialog does. */}
           <DialogDescription>
-            Money moves out of your wallet and onto the ad account below.
-          </DialogDescription>
+            {tr("ctop.moneyMovesOutOfYour")}</DialogDescription>
         </DialogHeader>
 
         {open && (

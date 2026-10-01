@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { formatCurrency } from "@/lib/utils-pure";
 import { safeExternalHref } from "@/lib/url-field";
 import { formatBmIds } from "@/lib/pure-bm-ids";
@@ -184,6 +185,7 @@ export function AccountDetailsSheet({
    */
   onSetMinTopup?: (account: AdAccount) => void;
 }) {
+  const { t: tr } = useT();
   const queryClient = useQueryClient();
   const { profile } = useAppContext();
   const isAdvertiser = profile?.role === "advertiser";
@@ -275,7 +277,7 @@ export function AccountDetailsSheet({
           queryClient.invalidateQueries({
             queryKey: ["account-details", accountId],
           });
-          toast.success("Account status updated successfully");
+          toast.success(tr("acct.accountStatusUpdatedSuccessfully"));
         },
       },
     );
@@ -287,7 +289,7 @@ export function AccountDetailsSheet({
         <SheetContent side="right" className="sm:max-w-xl w-full overflow-auto">
           <SheetHeader className="sticky top-0 z-10 bg-background pb-2">
             <div className="flex items-center justify-between">
-              <SheetTitle>Account Details</SheetTitle>
+              <SheetTitle>{tr("label.acct.accountDetails")}</SheetTitle>
               {/* A 10x10 target, not a bare 20-24px glyph. These sheets are
                   passed w-full, so at 375px they cover the overlay
                   completely and tapping outside no longer closes anything
@@ -295,7 +297,7 @@ export function AccountDetailsSheet({
                   ones it was the smallest control on the screen. The size
                   matches .uds-x, which the user sheet already uses. */}
               <SheetClose
-                aria-label="Close"
+                aria-label={tr("btn.close")}
                 className="-mr-1 inline-grid h-10 w-10 shrink-0 place-items-center rounded-md opacity-70 transition hover:bg-muted hover:opacity-100"
               >
                 <XIcon size={20} />
@@ -305,7 +307,7 @@ export function AccountDetailsSheet({
 
           {/* Loading state */}
           {isLoading && (
-            <p className="mt-4 text-sm text-muted-foreground">Loading...</p>
+            <p className="mt-4 text-sm text-muted-foreground">{tr("acct.loading")}</p>
           )}
 
           {/* Error state */}
@@ -415,8 +417,7 @@ export function AccountDetailsSheet({
                 <div className="relative mt-4 grid grid-cols-2 gap-2">
                   <span className="rounded-xl bg-white/[0.13] px-3 py-2 ring-1 ring-white/20 backdrop-blur-sm">
                     <span className="block text-[0.6rem] font-semibold uppercase tracking-[0.1em] text-white/70">
-                      Currency
-                    </span>
+                      {tr("label.adv.currency")}</span>
                     <span className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold">
                       <WalletIcon className="h-3.5 w-3.5 opacity-80" />
                       {data.currency
@@ -431,7 +432,7 @@ export function AccountDetailsSheet({
                     <span className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold">
                       <Percent className="h-3.5 w-3.5 opacity-80" />
                       {data.fee == null || Number(data.fee) === 0
-                        ? "Set by your plan"
+                        ? tr("label.adv.setByYourPlan")
                         : `${Number(data.fee)}%`}
                     </span>
                   </span>
@@ -445,13 +446,13 @@ export function AccountDetailsSheet({
                   read like a database dump. What remains is three facts
                   that earn a row each. */}
               <Card className="p-4 sm:gap-6 gap-3">
-                <h3 className="font-semibold">Account details</h3>
+                <h3 className="font-semibold">{tr("label.acct.accountDetails2")}</h3>
                 <dl className="divide-y text-sm">
                   <div className="flex items-center gap-3 py-2.5 first:pt-0">
                     <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
                       <CalendarDays className="h-4 w-4" />
                     </span>
-                    <dt className="text-muted-foreground">Opened</dt>
+                    <dt className="text-muted-foreground">{tr("label.acct.opened")}</dt>
                     <dd className="ml-auto text-right font-medium tabular-nums">
                       {/* NEVER dayjs(undefined) -- that is today, printed
                           as a fact. A date we do not have is a dash. */}
@@ -489,7 +490,7 @@ export function AccountDetailsSheet({
                     <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
                       <Clock className="h-4 w-4" />
                     </span>
-                    <dt className="text-muted-foreground">Timezone</dt>
+                    <dt className="text-muted-foreground">{tr("label.acct.timezone")}</dt>
                     <dd className="ml-auto text-right font-medium">
                       {data.timezone || "—"}
                     </dd>
@@ -508,8 +509,7 @@ export function AccountDetailsSheet({
                 {isAdmin && data.notes && (
                   <div className="mt-2 text-sm">
                     <span className="font-medium text-muted-foreground block">
-                      Notes:
-                    </span>
+                      {tr("acct.notes")}</span>
                     <p className="whitespace-pre-wrap text-muted-foreground/90">
                       {data.notes}
                     </p>
@@ -531,8 +531,7 @@ export function AccountDetailsSheet({
                         <Separator className="my-2" />
                         <div className="space-y-2">
                           <h4 className="font-medium text-sm">
-                            Platform Details
-                          </h4>
+                            {tr("label.acct.platformDetails")}</h4>
                           <div>
                             <span className="font-medium text-muted-foreground block">
                               Platform:
@@ -545,8 +544,7 @@ export function AccountDetailsSheet({
                               metadata.google_email && (
                                 <div className="col-span-2">
                                   <span className="font-medium text-muted-foreground block">
-                                    Google Email:
-                                  </span>
+                                    {tr("acct.googleEmail")}</span>
                                   {metadata.google_email}
                                 </div>
                               )}
@@ -561,14 +559,12 @@ export function AccountDetailsSheet({
                                 </div>
                                 <div>
                                   <span className="font-medium text-muted-foreground block">
-                                    TikTok Email:
-                                  </span>
+                                    {tr("acct.tiktokEmail")}</span>
                                   {metadata.tiktok_email || "—"}
                                 </div>
                                 <div className="col-span-2">
                                   <span className="font-medium text-muted-foreground block">
-                                    Countries:
-                                  </span>
+                                    {tr("acct.countries")}</span>
                                   {Array.isArray(metadata.tiktok_countries)
                                     ? metadata.tiktok_countries.join(", ")
                                     : metadata.tiktok_countries || "—"}
@@ -593,8 +589,7 @@ export function AccountDetailsSheet({
                                 </div>
                                 <div className="col-span-2">
                                   <span className="font-medium text-muted-foreground block">
-                                    FB Profile Link:
-                                  </span>
+                                    {tr("acct.fbProfileLink")}</span>
                                   {metadata.personal_facebook_profile_link ? (
                                     <a
                                       href={
@@ -681,8 +676,7 @@ export function AccountDetailsSheet({
                               );
                               return cur && !known ? (
                                 <SelectItem value={cur} className="capitalize">
-                                  {cur} (set elsewhere)
-                                </SelectItem>
+                                  {tr("acct.setElsewhere", { cur: String(cur) })}</SelectItem>
                               ) : null;
                             })()}
                           </SelectContent>
@@ -696,31 +690,27 @@ export function AccountDetailsSheet({
               {/* --- Advertiser Information --- */}
               {data.advertiser && (
                 <Card className="p-4">
-                  <h3 className="font-semibold">Advertiser Information</h3>
+                  <h3 className="font-semibold">{tr("acct.advertiserInformation")}</h3>
                   <div className="grid sm:grid-cols-2 gap-2 text-sm">
                     <div>
                       <span className="font-medium text-muted-foreground">
-                        Client Code:
-                      </span>{" "}
+                        {tr("acct.clientCode")}</span>{" "}
                       {data.advertiser.tenant_client_code || "—"}
                     </div>
                     <div>
                       <span className="font-medium text-muted-foreground">
-                        Full Name:
-                      </span>{" "}
+                        {tr("acct.fullName")}</span>{" "}
                       {data.advertiser.profile?.full_name || "—"}
                     </div>
                     <div>
                       <span className="font-medium text-muted-foreground">
-                        Email:
-                      </span>{" "}
+                        {tr("acct.email")}</span>{" "}
                       {data.advertiser.profile?.email || "—"}
                     </div>
                     <div>
                       <span className="font-medium text-muted-foreground">
-                        Active:
-                      </span>{" "}
-                      {data.advertiser.profile?.is_active ? "Yes" : "No"}
+                        {tr("acct.active")}</span>{" "}
+                      {data.advertiser.profile?.is_active ? tr("label.acct.yes") : tr("label.acct.no")}
                     </div>
                   </div>
                 </Card>
@@ -738,8 +728,7 @@ export function AccountDetailsSheet({
                       onSetMinTopup(data as AdAccount);
                     }}
                   >
-                    <SlidersHorizontal /> Set topup limit
-                  </Button>
+                    <SlidersHorizontal /> {" "}{tr("label.acct.setTopupLimit")}</Button>
                 )}
                 {/* NOT ON A SWITCHED-OFF ACCOUNT. The card in the
                     advertiser app correctly hides Top up when the status
@@ -772,8 +761,8 @@ export function AccountDetailsSheet({
                       )
                         ? accountLockedReason(
                             (data as { status?: string | null } | null)?.status,
-                          ) ?? "This account is switched off."
-                        : "Move funds back to your wallet"
+                          ) ?? tr("acct.thisAccountIsSwitchedOff")
+                        : tr("acct.moveFundsBackToYour")
                     }
                     onClick={() => setWithdrawOpen(true)}
                     /* The one control on this sheet that moves money, and
@@ -783,8 +772,7 @@ export function AccountDetailsSheet({
                     className="w-full justify-center gap-2 rounded-xl border-primary/25 bg-primary/[0.04] py-5 font-semibold text-primary transition-all hover:-translate-y-px hover:bg-primary/10 hover:shadow-md disabled:translate-y-0 disabled:shadow-none"
                   >
                     <ArrowDownLeft className="h-4 w-4" />
-                    Withdraw to wallet
-                  </Button>
+                    {tr("label.acct.withdrawToWallet")}</Button>
                 )}
                 {/* ── AND THE SAME THING, FOR THE DESK ────────────────
                     The owner, 27-09: "momenteel kan een admin nergens
@@ -815,15 +803,14 @@ export function AccountDetailsSheet({
                       )
                         ? accountLockedReason(
                             (data as { status?: string | null } | null)?.status,
-                          ) ?? "This account is switched off."
-                        : "Raise a withdrawal for this customer — it still needs approving"
+                          ) ?? tr("acct.thisAccountIsSwitchedOff")
+                        : tr("acct.raiseAWithdrawalForThis")
                     }
                     onClick={() => setWithdrawForThemOpen(true)}
                     className="w-full justify-center gap-2 rounded-xl"
                   >
                     <ArrowDownLeft className="h-4 w-4" />
-                    Withdraw for this customer
-                  </Button>
+                    {tr("acct.withdrawForThisCustomer")}</Button>
                 )}
               </div>
 
@@ -863,6 +850,7 @@ export function AccountDetailsSheet({
 }
 
 function TopupHistory({ account }: { account: AdAccount }) {
+  const { t: tr } = useT();
   const { data, isLoading, isError } = useQuery({
     queryKey: ["top-ups", account.id],
     queryFn: async () => {
@@ -920,7 +908,7 @@ function TopupHistory({ account }: { account: AdAccount }) {
   return (
     <div className="mb-4">
       <div className="flex justify-between items-center mb-3">
-        <h3 className=" font-semibold">Top-up History</h3>
+        <h3 className=" font-semibold">{tr("label.acct.topUpHistory")}</h3>
       </div>
 
       {/* ── THE TOTALS, BEFORE THE ROWS ──────────────────────────
@@ -1037,17 +1025,13 @@ function TopupHistory({ account }: { account: AdAccount }) {
       <div className="space-y-2 sm:hidden">
         {isLoading ? (
           <p className="py-4 text-center text-sm text-muted-foreground">
-            Loading…
-          </p>
+            {tr("common.loading")}</p>
         ) : isError ? (
           <p className="py-4 text-center text-sm text-destructive">
-            Couldn&apos;t load the top-up history — this is NOT an empty
-            history. Reload to retry.
-          </p>
+            {tr("acct.couldnTLoadTheTop")}</p>
         ) : !data?.length ? (
           <p className="py-4 text-center text-sm text-muted-foreground">
-            No top-ups yet.
-          </p>
+            {tr("acct.noTopUpsYet")}</p>
         ) : (
           data.map((topup) => {
             const landed = landedOnAccount(topup);
@@ -1103,12 +1087,12 @@ function TopupHistory({ account }: { account: AdAccount }) {
         <Table>
           <TableHeader className="bg-background">
             <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Amount Paid</TableHead>
+              <TableHead>{tr("label.date")}</TableHead>
+              <TableHead>{tr("label.acct.amountPaid")}</TableHead>
               {/* Not "(USD)". A customer-filed funding lands in the
                   ACCOUNT's currency, and this account may well be in
                   euros — which the panel two blocks up says out loud. */}
-              <TableHead>Landed on the account</TableHead>
+              <TableHead>{tr("acct.landedOnTheAccount")}</TableHead>
               <TableHead>Fee</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
@@ -1124,15 +1108,12 @@ function TopupHistory({ account }: { account: AdAccount }) {
                   className="text-center text-muted-foreground"
                   colSpan={5}
                 >
-                  Loading…
-                </TableCell>
+                  {tr("common.loading")}</TableCell>
               </TableRow>
             ) : isError ? (
               <TableRow>
                 <TableCell className="text-center text-destructive" colSpan={5}>
-                  Couldn&apos;t load the top-up history — this is NOT an empty
-                  history. Reload to retry.
-                </TableCell>
+                  {tr("acct.couldnTLoadTheTop")}</TableCell>
               </TableRow>
             ) : (
               !data?.length && (
@@ -1141,8 +1122,7 @@ function TopupHistory({ account }: { account: AdAccount }) {
                     className="text-center text-muted-foreground"
                     colSpan={5}
                   >
-                    No Topups yet
-                  </TableCell>
+                    {tr("label.acct.noTopupsYet")}</TableCell>
                 </TableRow>
               )
             )}

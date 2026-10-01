@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import dayjs from "dayjs";
 
 import { Ic } from "@/components/advertiser/adv-icons";
@@ -26,6 +27,7 @@ export default function AffiliateApplicationCard({
   applying: boolean;
   onApplyAgain: () => void;
 }) {
+  const { t: tr } = useT();
   if (state === "refused") {
     return (
       <div className="appcard refused">
@@ -34,22 +36,20 @@ export default function AffiliateApplicationCard({
             <Ic name="i-help" />
           </span>
           <div>
-            <h2>Not this time</h2>
+            <h2>{tr("label.affapp.notThisTime")}</h2>
             <p className="cap">
-              {reason ? reason : "We couldn't take you onto the affiliate program yet."}
+              {reason ? reason : tr("affapp.weCouldnTTakeYou")}
             </p>
           </div>
         </div>
         <p className="ac-note">
-          Things change — you can apply again whenever you like, or ask us what would help.
-        </p>
+          {tr("affapp.thingsChangeYouCanApply")}</p>
         <div className="ac-acts">
           <button className="btn" onClick={onApplyAgain} disabled={applying}>
-            <Ic name="i-gift" /> {applying ? "Sending…" : "Apply again"}
+            <Ic name="i-gift" /> {applying ? tr("btn.sending") : tr("label.adv.applyAgain")}
           </button>
           <span className="btn ghost wa" style={{ cursor: "default" }}>
-            <WhatsappIcon /> Ask us in your group
-          </span>
+            <WhatsappIcon /> {" "}{tr("affapp.askUsInYourGroup")}</span>
         </div>
       </div>
     );
@@ -62,11 +62,9 @@ export default function AffiliateApplicationCard({
           <Ic name="i-check" />
         </span>
         <div>
-          <h2>Application received</h2>
+          <h2>{tr("affapp.applicationReceived")}</h2>
           <p className="cap">
-            We&apos;re setting up your rate. You&apos;ll see it here — and your own link — the
-            moment it is ready.
-          </p>
+            {tr("affapp.weReSettingUpYour")}</p>
         </div>
       </div>
       <ol className="ac-steps">
@@ -75,28 +73,27 @@ export default function AffiliateApplicationCard({
             <Ic name="i-check" />
           </span>
           <span className="t">
-            <b>You applied</b>
-            <small>{appliedAt ? dayjs(appliedAt).format("D MMM YYYY, HH:mm") : "Just now"}</small>
+            <b>{tr("label.affapp.youApplied")}</b>
+            <small>{appliedAt ? dayjs(appliedAt).format("D MMM YYYY, HH:mm") : tr("label.affapp.justNow")}</small>
           </span>
         </li>
         <li className="now">
           <span className="dot" />
           <span className="t">
-            <b>We set your rate</b>
-            <small>What you earn on each customer you bring</small>
+            <b>{tr("label.affapp.weSetYourRate")}</b>
+            <small>{tr("affapp.whatYouEarnOnEach")}</small>
           </span>
         </li>
         <li>
           <span className="dot" />
           <span className="t">
-            <b>Your link goes live</b>
-            <small>Share it — everyone who signs up is yours</small>
+            <b>{tr("affapp.yourLinkGoesLive")}</b>
+            <small>{tr("affapp.shareItEveryoneWhoSigns")}</small>
           </span>
         </li>
       </ol>
       <p className="ac-help">
-        <WhatsappIcon /> Questions? Ask us in your WhatsApp group.
-      </p>
+        <WhatsappIcon /> {" "}{tr("affapp.questionsAskUsInYour")}</p>
     </div>
   );
 }

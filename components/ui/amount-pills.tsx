@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 /**
  * Four amounts, one tap.
  *
@@ -31,6 +32,7 @@ export default function AmountPills({
   onPick: (amount: number) => void;
   disabled?: boolean;
 }) {
+  const { t: tr } = useT();
   const sym = String(currency ?? "EUR").toUpperCase() === "USD" ? "$" : "€";
   const ceiling =
     typeof max === "number" && Number.isFinite(max) && max > 0 ? max : null;
@@ -47,7 +49,7 @@ export default function AmountPills({
             onClick={() => onPick(v)}
             title={
               tooBig
-                ? `More than the ${sym}${ceiling.toLocaleString("en-US")} available`
+                ? tr("amount.moreThanTheAvailable", { sym: String(sym), v: String(ceiling.toLocaleString("en-US")) })
                 : undefined
             }
             className="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors hover:border-ring hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"

@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -28,6 +29,7 @@ export default function ThemeToggle({
   /** The shell's own button class. Defaults to the one all three use. */
   className?: string;
 }) {
+  const { t: tr } = useT();
   const { resolvedTheme, setTheme } = useTheme();
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
@@ -49,8 +51,8 @@ export default function ThemeToggle({
       // The label says what pressing it DOES, not what is on screen —
       // "Dark mode" on a button that turns it off is the coin-flip every
       // one of these gets wrong.
-      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-      title={dark ? "Light mode" : "Dark mode"}
+      aria-label={dark ? tr("theme.switchToLightMode") : tr("theme.switchToDarkMode")}
+      title={dark ? tr("label.theme.lightMode") : tr("label.theme.darkMode")}
       aria-pressed={dark}
     >
       {dark ? <Sun /> : <Moon />}

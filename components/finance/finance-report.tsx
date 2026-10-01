@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -49,6 +50,7 @@ export default function FinanceReport({
 }: {
   audience?: "advertiser" | "affiliate";
 }) {
+  const { t: tr } = useT();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["finance-report", audience],
     staleTime: 60_000,
@@ -179,16 +181,12 @@ export default function FinanceReport({
       {/* ── What we could not read ───────────────────────────────────── */}
       {data && data.failed.length > 0 ? (
         <div className="fr-warn">
-          <b>These totals are incomplete.</b> We couldn&apos;t read{" "}
-          {data.failed.join(", ")}. Everything else below is right; that
-          part is missing rather than zero.
-        </div>
+          <b>{tr("fin.theseTotalsAreIncomplete")}</b> {" "}{tr("fin.weCouldnTRead")}{" "}
+          {data.failed.join(", ")}{tr("fin.everythingElseBelowIsRight")}</div>
       ) : null}
       {data?.truncated ? (
         <div className="fr-warn">
-          <b>Showing the most recent movements.</b> There is more history
-          than fits in one report — narrow the dates to see the rest.
-        </div>
+          <b>{tr("fin.showingTheMostRecentMovements")}</b> {" "}{tr("fin.thereIsMoreHistoryThan")}</div>
       ) : null}
 
       {/* ── ONE CONTROL FOR THE PERIOD ──────────────────────────────
@@ -221,7 +219,7 @@ export default function FinanceReport({
           <div
             className="fr-period-pop"
             role="dialog"
-            aria-label="Choose a period"
+            aria-label={tr("label.fin.chooseAPeriod")}
           >
             <div className="fr-period-list">
               {(["all", "7d", "30d", "mtd", "lastm"] as RangeKey[]).map((k) => (
@@ -244,7 +242,7 @@ export default function FinanceReport({
               ))}
             </div>
             <div className="fr-period-dates">
-              <span className="fr-period-cap">Or pick your own</span>
+              <span className="fr-period-cap">{tr("label.fin.orPickYourOwn")}</span>
               <div className="fr-custom">
                 <input
                   type="date"
@@ -254,7 +252,7 @@ export default function FinanceReport({
                     setRange("custom");
                     setFrom(e.target.value);
                   }}
-                  aria-label="From"
+                  aria-label={tr("label.range.from")}
                 />
                 <span className="fr-dash">–</span>
                 <input
@@ -265,7 +263,7 @@ export default function FinanceReport({
                     setRange("custom");
                     setTo(e.target.value);
                   }}
-                  aria-label="To"
+                  aria-label={tr("label.range.to")}
                 />
               </div>
               {(from || to) && (
@@ -277,8 +275,7 @@ export default function FinanceReport({
                     setPeriodOpen(false);
                   }}
                 >
-                  Clear and show everything
-                </button>
+                  {tr("fin.clearAndShowEverything")}</button>
               )}
             </div>
           </div>
@@ -289,9 +286,9 @@ export default function FinanceReport({
         <select
           value={kind}
           onChange={(e) => setKind(e.target.value as "" | FinanceKind)}
-          aria-label="Type"
+          aria-label={tr("label.adv.type")}
         >
-          <option value="">All types</option>
+          <option value="">{tr("fin.allTypes")}</option>
           {KIND_ORDER.filter((k) =>
             all.some((l) => l.kind === k),
           ).map((k) => (
@@ -304,9 +301,9 @@ export default function FinanceReport({
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
-            aria-label="Currency"
+            aria-label={tr("label.adv.currency")}
           >
-            <option value="">Both currencies</option>
+            <option value="">{tr("label.fin.bothCurrencies")}</option>
             {allCurrencies.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -320,7 +317,7 @@ export default function FinanceReport({
             onChange={(e) => setAccount(e.target.value)}
             aria-label="Ad account"
           >
-            <option value="">All accounts</option>
+            <option value="">{tr("label.fin.allAccounts")}</option>
             {allAccounts.map((a) => (
               <option key={a} value={a}>
                 {a}
@@ -331,10 +328,10 @@ export default function FinanceReport({
         <input
           className="fr-search"
           type="search"
-          placeholder="Search"
+          placeholder={tr("label.fin.search")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          aria-label="Search"
+          aria-label={tr("label.fin.search")}
         />
         <button
           className="btn ghost sm fr-export"
@@ -342,12 +339,11 @@ export default function FinanceReport({
           disabled={shown.length === 0}
           title={
             shown.length === 0
-              ? "Nothing to export"
-              : `Export ${shown.length} rows`
+              ? tr("label.fin.nothingToExport")
+              : tr("fin.exportRows", { length: String(shown.length) })
           }
         >
-          Export CSV
-        </button>
+          {tr("label.fin.exportCsv")}</button>
       </div>
 
       {/* ── Totals, per currency ─────────────────────────────────────── */}
@@ -362,11 +358,11 @@ export default function FinanceReport({
                   <b className="up">{money(t.in, t.currency)}</b>
                 </div>
                 <div>
-                  <small>Out</small>
+                  <small>{tr("label.fin.out")}</small>
                   <b className="down">{money(t.out, t.currency)}</b>
                 </div>
                 <div>
-                  <small>Net</small>
+                  <small>{tr("label.fin.net")}</small>
                   <b>{money(t.net, t.currency)}</b>
                 </div>
               </div>
@@ -377,24 +373,21 @@ export default function FinanceReport({
 
       {/* ── The movements ────────────────────────────────────────────── */}
       {isLoading ? (
-        <p className="cap fr-msg">Gathering your movements…</p>
+        <p className="cap fr-msg">{tr("fin.gatheringYourMovements")}</p>
       ) : isError ? (
         <div className="fr-msg fr-bad">
           <p>
-            We couldn&apos;t build your report. This is not an empty
-            history.
-          </p>
+            {tr("fin.weCouldnTBuildYour")}</p>
           <button className="btn ghost sm" onClick={() => refetch()}>
-            Try again
-          </button>
+            {tr("label.req.tryAgain")}</button>
         </div>
       ) : shown.length === 0 ? (
         <p className="cap fr-msg">
           {all.length === 0
-            ? "Nothing has moved yet. Your first top-up will appear here."
+            ? tr("fin.nothingHasMovedYetYour")
             : filtered
-              ? "No movements match those filters."
-              : "Nothing to show."}
+              ? tr("fin.noMovementsMatchThoseFilters")
+              : tr("fin.nothingToShow")}
         </p>
       ) : (
         <div className="fr-list">

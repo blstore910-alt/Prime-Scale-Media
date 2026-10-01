@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -152,6 +153,7 @@ export default function PayoutCard({
   owedUnknown,
   defaults,
 }: Props) {
+  const { t: tr } = useT();
   const queryClient = useQueryClient();
 
   // ── THE FLOOR, AND THE ONE EXCEPTION TO IT ──────────────────────
@@ -289,8 +291,8 @@ export default function PayoutCard({
             <Ic name="i-download" />
           </span>
           <div>
-            <h2>Getting paid</h2>
-            <p className="cap">Checking what is ready to be paid out…</p>
+            <h2>{tr("label.payout.gettingPaid")}</h2>
+            <p className="cap">{tr("payout.checkingWhatIsReadyTo")}</p>
           </div>
         </div>
       </div>
@@ -312,12 +314,9 @@ export default function PayoutCard({
             <Ic name="i-download" />
           </span>
           <div>
-            <h2>Getting paid</h2>
+            <h2>{tr("label.payout.gettingPaid")}</h2>
             <p className="cap" style={{ color: "var(--danger)" }}>
-              We couldn&apos;t read your payouts just now. This is NOT
-              &quot;you have none&quot; &mdash; reload before asking for
-              one, so you do not ask twice.
-            </p>
+              {tr("payout.weCouldnTReadYour")}</p>
           </div>
         </div>
       </div>
@@ -332,19 +331,16 @@ export default function PayoutCard({
             <Ic name="i-download" />
           </span>
           <div>
-            <h2>Getting paid</h2>
+            <h2>{tr("label.payout.gettingPaid")}</h2>
             <p className="cap">
-              Payout requests are being switched on. Message us and we&apos;ll
-              arrange it by hand — nothing you have earned is lost.
-            </p>
+              {tr("payout.payoutRequestsAreBeingSwitched")}</p>
           </div>
         </div>
         {/* Naar de groep. Zie lib/whatsapp.ts: elke "Message us" ging
             naar het privénummer van de eigenaar, en met elf klanten
             zijn dat elf losse gesprekken waar niemand kan overnemen. */}
         <p className="btn ghost wa" style={{ cursor: "default" }}>
-          <WhatsappIcon /> Ask us in your WhatsApp group
-        </p>
+          <WhatsappIcon /> {" "}{tr("payout.askUsInYourWhatsapp")}</p>
       </div>
     );
   }
@@ -489,14 +485,14 @@ export default function PayoutCard({
         return;
       }
       const parts = res.data.legs.map((l) => formatCurrency(l.receives, l.paysIn));
-      toast.success(`Payout requested: ${parts.join(" + ")}`, {
-        description: "We'll confirm here the moment it is transferred.",
+      toast.success(tr("payout.payoutRequested", { v: String(parts.join(" + ")) }), {
+        description: tr("payout.weLlConfirmHereThe"),
       });
       setOpen(false);
       await payouts.refetch();
       queryClient.invalidateQueries({ queryKey: ["affiliate-stats"] });
     } catch {
-      toast.error("We couldn't send that just now. Try again shortly.");
+      toast.error(tr("payout.weCouldnTSendThat"));
     } finally {
       setBusy(false);
     }
@@ -511,7 +507,7 @@ export default function PayoutCard({
         toast.error(res.error);
         return;
       }
-      toast.success("Request withdrawn.");
+      toast.success(tr("payout.requestWithdrawn"));
       setView(null);
       await payouts.refetch();
       queryClient.invalidateQueries({ queryKey: ["affiliate-stats"] });
@@ -520,7 +516,7 @@ export default function PayoutCard({
       // back to "Withdraw request", the request is still open, and
       // nothing on screen says the attempt failed. The submit handler
       // twenty lines up has had this catch all along.
-      toast.error("We couldn't withdraw it just now. Your request is still with us.");
+      toast.error(tr("payout.weCouldnTWithdrawIt"));
     } finally {
       setCancelling(null);
     }
@@ -549,8 +545,8 @@ export default function PayoutCard({
           <Ic name="i-download" />
         </span>
         <div>
-          <h2>Getting paid</h2>
-          <p className="cap">Choose what to be paid, and in which currency.</p>
+          <h2>{tr("label.payout.gettingPaid")}</h2>
+          <p className="cap">{tr("payout.chooseWhatToBePaid")}</p>
         </div>
       </div>
 
@@ -572,7 +568,7 @@ export default function PayoutCard({
               <span className="xo-pill">
                 <span className="dot" /> {STATUS_LABEL.requested}
               </span>
-              {refOf(first) ? <span className="xo-no">Payout {refOf(first)}</span> : null}
+              {refOf(first) ? <span className="xo-no">{tr("payout.payout", { v: String(refOf(first)) })}</span> : null}
               <span className="xo-when">{dayjs(first.requested_at).format("D MMM, HH:mm")}</span>
             </span>
             <span className="xo-amt">
@@ -604,19 +600,16 @@ export default function PayoutCard({
             <span className="xo-steps" aria-hidden="true">
               <span className="st done">
                 <span className="s-dot" />
-                Requested
-              </span>
+                {tr("label.stRequested")}</span>
               <span className="st now">
                 <span className="s-dot" />
-                We check it
-              </span>
+                {tr("label.payout.weCheckIt")}</span>
               <span className="st">
                 <span className="s-dot" />
-                Transferred
-              </span>
+                {tr("label.payout.transferred")}</span>
             </span>
             <span className="xo-more">
-              View request <Ic name="i-arrow" />
+              {tr("label.payout.viewRequest")}{" "}<Ic name="i-arrow" />
             </span>
           </button>
         );
@@ -626,8 +619,8 @@ export default function PayoutCard({
       {owedUnknown || minUnknown ? (
         <p className="cap">
           {owedUnknown
-            ? "We couldn't read your balance just now — this is not a zero. Reload before requesting a payout."
-            : "We couldn't check the amount a payout starts at, so we are not going to print one. Reload, and tell us if it keeps happening."}
+            ? tr("payout.weCouldnTReadYour2")
+            : tr("payout.weCouldnTCheckThe")}
         </p>
       ) : (
         <>
@@ -659,14 +652,14 @@ export default function PayoutCard({
                     </span>
                     <span className="foot">
                       {owed[c] >= MIN_PER_CURRENCY
-                        ? "ready to pay out"
+                        ? tr("label.payout.readyToPayOut")
                         : canRequest
                           ? /* The card is green and the button is open because
                                the two pots TOGETHER clear the floor. Saying
                                "EUR 80,00 to go" underneath that contradicts the
                                button right above it. */
-                            "goes together with the other currency"
-                          : `${formatCurrency(round2(MIN_PER_CURRENCY - owed[c]), c)} to go`}
+                            tr("payout.goesTogetherWithTheOther")
+                          : tr("payout.toGo", { v: String(formatCurrency(round2(MIN_PER_CURRENCY - owed[c]), c)) })}
                     </span>
                   </div>
                 );
@@ -675,17 +668,16 @@ export default function PayoutCard({
           ) : (
             <p className="xp-empty">
               {waitingGroups.length
-                ? "Everything you are owed is in that request. What you earn from now on can be asked for once it is settled."
+                ? tr("payout.everythingYouAreOwedIs")
                 : minUnknown
-                  ? "This is where you ask to be paid. We could not check the amount you need to reach — reload before you count on a figure."
-                  : `This is where you ask to be paid. As soon as you have ${formatCurrency(MIN_PER_CURRENCY, "EUR")} or ${formatCurrency(MIN_PER_CURRENCY, "USD")} in commission, the button below opens.`}
+                  ? tr("payout.thisIsWhereYouAsk")
+                  : tr("payout.thisIsWhereYouAsk2", { v: String(formatCurrency(MIN_PER_CURRENCY, "EUR")), v2: String(formatCurrency(MIN_PER_CURRENCY, "USD")) })}
             </p>
           )}
           {/* The button stays, and says why it cannot be pressed. A
               control that vanishes leaves people wondering where it went. */}
           <button className="btn grad" disabled={!canRequest} onClick={startRequest}>
-            <Ic name="i-download" /> Request payout
-          </button>
+            <Ic name="i-download" /> {" "}{tr("label.payout.requestPayout")}</button>
           {requestHint ? <p className="xp-hint">{requestHint}</p> : null}
         </>
       )}
@@ -693,7 +685,7 @@ export default function PayoutCard({
       {/* ── WHAT HAPPENED BEFORE ───────────────────────────────────── */}
       {history.length ? (
         <div className="xp-hist">
-          <div className="xp-hh">Earlier payouts</div>
+          <div className="xp-hh">{tr("payout.earlierPayouts")}</div>
           {history.map((p) => (
             // ── THE INVOICE IS ON THE ROW, NOT ONLY BEHIND IT ──────
             //
@@ -713,7 +705,7 @@ export default function PayoutCard({
                 <span className="mid">
                   <span className="m">{receives(p)}</span>
                   <span className="d">
-                    {refOf(p) ? `Payout ${refOf(p)} · ` : ""}
+                    {refOf(p) ? `${tr("payout.payout2", { v: String(refOf(p)) })} ` : ""}
                     {dayjs(p.paid_at ?? p.decided_at ?? p.requested_at).format("D MMM YYYY")}
                     {p.reference || p.reason ? ` · ${p.reference || p.reason}` : ""}
                   </span>
@@ -733,8 +725,7 @@ export default function PayoutCard({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <Ic name="i-receipt" /> Invoice
-                </a>
+                  <Ic name="i-receipt" /> {" "}{tr("label.adv.invoice")}</a>
               )}
             </div>
           ))}
@@ -747,12 +738,12 @@ export default function PayoutCard({
           <div className="mback" onClick={() => (busy ? null : setOpen(false))} />
           <div className="mcard" style={{ width: "min(470px,100%)" }}>
             <div className="mhead">
-              <h2>Request payout</h2>
+              <h2>{tr("label.payout.requestPayout")}</h2>
               <button
                 className="iconbtn"
                 onClick={() => setOpen(false)}
                 disabled={busy}
-                aria-label="Close"
+                aria-label={tr("btn.close")}
               >
                 ✕
               </button>
@@ -767,8 +758,7 @@ export default function PayoutCard({
             {step === 1 ? (
               <>
                 <p className="cap" style={{ margin: "0 0 10px" }}>
-                  What do you want paid out?
-                </p>
+                  {tr("payout.whatDoYouWantPaid")}</p>
                 <div className="xp-pick">
                   {available.map((c) => {
                     const on = picked.includes(c);
@@ -791,18 +781,15 @@ export default function PayoutCard({
                 </div>
                 <div className="mfoot">
                   <button className="btn ghost" onClick={() => setOpen(false)}>
-                    Go back
-                  </button>
+                    {tr("label.adv.goBack")}</button>
                   <button className="btn grad" disabled={!picked.length} onClick={() => setStep(2)}>
-                    Next
-                  </button>
+                    {tr("label.payout.next")}</button>
                 </div>
               </>
             ) : step === 2 ? (
               <>
                 <p className="cap" style={{ margin: "0 0 10px" }}>
-                  How do you want it?
-                </p>
+                  {tr("payout.howDoYouWantIt")}</p>
                 <div className="xp-ways">
                   {/* Two banks only for somebody who actually earned in
                       both — the owner's rule. */}
@@ -812,11 +799,9 @@ export default function PayoutCard({
                       className={`xp-w${payIn === "SAME" ? " on" : ""}`}
                       onClick={() => setPayIn("SAME")}
                     >
-                      <b>Keep them separate</b>
+                      <b>{tr("label.payout.keepThemSeparate")}</b>
                       <small>
-                        Euros to your EUR bank, dollars to your USD bank. No
-                        conversion, no fee.
-                      </small>
+                        {tr("payout.eurosToYourEurBank")}</small>
                     </button>
                   ) : null}
                   {(["EUR", "USD"] as Cur[]).map((c) => {
@@ -830,8 +815,8 @@ export default function PayoutCard({
                           className={`xp-w${payIn === "SAME" ? " on" : ""}`}
                           onClick={() => setPayIn("SAME")}
                         >
-                          <b>Pay me in {c}</b>
-                          <small>Straight to your {c} bank. No conversion, no fee.</small>
+                          <b>{tr("payout.payMeIn", { c: String(c) })}</b>
+                          <small>{tr("payout.straightToYourBankNo", { c: String(c) })}</small>
                         </button>
                       );
                     }
@@ -843,11 +828,11 @@ export default function PayoutCard({
                         disabled={!canConvert}
                         onClick={() => setPayIn(c)}
                       >
-                        <b>All in {c}</b>
+                        <b>{tr("payout.allIn", { c: String(c) })}</b>
                         <small>
                           {canConvert
-                            ? `We convert the rest at today's rate, minus ${FEE_PCT}%.`
-                            : "We can't convert right now — no rate is set."}
+                            ? tr("payout.weConvertTheRestAt", { FEEPCT: String(FEE_PCT) })
+                            : tr("payout.weCanTConvertRight")}
                         </small>
                       </button>
                     );
@@ -873,7 +858,7 @@ export default function PayoutCard({
                       </div>
                     ))}
                     <div className="tot">
-                      <span>You receive</span>
+                      <span>{tr("label.payout.youReceive")}</span>
                       <b>
                         {Object.entries(totalPer)
                           .map(([c, a]) => formatCurrency(a, c))
@@ -882,9 +867,7 @@ export default function PayoutCard({
                     </div>
                     {legs.some((l) => l.rate) ? (
                       <p className="note">
-                        Live rate: 1 USD = {Number(legs.find((l) => l.rate)?.rate ?? 0).toFixed(4)}{" "}
-                        EUR. We confirm the exact figure when we transfer it.
-                      </p>
+                        {tr("payout.liveRate1UsdEur", { v: String(Number(legs.find((l) => l.rate)?.rate ?? 0).toFixed(4)) })}</p>
                     ) : null}
                   </div>
                 ) : null}
@@ -900,40 +883,38 @@ export default function PayoutCard({
                         on an affiliate's only screen for asking to be
                         paid, it shut the whole thing instead. Same
                         action, honest word. */}
-                    {available.length > 1 ? "Back" : "Cancel"}
+                    {available.length > 1 ? tr("btn.back") : tr("btn.cancel")}
                   </button>
                   <button className="btn grad" disabled={!legs.length} onClick={() => setStep(3)}>
-                    Next
-                  </button>
+                    {tr("label.payout.next")}</button>
                 </div>
               </>
             ) : (
               <>
                 <div className="xp-sum">
-                  <span className="l">You are asking for</span>
+                  <span className="l">{tr("label.payout.youAreAskingFor")}</span>
                   <span className="v">
                     {Object.entries(totalPer)
                       .map(([c, a]) => formatCurrency(a, c))
                       .join(" + ")}
                   </span>
                   <span className="c">
-                    Anything earned after this request goes into the next one.
-                  </span>
+                    {tr("payout.anythingEarnedAfterThisRequest")}</span>
                 </div>
 
                 <div className="field">
-                  <label htmlFor="po2-holder">Account holder</label>
+                  <label htmlFor="po2-holder">{tr("label.payout.accountHolder")}</label>
                   <input
                     id="po2-holder"
                     value={form.holder ?? ""}
                     onChange={(e) => setForm({ ...form, holder: e.target.value })}
-                    placeholder="Your company or your name"
+                    placeholder={tr("payout.yourCompanyOrYourName")}
                   />
                 </div>
                 {needsEurBank ? (
                   <div className="frow">
                     <div className="field">
-                      <label htmlFor="po2-iban">IBAN (for euros)</label>
+                      <label htmlFor="po2-iban">{tr("label.payout.ibanForEuros")}</label>
                       <input
                         id="po2-iban"
                         className="mono"
@@ -949,7 +930,7 @@ export default function PayoutCard({
                         className="mono"
                         value={form.bic ?? ""}
                         onChange={(e) => setForm({ ...form, bic: e.target.value })}
-                        placeholder="Optional"
+                        placeholder={tr("label.payout.optional")}
                       />
                     </div>
                   </div>
@@ -957,17 +938,17 @@ export default function PayoutCard({
                 {needsUsdBank ? (
                   <>
                     <div className="field">
-                      <label htmlFor="po2-bank">Bank (for dollars)</label>
+                      <label htmlFor="po2-bank">{tr("label.payout.bankForDollars")}</label>
                       <input
                         id="po2-bank"
                         value={form.bankName ?? ""}
                         onChange={(e) => setForm({ ...form, bankName: e.target.value })}
-                        placeholder="Bank name"
+                        placeholder={tr("label.payout.bankName")}
                       />
                     </div>
                     <div className="frow">
                       <div className="field">
-                        <label htmlFor="po2-acct">Account number</label>
+                        <label htmlFor="po2-acct">{tr("label.payout.accountNumber")}</label>
                         <input
                           id="po2-acct"
                           className="mono"
@@ -988,50 +969,49 @@ export default function PayoutCard({
                   </>
                 ) : null}
                 <div className="field">
-                  <label htmlFor="po2-addr">Billing address</label>
+                  <label htmlFor="po2-addr">{tr("label.payout.billingAddress")}</label>
                   <input
                     id="po2-addr"
                     value={form.address ?? ""}
                     onChange={(e) => setForm({ ...form, address: e.target.value })}
-                    placeholder="Street, city, country"
+                    placeholder={tr("payout.streetCityCountry")}
                   />
                 </div>
                 <div className="frow">
                   <div className="field">
-                    <label htmlFor="po2-tax">VAT / Tax ID</label>
+                    <label htmlFor="po2-tax">{tr("label.adv.vatTaxId")}</label>
                     <input
                       id="po2-tax"
                       value={form.taxId ?? ""}
                       onChange={(e) => setForm({ ...form, taxId: e.target.value })}
-                      placeholder="Optional"
+                      placeholder={tr("label.payout.optional")}
                     />
                   </div>
                   <div className="field">
-                    <label htmlFor="po2-note">Anything we should know</label>
+                    <label htmlFor="po2-note">{tr("payout.anythingWeShouldKnow")}</label>
                     <input
                       id="po2-note"
                       value={form.note ?? ""}
                       onChange={(e) => setForm({ ...form, note: e.target.value })}
-                      placeholder="Optional"
+                      placeholder={tr("label.payout.optional")}
                     />
                   </div>
                 </div>
 
                 <div className="mfoot">
                   <button className="btn ghost" onClick={() => setStep(2)} disabled={busy}>
-                    Back
-                  </button>
+                    {tr("btn.back")}</button>
                   <button className="btn grad" onClick={submit} disabled={busy || !detailsOk}>
-                    {busy ? "Sending…" : "Send the request"}
+                    {busy ? tr("btn.sending") : tr("label.req.sendTheRequest")}
                   </button>
                 </div>
                 {!detailsOk ? (
                   <p className="xr-hint" style={{ marginTop: 8 }}>
                     {(form.holder ?? "").trim().length <= 1
-                      ? "We need the account holder."
+                      ? tr("payout.weNeedTheAccountHolder")
                       : needsEurBank && (form.iban ?? "").trim().length <= 5
-                        ? "We need the IBAN to transfer the euros."
-                        : "We need the bank and the account number for the dollars."}
+                        ? tr("payout.weNeedTheIbanTo")
+                        : tr("payout.weNeedTheBankAnd")}
                   </p>
                 ) : null}
               </>
@@ -1049,9 +1029,9 @@ export default function PayoutCard({
               {/* Their own series, not the house one. See refOf above
                   and lib/pure-payout-ref.ts. */}
               <h2>
-                {refOf(view[0]) ? `Payout ${refOf(view[0])}` : "Your payout request"}
+                {refOf(view[0]) ? tr("payout.payout", { v: String(refOf(view[0])) }) : tr("payout.yourPayoutRequest")}
               </h2>
-              <button className="iconbtn" onClick={() => setView(null)} aria-label="Close">
+              <button className="iconbtn" onClick={() => setView(null)} aria-label={tr("btn.close")}>
                 ✕
               </button>
             </div>
@@ -1076,7 +1056,7 @@ export default function PayoutCard({
             </div>
 
             <div className="xp-hero">
-              <span className="l">You receive</span>
+              <span className="l">{tr("label.payout.youReceive")}</span>
               <span className="v">
                 {Object.entries(sumOf(view))
                   .map(([c, a]) => formatCurrency(a, c))
@@ -1112,7 +1092,7 @@ export default function PayoutCard({
                         So the top line is the gross again: net plus
                         what was taken back. */}
                     <div className="row">
-                      <span>From your {String(p.currency).toUpperCase()} balance</span>
+                      <span>{tr("payout.fromYourBalance", { v: String(String(p.currency).toUpperCase()) })}</span>
                       <b>
                         {formatCurrency(
                           Math.round(
@@ -1127,18 +1107,18 @@ export default function PayoutCard({
                     {converted ? (
                       <>
                         <div className="row">
-                          <span>Converted at</span>
+                          <span>{tr("label.payout.convertedAt")}</span>
                           <b>1 USD = {Number(p.fx_rate ?? 0).toFixed(4)} EUR</b>
                         </div>
                         <div className="row">
-                          <span>Conversion fee ({Number(p.fx_fee_pct ?? FEE_PCT)}%)</span>
+                          <span>{tr("payout.conversionFee", { v: String(Number(p.fx_fee_pct ?? FEE_PCT)) })}</span>
                           <b>−{formatCurrency(Number(p.fx_fee_amount) || 0, dst)}</b>
                         </div>
                       </>
                     ) : null}
                     {Number(p.clawback_amount) > 0 ? (
                       <div className="row">
-                        <span>Returned volume settled</span>
+                        <span>{tr("payout.returnedVolumeSettled")}</span>
                         <b>{formatCurrency(Number(p.clawback_amount), p.currency)}</b>
                       </div>
                     ) : null}
@@ -1146,18 +1126,18 @@ export default function PayoutCard({
                 );
               })}
               <div className="row">
-                <span>Commissions in it</span>
+                <span>{tr("label.payout.commissionsInIt")}</span>
                 <b>{view.reduce((n, p) => n + (Number(p.commission_count) || 0), 0)}</b>
               </div>
               {view[0].reference ? (
                 <div className="row">
-                  <span>Our reference</span>
+                  <span>{tr("label.payout.ourReference")}</span>
                   <b>{view[0].reference}</b>
                 </div>
               ) : null}
               {view[0].reason ? (
                 <div className="row">
-                  <span>Note</span>
+                  <span>{tr("payout.note")}</span>
                   <b>{view[0].reason}</b>
                 </div>
               ) : null}
@@ -1165,7 +1145,7 @@ export default function PayoutCard({
 
             <div className="xp-sec">
               <Ic name="i-building" />
-              <span>The details you gave us</span>
+              <span>{tr("payout.theDetailsYouGaveUs")}</span>
             </div>
             <div className="xp-view">
               {Object.entries(detailsOf(view[0]))
@@ -1178,8 +1158,7 @@ export default function PayoutCard({
                 ))}
               {Object.values(detailsOf(view[0])).every((v) => !(v ?? "").toString().trim()) ? (
                 <p className="cap" style={{ margin: 0 }}>
-                  No bank details were sent with this request.
-                </p>
+                  {tr("payout.noBankDetailsWereSent")}</p>
               ) : null}
             </div>
 
@@ -1204,8 +1183,7 @@ export default function PayoutCard({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <Ic name="i-receipt" /> Invoice
-                </a>
+                  <Ic name="i-receipt" /> {" "}{tr("label.adv.invoice")}</a>
               )}
               {view[0].status === "requested" ? (
                 <button
@@ -1213,12 +1191,11 @@ export default function PayoutCard({
                   disabled={cancelling === view[0].id}
                   onClick={() => cancel(view[0].id)}
                 >
-                  {cancelling === view[0].id ? "Withdrawing…" : "Withdraw request"}
+                  {cancelling === view[0].id ? tr("label.payout.withdrawing") : tr("label.payout.withdrawRequest")}
                 </button>
               ) : null}
               <button className="btn" onClick={() => setView(null)}>
-                Close
-              </button>
+                {tr("btn.close")}</button>
             </div>
           </div>
         </div>

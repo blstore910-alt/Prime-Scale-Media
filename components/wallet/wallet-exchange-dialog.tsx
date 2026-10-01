@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import {
   Dialog,
   DialogContent,
@@ -74,6 +75,7 @@ export default function WalletExchangeDialog({
   needCurrency?: Currency | null;
   needLabel?: string | null;
 }) {
+  const { t: tr } = useT();
   const queryClient = useQueryClient();
   // ── THE CUSTOMER-SIDE RATE READ, NOT THE ADMIN ONE ────────────────
   //
@@ -140,7 +142,7 @@ export default function WalletExchangeDialog({
       // Zero passed the form and was refused by the RPC, so the only way
       // to find out was a red toast.
       value: 0.01,
-      message: "Enter an amount above zero",
+      message: tr("exch.enterAnAmountAboveZero"),
     },
   });
   const hasUsd = usdBalance > 0;
@@ -225,7 +227,7 @@ export default function WalletExchangeDialog({
     mutationKey: ["wallet-exchange", walletId],
     mutationFn: async (values: FormValues) => {
       if (!walletId) {
-        throw new Error("Missing wallet context.");
+        throw new Error(tr("exch.missingWalletContext"));
       }
 
       const supabase = createClient();
@@ -245,14 +247,14 @@ export default function WalletExchangeDialog({
       // recourse is to compare two numbers afterwards and work it out.
       if (!data) {
         throw new Error(
-          "The exchange did not go through. Your balances are unchanged.",
+          tr("exch.theExchangeDidNotGo"),
         );
       }
       return data;
     },
     onSuccess: () => {
-      toast.success("Exchange completed", {
-        description: "Your wallet balances have been updated.",
+      toast.success(tr("label.exch.exchangeCompleted"), {
+        description: tr("exch.yourWalletBalancesHaveBeen"),
       });
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
       queryClient.invalidateQueries({
@@ -291,7 +293,7 @@ export default function WalletExchangeDialog({
       // userFacingErrorMessage is what make-query-client already uses
       // for this class; it keeps a sentence we wrote and replaces one
       // we did not.
-      toast.error("Exchange failed", {
+      toast.error(tr("label.exch.exchangeFailed"), {
         description: userFacingErrorMessage(
           err,
           "We could not convert that just now. Nothing has left your wallet — try again, or tell us if it keeps happening.",
@@ -362,11 +364,11 @@ export default function WalletExchangeDialog({
     if (!confirming) return;
     if (rate === confirming.rate) return;
     setConfirming(null);
-    toast.message(rate > 0 ? "The rate moved" : "We lost today's rate", {
+    toast.message(rate > 0 ? tr("label.exch.theRateMoved") : tr("exch.weLostTodaySRate"), {
       description:
-        "Nothing has left your wallet. Check the figures and press Exchange again.",
+        tr("exch.nothingHasLeftYourWallet"),
     });
-  }, [rate, confirming]);
+  }, [rate, confirming, tr]);
 
   // What the modal shows IS what the modal sends.
   const confirmFrom: Currency = confirming?.values.from_currency ?? fromCurrency;
@@ -378,10 +380,9 @@ export default function WalletExchangeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Exchange balance</DialogTitle>
+          <DialogTitle>{tr("label.exch.exchangeBalance")}</DialogTitle>
           <DialogDescription>
-            Convert between USD and EUR using the latest exchange rate.
-          </DialogDescription>
+            {tr("exch.convertBetweenUsdAndEur")}</DialogDescription>
         </DialogHeader>
         {/* ── WHY THEY ARE HERE ──────────────────────────────────────
             The billing card sends somebody here with "Exchange to pay
@@ -392,24 +393,21 @@ export default function WalletExchangeDialog({
         {need != null && needIsTarget ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900/50 dark:bg-amber-950/30">
             <div className="font-medium text-foreground">
-              You need {needSymbol}
-              {need.toFixed(2)}
-              {needLabel ? ` ${needLabel}` : ""}.
-            </div>
+              {tr("exch.youNeed", { needSymbol: String(needSymbol), v: String(need.toFixed(2)), v2: String(needLabel ? ` ${needLabel}` : "") })}</div>
             <div className="mt-1 text-muted-foreground">
               {ratesLoading
-                ? "Working out what that costs in your other wallet…"
+                ? tr("exch.workingOutWhatThatCosts")
                 : ratesError || !needRate
-                  ? "We couldn't read today's rate, so we can't fill the amount in for you — type it and the figures below will follow."
+                  ? tr("exch.weCouldnTReadToday")
                   : needIsReachable
-                    ? `Converting ${fromSymbol}${needFrom.toFixed(2)} lands it, fee included. That is filled in below.`
-                    : `Your ${fromCurrency} wallet holds ${fromSymbol}${haveOnFromSide.toFixed(2)}, and ${fromSymbol}${needFrom.toFixed(2)} is what it would take — so this won't cover it on its own.`}
+                    ? tr("exch.convertingLandsItFeeIncluded", { fromSymbol: String(fromSymbol), v: String(needFrom.toFixed(2)) })
+                    : tr("exch.yourWalletHoldsAndIs", { fromCurrency: String(fromCurrency), fromSymbol: String(fromSymbol), v: String(haveOnFromSide.toFixed(2)), fromSymbol2: String(fromSymbol), v2: String(needFrom.toFixed(2)) })}
             </div>
           </div>
         ) : null}
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="grid gap-2">
-            <Label htmlFor="from-currency">From currency</Label>
+            <Label htmlFor="from-currency">{tr("label.exch.fromCurrency")}</Label>
             <select
               id="from-currency"
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -422,7 +420,7 @@ export default function WalletExchangeDialog({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="from-amount">Amount</Label>
+            <Label htmlFor="from-amount">{tr("label.amount")}</Label>
             <Input
               id="from-amount"
               type="number"
@@ -440,23 +438,23 @@ export default function WalletExchangeDialog({
 
           <div className="rounded-lg border p-3 text-sm text-muted-foreground">
             <div className="flex items-center justify-between">
-              <span>Rate</span>
+              <span>{tr("label.tax.rate")}</span>
               <span>
                 {ratesLoading
-                  ? "Loading..."
+                  ? tr("acct.loading")
                   : ratesError || !rate
-                    ? "Unavailable"
+                    ? tr("label.exch.unavailable")
                     : `1 ${fromCurrency} = ${rate.toFixed(6)} ${toCurrency}`}
               </span>
             </div>
             <div className="mt-2 flex items-center justify-between">
-              <span>Exchange Fee (0.6%)</span>
+              <span>{tr("exch.exchangeFee06")}</span>
               <span className="text-foreground font-medium">
                 {rate ? `${feeAmount.toFixed(2)} ${toCurrency}` : "-"}
               </span>
             </div>
             <div className="mt-2 flex items-center justify-between">
-              <span>{"You'll receive"}</span>
+              <span>{tr("label.exch.youLlReceive")}</span>
               <span className="text-foreground font-medium">
                 {rate ? `${exchangeableAmount.toFixed(2)} ${toCurrency}` : "-"}
               </span>
@@ -467,8 +465,7 @@ export default function WalletExchangeDialog({
                 customer back through the whole loop. */}
             {needIsTarget && need != null && fromAmount > 0 && rate ? (
               <div className="mt-2 flex items-center justify-between border-t pt-2">
-                <span>Covers the {needSymbol}
-                  {need.toFixed(2)} you need</span>
+                <span>{tr("exch.coversTheYouNeed", { needSymbol: String(needSymbol), v: String(need.toFixed(2)) })}</span>
                 <span
                   className={
                     shortOf > 0
@@ -477,13 +474,13 @@ export default function WalletExchangeDialog({
                   }
                 >
                   {shortOf > 0
-                    ? `${needSymbol}${shortOf.toFixed(2)} short`
-                    : "Yes"}
+                    ? tr("exch.short", { needSymbol: String(needSymbol), v: String(shortOf.toFixed(2)) })
+                    : tr("label.acct.yes")}
                 </span>
               </div>
             ) : null}
             <div className="mt-2 flex items-center justify-between text-xs">
-              <span>Available balance</span>
+              <span>{tr("label.exch.availableBalance")}</span>
               <span>
                 {fromCurrency === "USD"
                   ? `${usdBalance.toFixed(2)} USD`
@@ -518,28 +515,28 @@ export default function WalletExchangeDialog({
           onOpenChange={(next) => {
             if (!next) setConfirming(null);
           }}
-          title="Exchange this money?"
-          lead={`You are converting ${fromCurrency} into ${toCurrency} at today's rate. Once it is done, converting it back costs the fee again.`}
-          cta="Yes, exchange it"
+          title={tr("exch.exchangeThisMoney")}
+          lead={tr("exch.youAreConvertingIntoAt", { fromCurrency: String(fromCurrency), toCurrency: String(toCurrency) })}
+          cta={tr("label.exch.yesExchangeIt")}
           busy={isPending}
-          busyLabel="Exchanging…"
+          busyLabel={tr("label.exch.exchanging")}
           onConfirm={() => confirming && mutate(confirming.values)}
         >
           <ConfirmFact
-            label="Taken from your wallet"
+            label={tr("exch.takenFromYourWallet")}
             value={`${confirmAmount.toFixed(2)} ${confirmFrom}`}
             strong
           />
           <ConfirmFact
-            label="Rate"
+            label={tr("label.tax.rate")}
             value={`1 ${confirmFrom} = ${(confirming?.rate ?? 0).toFixed(6)} ${confirmTo}`}
           />
           <ConfirmFact
-            label="Exchange fee (0.6%)"
+            label={tr("exch.exchangeFee062")}
             value={`${confirmQuote.fee.toFixed(2)} ${confirmTo}`}
           />
           <ConfirmFact
-            label="Added to your wallet"
+            label={tr("exch.addedToYourWallet")}
             value={`${confirmQuote.lands.toFixed(2)} ${confirmTo}`}
             strong
           />

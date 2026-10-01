@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 
@@ -45,6 +46,7 @@ export default function TaxRatesDialog({
   countryCode?: string | null;
   apiLinked?: boolean;
 }) {
+  const { t: tr } = useT();
   const { data, isLoading, isError } = useQuery({
     queryKey: ["tax-rates", tenantId],
     enabled: open && !!tenantId,
@@ -102,8 +104,8 @@ export default function TaxRatesDialog({
       <div className="mback" onClick={onClose} />
       <div className="mcard tx-card" style={{ width: "min(430px,100%)" }}>
         <div className="mhead">
-          <h2>Tax rates</h2>
-          <button className="iconbtn" onClick={onClose} aria-label="Close">
+          <h2>{tr("label.adv.taxRates")}</h2>
+          <button className="iconbtn" onClick={onClose} aria-label={tr("btn.close")}>
             ✕
           </button>
         </div>
@@ -116,7 +118,7 @@ export default function TaxRatesDialog({
             <span className="tx-hero-aur" aria-hidden="true" />
             <div className="tx-hero-body">
               <div className="tx-hero-left">
-                <span className="tx-hero-tag">Your account advertises in</span>
+                <span className="tx-hero-tag">{tr("tax.yourAccountAdvertisesIn")}</span>
                 <b>{yours.country_name}</b>
               </div>
               <div className="tx-hero-rate">{pct(yours.rate_pct)}</div>
@@ -124,27 +126,24 @@ export default function TaxRatesDialog({
           </div>
         ) : (
           <p className="cap tx-lead">
-            The rate depends on the country your ad account advertises in.
-          </p>
+            {tr("tax.theRateDependsOnThe")}</p>
         )}
 
         <div className="tx-list">
           <div className="tx-head">
-            <span>Country</span>
-            <span>Rate</span>
+            <span>{tr("label.adv.country")}</span>
+            <span>{tr("label.tax.rate")}</span>
           </div>
 
           {isLoading ? (
-            <div className="tx-msg">Loading the rates…</div>
+            <div className="tx-msg">{tr("label.tax.loadingTheRates")}</div>
           ) : isError ? (
             /* Not an empty schedule. A rate of zero is a statement and
                this is not one. */
             <div className="tx-msg bad">
-              We couldn&apos;t load the rates just now — this is not a list
-              of zeroes. Reload to try again.
-            </div>
+              {tr("tax.weCouldnTLoadThe")}</div>
           ) : rows.length === 0 ? (
-            <div className="tx-msg">No rates published yet.</div>
+            <div className="tx-msg">{tr("tax.noRatesPublishedYet")}</div>
           ) : (
             <>
               {countries.map((r) => (
@@ -174,15 +173,14 @@ export default function TaxRatesDialog({
         <div className="tx-how">
           <p>
             {apiLinked
-              ? "A reserve is held against your account balance for the country it advertises in. Released portions come back to your available balance."
-              : "A reserve is held for the country this account advertises in. On accounts we fund by hand we show your top-up history rather than a live balance, so the reserve is not a figure we can show here."}
+              ? tr("tax.aReserveIsHeldAgainst")
+              : tr("tax.aReserveIsHeldFor")}
           </p>
         </div>
 
         <div className="mfoot">
           <button className="btn ghost" onClick={onClose}>
-            Close
-          </button>
+            {tr("btn.close")}</button>
         </div>
       </div>
     </div>

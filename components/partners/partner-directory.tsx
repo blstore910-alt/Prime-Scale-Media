@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 // ── DE PARTNERGIDS ──────────────────────────────────────────────────
 //
 // De eigenaar, 30-09: "PSM partner directory > partners met wow super
@@ -176,6 +177,7 @@ const CSS = `
 `;
 
 function Tegel({ p }: { p: Partner }) {
+  const { t: tr } = useT();
   const acc = p.accent && /^#[0-9a-fA-F]{6}$/.test(p.accent) ? p.accent : "#5B8DFF";
   const Icon = icoonVoor(p.category);
   const inhoud = (
@@ -199,7 +201,7 @@ function Tegel({ p }: { p: Partner }) {
       <div className="pt-tag">{p.tagline ?? ""}</div>
       {p.url ? (
         <div className="pt-foot">
-          <span className="pt-more">Learn more</span>
+          <span className="pt-more">{tr("label.onb.learnMore")}</span>
           <span className="pt-arrow">
             <ArrowUpRight />
           </span>
@@ -219,7 +221,7 @@ function Tegel({ p }: { p: Partner }) {
       target="_blank"
       rel="noopener noreferrer"
       style={stijl}
-      aria-label={`${p.name} — opens in a new tab`}
+      aria-label={tr("partners.opensInANewTab", { name: String(p.name) })}
     >
       {inhoud}
     </a>
@@ -231,6 +233,7 @@ function Tegel({ p }: { p: Partner }) {
 }
 
 export default function PartnerDirectory() {
+  const { t: tr } = useT();
   const q = useQuery({
     queryKey: ["partners-directory"],
     staleTime: 5 * 60_000,
@@ -260,17 +263,15 @@ export default function PartnerDirectory() {
         <div className="pdir-note">
           <AlertTriangle />
           <span>
-            <b>We couldn&apos;t load our partners.</b>
-            That is not the same as there being none — try again in a moment.
-          </span>
+            <b>{tr("partners.weCouldnTLoadOur")}</b>
+            {tr("partners.thatIsNotTheSame")}</span>
         </div>
       ) : (q.data ?? []).length === 0 ? (
         <div className="pdir-note">
           <Handshake />
           <span>
-            <b>No partners listed yet.</b>
-            The companies we work with will appear here.
-          </span>
+            <b>{tr("partners.noPartnersListedYet")}</b>
+            {tr("partners.theCompaniesWeWorkWith")}</span>
         </div>
       ) : (
         <div className="pdir">

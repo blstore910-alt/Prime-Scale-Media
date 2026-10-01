@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import {
   Dialog,
   DialogContent,
@@ -172,6 +173,7 @@ export default function WalletTopupDialog({
    *  until plak 128 lands, and null reads as "not said" = TURLIT. */
   assignedBankGroup?: string | null;
 }) {
+  const { t: tr } = useT();
   const [step, setStep] = useState(STEPS.SELECTION);
   // ── OPEN ON THE WALLET THEY PRESSED ────────────────────────────────
   //
@@ -503,7 +505,7 @@ export default function WalletTopupDialog({
       setTimeout(() => setRefCopied(false), 1800);
       return;
     }
-    toast.error("Couldn't copy — select the reference and copy it by hand.");
+    toast.error(tr("wtop.couldnTCopySelectThe"));
   };
 
   // Live FX rates (per 1 USD) to show a "you'll transfer ≈ X" hint when the
@@ -539,7 +541,7 @@ export default function WalletTopupDialog({
     // typed 300 into 0300 -- the owner hit it on the walk, and it is the
     // one number in this dialog that has to be exactly right.
     amount: z
-      .number({ error: "Fill in the amount you sent." })
+      .number({ error: tr("wtop.fillInTheAmountYou") })
       .positive("Fill in the amount you sent.")
       .min(minTopupAmount, `Transfer at least ${currency} ${minTopupAmount}.`),
   });
@@ -725,7 +727,7 @@ export default function WalletTopupDialog({
     // upload of the family holiday video.
     const MAX_BYTES = 10 * 1024 * 1024;
     if (file.size > MAX_BYTES) {
-      setPaymentSlipError("File is too large (max 10 MB).");
+      setPaymentSlipError(tr("wtop.fileIsTooLargeMax"));
       setPaymentSlipUrl(null);
       setPaymentSlipPreview(null);
       setPreviewSrc(null);
@@ -775,8 +777,8 @@ export default function WalletTopupDialog({
     if (!isImage && !isPdf) {
       setPaymentSlipError(
         extension === "heic" || extension === "heif" || file.type === "image/heic"
-          ? "iPhone photos (HEIC) can't be read here. In Photos, tap Share and choose a JPEG, or take a screenshot of the receipt and send that."
-          : "Send a PNG, JPG, GIF, WEBP, BMP or PDF. Other formats can't be opened by our team.",
+          ? tr("wtop.iphonePhotosHeicCanT")
+          : tr("wtop.sendAPngJpgGif"),
       );
       setPaymentSlipUrl(null);
       setPaymentSlipPreview(null);
@@ -812,7 +814,7 @@ export default function WalletTopupDialog({
         err instanceof Error ? err.message : "Unknown upload error.";
       setPaymentSlipUrl(null);
       setPaymentSlipError(message);
-      toast.error("Unable to upload payment slip", { description: message });
+      toast.error(tr("wtop.unableToUploadPaymentSlip"), { description: message });
     } finally {
       setIsUploadingSlip(false);
     }
@@ -855,12 +857,12 @@ export default function WalletTopupDialog({
         | undefined;
       if (row === null || row === undefined) {
         throw new Error(
-          "The top-up was not filed. Nothing has been charged — try again in a moment.",
+          tr("wtop.theTopUpWasNot"),
         );
       }
       if (typeof row === "object" && row.ok === false) {
         throw new Error(
-          row.error ?? "The top-up was not filed. Nothing has been charged.",
+          row.error ?? tr("wtop.theTopUpWasNot2"),
         );
       }
       return row;
@@ -934,7 +936,7 @@ export default function WalletTopupDialog({
 
     },
     onError: (err: Error) => {
-      toast.error("Unable to request topup", { description: err.message });
+      toast.error(tr("wtop.unableToRequestTopup"), { description: err.message });
     },
   });
 
@@ -949,11 +951,11 @@ export default function WalletTopupDialog({
   const handleSubmitForm = (values: FormValues) => {
     // Slip required for every topup, both account groups.
     if (isUploadingSlip) {
-      toast.error("Payment slip is still uploading.");
+      toast.error(tr("wtop.paymentSlipIsStillUploading"));
       return;
     }
     if (!paymentSlipUrl) {
-      setPaymentSlipError("Payment slip is required.");
+      setPaymentSlipError(tr("wtop.paymentSlipIsRequired"));
       return;
     }
 
@@ -1003,8 +1005,8 @@ export default function WalletTopupDialog({
         <DialogHeader className="shrink-0">
           <DialogTitle>
             {step === STEPS.SUCCESS
-              ? "Topup Requested"
-              : "Request Wallet Topup"}
+              ? tr("wtop.topupRequested")
+              : tr("wtop.requestWalletTopup")}
           </DialogTitle>
         </DialogHeader>
         {/* ── A PLAIN SCROLLPORT, NOT A ScrollArea ───────────────────
@@ -1029,7 +1031,7 @@ export default function WalletTopupDialog({
             {step === STEPS.SELECTION && (
               <div className="space-y-6">
                 <div className="space-y-3">
-                  <Label>Wallet to fund</Label>
+                  <Label>{tr("label.wtop.walletToFund")}</Label>
                   {/* ── A SLIP BELONGS TO THE CLAIM IT WAS UPLOADED FOR ──
                       Both guards against "a EUR slip filed against a
                       USD claim" are keyed to the dialog OPENING and
@@ -1055,24 +1057,22 @@ export default function WalletTopupDialog({
                         setPaymentSlipUrl(null);
                         setSlipName(null);
                         setPaymentSlipError(null);
-                        toast.info("Add the payment slip again", {
-                          description: `You switched to the ${val} wallet, so the slip you uploaded no longer matches this claim.`,
+                        toast.info(tr("wtop.addThePaymentSlipAgain"), {
+                          description: tr("wtop.youSwitchedToTheWallet", { val: String(val) }),
                         });
                       }
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select currency" />
+                      <SelectValue placeholder={tr("label.wtop.selectCurrency")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="USD">USD - US Dollar wallet</SelectItem>
-                      <SelectItem value="EUR">EUR - Euro wallet</SelectItem>
+                      <SelectItem value="USD">{tr("wtop.usdUsDollarWallet")}</SelectItem>
+                      <SelectItem value="EUR">{tr("label.wtop.eurEuroWallet")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Your wallet is credited in {currency}. You can still
-                    transfer in another currency below.
-                  </p>
+                    {tr("wtop.yourWalletIsCreditedIn", { currency: String(currency) })}</p>
                 </div>
 
                 {/* Only asked when there is genuinely something to choose.
@@ -1102,10 +1102,10 @@ export default function WalletTopupDialog({
                 {routingUnknown && (
                   <p className="text-xs text-muted-foreground">
                     {accountsUnknown
-                      ? "We couldn't check which of our accounts is yours just now. Don't transfer on this screen — reopen it in a moment, or ask us and we'll tell you."
+                      ? tr("wtop.weCouldnTCheckWhich")
                       : accountTypeSlugs.length === 0
-                        ? "You don't have an ad account with us yet, so we've put our usual account below. If we gave you a different one, use that — and ask us if you're not sure."
-                        : "We couldn't work the destination out from your ad accounts, so we've put our usual one below. If we gave you a different one, use that — and ask us if you're not sure."}
+                        ? tr("wtop.youDonTHaveAn")
+                        : tr("wtop.weCouldnTWorkThe")}
                   </p>
                 )}
 
@@ -1115,13 +1115,9 @@ export default function WalletTopupDialog({
                     each account was set up. */}
                 {twoFamilies && (
                   <div className="space-y-2">
-                    <Label>Which of our accounts are you paying into?</Label>
+                    <Label>{tr("wtop.whichOfOurAccountsAre")}</Label>
                     <p className="text-xs text-muted-foreground">
-                      Your ad accounts are split across two of our
-                      companies, so this one is yours to pick. Use the one
-                      you were given for the account you are funding — ask
-                      us if you are not sure.
-                    </p>
+                      {tr("wtop.yourAdAccountsAreSplit")}</p>
                     <div className="flex flex-wrap gap-2">
                       {routed.map((g) => (
                         <button
@@ -1144,7 +1140,7 @@ export default function WalletTopupDialog({
 
 
                 <div className="space-y-3">
-                  <Label>Transfer currency</Label>
+                  <Label>{tr("label.wtop.transferCurrency")}</Label>
                   <div className="flex flex-wrap gap-2">
                     {availableTransferCurrencies.map((c) => (
                       <button
@@ -1163,12 +1159,9 @@ export default function WalletTopupDialog({
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {bankBeneficiary(bankGroup)} receives{" "}
-                    {availableTransferCurrencies.join(" / ")}.
-                    {transferCurrency !== currency
+                    {tr("wtop.receives", { v: String(bankBeneficiary(bankGroup)), v2: String(availableTransferCurrencies.join(" / ")), v3: String(transferCurrency !== currency
                       ? ` You'll pay in ${transferCurrency}; your ${currency} wallet is credited from the slip.`
-                      : ""}
-                  </p>
+                      : "") })}</p>
                 </div>
 
                 {/* ── SAY THE MINIMUM BEFORE THEY SEND THE MONEY ────────
@@ -1204,12 +1197,11 @@ export default function WalletTopupDialog({
                     const cur = inTransfer ? transferCurrency : currency;
                     return (
                       <p className="text-sm font-medium">
-                        Transfer at least{" "}
+                        {tr("label.wtop.transferAtLeast")}{" "}
                         <strong>
                           {cur} {shown.toLocaleString("en-US")}
                         </strong>
-                        . A smaller amount cannot be filed as a top-up.
-                        {/* ── AND WHAT THAT IS IN THE WALLET ─────────
+                        {tr("wtop.aSmallerAmountCannotBe")}{/* ── AND WHAT THAT IS IN THE WALLET ─────────
                             The box on step 3 asks for the WALLET
                             figure, and this line quotes the TRANSFER
                             one. A EUR-wallet customer paying in HKD
@@ -1223,21 +1215,19 @@ export default function WalletTopupDialog({
                         {cur !== currency && (
                           <>
                             {" "}
-                            That is{" "}
+                            {tr("label.wtop.thatIs")}{" "}
                             <strong>
                               {currency}{" "}
                               {minTopupAmount.toLocaleString("en-US")}
                             </strong>{" "}
-                            credited — the figure we ask for at the end.
-                          </>
+                            {tr("wtop.creditedTheFigureWeAsk")}</>
                         )}
                       </p>
                     );
                   })()}
 
                 <Button className="w-full mt-4" onClick={handleNextStep}>
-                  Continue
-                </Button>
+                  {tr("label.wtop.continue")}</Button>
               </div>
             )}
 
@@ -1276,35 +1266,22 @@ export default function WalletTopupDialog({
                 {openTopupsError ? (
                   <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-left dark:border-amber-500/40 dark:bg-amber-500/10">
                     <p className="text-sm font-semibold">
-                      We couldn&apos;t check for an earlier top-up
-                    </p>
+                      {tr("wtop.weCouldnTCheckFor")}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      If you have already filed one and not paid it yet, use
-                      the reference from that one rather than the code below
-                      — money sent against the wrong code has to be matched
-                      by hand.
-                    </p>
+                      {tr("wtop.ifYouHaveAlreadyFiled")}</p>
                   </div>
                 ) : null}
                 {openTopup ? (
                   <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-left dark:border-amber-500/40 dark:bg-amber-500/10">
                     <p className="text-sm font-semibold">
-                      You already have a top-up waiting
-                    </p>
+                      {tr("wtop.youAlreadyHaveATop")}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {formatCurrency(
+                      {tr("wtop.filedIfYouHaveNot", { v: String(formatCurrency(
                         Number(openTopup.amount) || 0,
                         (openTopup.currency ?? "EUR").toUpperCase() === "USD"
                           ? "USD"
                           : "EUR",
-                      )}
-                      , filed{" "}
-                      {new Date(openTopup.created_at).toLocaleDateString()}. If
-                      you have not sent that transfer yet, use its reference
-                      below — starting a second one here gives you a different
-                      code, and money sent against the wrong code has to be
-                      matched by hand.
-                    </p>
+                      )), v2: String(new Date(openTopup.created_at).toLocaleDateString()) })}</p>
                     <button
                       type="button"
                       onClick={() => copyReference(
@@ -1327,8 +1304,8 @@ export default function WalletTopupDialog({
                 <div className="rounded-xl border bg-muted/20 p-4">
                   <p className="text-sm text-muted-foreground">
                     {openTopup
-                      ? "For a NEW transfer, use this reference instead:"
-                      : "Put this reference in the description of your transfer, so we can match your payment."}
+                      ? tr("wtop.forANewTransferUse")
+                      : tr("wtop.putThisReferenceInThe")}
                   </p>
                   {/* ── AN EMPTY BOX CAPTIONED "Tap to copy" ──────────
                       referenceNo is `wallet?.reference_no ?? null` and
@@ -1347,7 +1324,7 @@ export default function WalletTopupDialog({
                         type="button"
                         onClick={() => copyReference()}
                         className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-lg border bg-background px-3 py-3 font-mono text-xl font-bold tracking-wide transition hover:border-ring hover:bg-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                        aria-label={`Copy reference ${formatPaymentReference(clientCode, referenceNo)}`}
+                        aria-label={tr("wtop.copyReference", { v: String(formatPaymentReference(clientCode, referenceNo)) })}
                       >
                         {/* No icon. The reference IS the button, and the
                             line under it already says what pressing it
@@ -1357,16 +1334,12 @@ export default function WalletTopupDialog({
                         {formatPaymentReference(clientCode, referenceNo)}
                       </button>
                       <p className="mt-2 text-center text-xs text-muted-foreground">
-                        {refCopied ? "Copied" : "Tap to copy"}
+                        {refCopied ? tr("wtop.copied") : tr("wtop.tapToCopy")}
                       </p>
                     </>
                   ) : (
                     <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-center text-sm font-medium text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
-                      We could not produce a reference for this transfer.
-                      Do NOT send the money yet — reload this page, and
-                      tell us if it happens again. A transfer with no
-                      reference cannot be matched to your account.
-                    </p>
+                      {tr("wtop.weCouldNotProduceA")}</p>
                   )}
                 </div>
 
@@ -1399,17 +1372,14 @@ export default function WalletTopupDialog({
                     const cur = inTransfer ? transferCurrency : currency;
                     return (
                       <p className="pt-2 text-sm font-medium">
-                        At least {cur} {shown.toLocaleString("en-US")}.
-                        Anything less cannot be filed.
-                      </p>
+                        {tr("wtop.atLeastAnythingLessCannot", { cur: String(cur), v: String(shown.toLocaleString("en-US")) })}</p>
                     );
                   })()}
 
                 <div className="flex gap-3 pt-2">
                   <Button variant="outline" onClick={handlePrevStep}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back
-                  </Button>
+                    {tr("btn.back")}</Button>
                   {/* ── AND THE GATE, NOT ONLY THE WARNING ──────────
                       The amber panel above says "Do NOT send the money
                       yet" and then this button sat live three lines
@@ -1426,11 +1396,10 @@ export default function WalletTopupDialog({
                     title={
                       formatPaymentReference(clientCode, referenceNo)
                         ? undefined
-                        : "We have no reference for this transfer yet — reload the page before sending anything."
+                        : tr("wtop.weHaveNoReferenceFor")
                     }
                   >
-                    I have made the transfer
-                  </Button>
+                    {tr("wtop.iHaveMadeTheTransfer")}</Button>
                 </div>
               </div>
             )}
@@ -1445,8 +1414,7 @@ export default function WalletTopupDialog({
                 <div className="rounded-md bg-muted/40 p-3 text-sm flex justify-between items-center border">
                   <div className="flex flex-col">
                     <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
-                      Transferring to
-                    </span>
+                      {tr("label.wtop.transferringTo")}</span>
                     <span className="font-medium">
                       {bankBeneficiary(bankGroup)} ({transferCurrency})
                     </span>
@@ -1458,8 +1426,7 @@ export default function WalletTopupDialog({
                     onClick={() => setStep(STEPS.SELECTION)}
                     type="button"
                   >
-                    Change
-                  </Button>
+                    {tr("label.wtop.change")}</Button>
                 </div>
 
                 <div className="space-y-4">
@@ -1482,8 +1449,7 @@ export default function WalletTopupDialog({
                         credit. The question has to be that. What to send
                         is the line underneath, which already converts. */}
                     <Label htmlFor="amount">
-                      How much should we credit to your {currency} wallet?
-                    </Label>
+                      {tr("wtop.howMuchShouldWeCredit", { currency: String(currency) })}</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
                         {currency === "USD" ? "$" : "€"}
@@ -1511,8 +1477,8 @@ export default function WalletTopupDialog({
                     />
                     <p className="text-xs text-muted-foreground">
                       {transferCurrency === currency
-                        ? `This is what we credit once we see it arrive, so it should be the exact amount you sent.`
-                        : `This is what we credit once we see your transfer arrive. Your transfer is in ${transferCurrency} — the figure to send is below.`}
+                        ? tr("wtop.thisIsWhatWeCredit")
+                        : tr("wtop.thisIsWhatWeCredit2", { transferCurrency: String(transferCurrency) })}
                     </p>
                     {errors.amount && (
                       <p className="text-sm text-destructive">
@@ -1539,28 +1505,20 @@ export default function WalletTopupDialog({
                         if (converted === null) {
                           return (
                             <p className="text-xs text-amber-600">
-                              We can&apos;t work out the {transferCurrency}{" "}
-                              amount right now
-                              {ratesError
+                              {tr("wtop.weCanTWorkOut", { transferCurrency: String(transferCurrency), v: String(ratesError
                                 ? " — we couldn't read today's rate"
-                                : " — there is no rate published for it"}
-                              . Send the {currency} value of{" "}
-                              {formatCurrency(currentAmount || 0, currency)} and
-                              we will credit that from your slip.
-                            </p>
+                                : " — there is no rate published for it"), currency: String(currency), v2: String(formatCurrency(currentAmount || 0, currency)) })}</p>
                           );
                         }
                         return (
                           <p className="text-xs text-muted-foreground">
-                            ≈ transfer{" "}
+                            {tr("wtop.transfer")}{" "}
                             <span className="font-semibold text-foreground">
                               {formatCurrency(converted, transferCurrency)}
                             </span>{" "}
                             to {bankBeneficiary(bankGroup)} (
-                            {transferCurrency}). Your {currency} wallet is
-                            credited {formatCurrency(currentAmount || 0, currency)}{" "}
-                            from the slip.
-                          </p>
+                            {transferCurrency}{tr("wtop.your")}{" "}{currency} {" "}{tr("wtop.walletIsCredited")}{" "}{formatCurrency(currentAmount || 0, currency)}{" "}
+                            {tr("wtop.fromTheSlip")}</p>
                         );
                       })()}
                   </div>
@@ -1594,9 +1552,7 @@ export default function WalletTopupDialog({
                           }
                         />
                         <span>
-                          Yes — this is a different transfer I have actually
-                          made.
-                        </span>
+                          {tr("wtop.yesThisIsADifferent")}</span>
                       </label>
                     )}
                   </div>
@@ -1605,7 +1561,7 @@ export default function WalletTopupDialog({
                 {/* Slip required for every topup now */}
                 {(
                   <div className="space-y-3">
-                    <Label htmlFor="payment_slip">Payment slip</Label>
+                    <Label htmlFor="payment_slip">{tr("label.wtop.paymentSlip")}</Label>
                     {/* A browser's own file control renders as the operating
                         system's grey button plus "Geen bestand gekozen" in
                         whatever language the browser happens to be in — the
@@ -1634,18 +1590,17 @@ export default function WalletTopupDialog({
                       </span>
                       <span className="min-w-0">
                         <span className="block font-medium">
-                          {slipName ? "Replace file" : "Choose a file"}
+                          {slipName ? tr("label.wtop.replaceFile") : tr("label.wtop.chooseAFile")}
                         </span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {slipName ?? "A screenshot or PDF of the transfer"}
+                          {slipName ?? tr("wtop.aScreenshotOrPdfOf")}
                         </span>
                       </span>
                     </label>
                     {isUploadingSlip && (
                       <p className="text-xs text-muted-foreground flex items-center gap-2">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Uploading payment slip...
-                      </p>
+                        {tr("wtop.uploadingPaymentSlip")}</p>
                     )}
                     {paymentSlipError && (
                       <p className="text-sm text-destructive">
@@ -1662,7 +1617,7 @@ export default function WalletTopupDialog({
                             uppercased. A header says what the card is. */}
                         <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                           <FileImage className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">Attached slip</span>
+                          <span className="truncate">{tr("label.wtop.attachedSlip")}</span>
                         </div>
                         {paymentSlipPreview === "image" && previewSrc ? (
                           /* Checkerboard, not white. A slip photographed
@@ -1674,7 +1629,7 @@ export default function WalletTopupDialog({
                           // eslint-disable-next-line @next/next/no-img-element -- user-uploaded slip of unknown dimensions in a preview modal
                           <img
                             src={previewSrc}
-                            alt="Payment slip preview"
+                            alt={tr("wtop.paymentSlipPreview")}
                             className="w-full max-h-56 object-contain rounded-md"
                             style={{
                               backgroundColor: "#eef1f7",
@@ -1687,8 +1642,8 @@ export default function WalletTopupDialog({
                         ) : (
                           <p className="text-sm text-muted-foreground">
                             {paymentSlipPreview === "image"
-                              ? "Attached. A preview only shows for the file you just picked."
-                              : "No preview for this file type."}
+                              ? tr("wtop.attachedAPreviewOnlyShows")
+                              : tr("wtop.noPreviewForThisFile")}
                           </p>
                         )}
                       </div>
@@ -1703,8 +1658,7 @@ export default function WalletTopupDialog({
                     onClick={handlePrevStep}
                   >
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back
-                  </Button>
+                    {tr("btn.back")}</Button>
                   <Button
                     type="submit"
                     className="flex-1"
@@ -1718,8 +1672,7 @@ export default function WalletTopupDialog({
                     {isPending && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
-                    Submit Request
-                  </Button>
+                    {tr("label.wtop.submitRequest")}</Button>
                 </div>
                 {/* A button that cannot be pressed has to say why. Without
                     this line somebody who has ALREADY transferred the money
@@ -1741,7 +1694,7 @@ export default function WalletTopupDialog({
                   <CheckCircle2 className="h-6 w-6 text-green-600" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">Request Successful!</h3>
+                  <h3 className="font-semibold text-lg">{tr("wtop.requestSuccessful")}</h3>
                   <p className="text-sm text-muted-foreground max-w-[18rem] mx-auto">
                     {/* NOT "quoting this reference" — that is bank
                         jargon for an instruction with a concrete place
@@ -1751,8 +1704,8 @@ export default function WalletTopupDialog({
                         last one before somebody opens their banking
                         app, said it in the vaguest form. */}
                     {filedReference
-                      ? "Now send the transfer, and put this reference in the description."
-                      : "Your topup request has been submitted."}
+                      ? tr("wtop.nowSendTheTransferAnd")
+                      : tr("wtop.yourTopupRequestHasBeen")}
                   </p>
                 </div>
 
@@ -1765,7 +1718,7 @@ export default function WalletTopupDialog({
                       type="button"
                       onClick={() => copyReference(filedReference)}
                       className="flex w-full items-center justify-center gap-2.5 rounded-lg border bg-background px-3 py-3 font-mono text-xl font-bold tracking-wide transition hover:border-ring hover:bg-accent/40"
-                      aria-label={`Copy reference ${formatPaymentReference(clientCode, filedReference)}`}
+                      aria-label={tr("wtop.copyReference", { v: String(formatPaymentReference(clientCode, filedReference)) })}
                     >
                       {/* No icon — see the same button on the details
                           step. The line under it carries the state. */}
@@ -1773,12 +1726,12 @@ export default function WalletTopupDialog({
                     </button>
                     <p className="mt-2 text-center text-xs text-muted-foreground">
                       {refCopied
-                        ? "Copied"
+                        ? tr("wtop.copied")
                         : /* NOT "find it again on your wallet page": the
                              whole point of this block is that the
                              wallet has already rotated to the NEXT
                              code, so that page shows a different one. */
-                          "Tap to copy, then paste it into the description field."}
+                          tr("wtop.tapToCopyThenPaste")}
                     </p>
                   </div>
                 ) : null}
@@ -1787,8 +1740,7 @@ export default function WalletTopupDialog({
                   onClick={() => onOpenChange(false)}
                   className="w-full mt-2"
                 >
-                  Close
-                </Button>
+                  {tr("btn.close")}</Button>
               </div>
             )}
           </div>

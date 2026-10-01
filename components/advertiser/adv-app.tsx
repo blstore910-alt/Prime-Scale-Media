@@ -1288,7 +1288,7 @@ export default function AdvertiserApp() {
       return;
     }
     if (!affRanged.rows.length) {
-      toast.info(`Nothing to export for ${rangeCaption(affRange)}.`);
+      toast.info(tr("adv.nothingToExportFor", { v: String(rangeCaption(affRange)) }));
       return;
     }
     try {
@@ -2748,7 +2748,7 @@ export default function AdvertiserApp() {
     return {
       amount: total,
       currency: want,
-      label: "to pay this invoice",
+      label: tr("adv.toPayThisInvoice"),
       from: (want === "USD" ? "EUR" : "USD") as "EUR" | "USD",
       fromAmount: neededFromAmount(total, getRate(eurRateRaw, want === "USD" ? "EUR" : "USD", want)),
     };
@@ -3619,7 +3619,7 @@ export default function AdvertiserApp() {
       icon: "i-wallet",
       // Shorter, same meaning. Three lines of warning above the facts
       // pushed the button below the fold on a phone.
-      lead: `Straight from your ${cur} wallet. No undo — message us if it is wrong.`,
+      lead: tr("adv.straightFromYourWalletNo", { cur: String(cur) }),
       facts: [
         // WITH THE PLAN CARD ABOVE, these two rows are that card said a
         // second time — it already names the plan and prints the amount
@@ -3668,7 +3668,7 @@ export default function AdvertiserApp() {
             : tr("label.adv.noDateSet"),
         ],
       ],
-      cta: `Yes, pay ${sym}${money2(inv.total)}`,
+      cta: tr("adv.yesPay", { sym: String(sym), v: String(money2(inv.total)) }),
       busyLabel: tr("label.adv.paying"),
       run: () => payInvoice(inv.id),
     });
@@ -3808,8 +3808,7 @@ export default function AdvertiserApp() {
                   style={{ marginLeft: 6, fontWeight: 500 }}
                   title={tr("adv.thisAccountHasBeenFunded")}
                 >
-                  + another currency
-                </span>
+                  {tr("label.adv.anotherCurrency")}</span>
               ) : null}
             </b>
           </div>
@@ -3911,9 +3910,7 @@ export default function AdvertiserApp() {
                 al goed doen (`disabledReason` onder de knop). */}
             {!a.currency ? (
               <p className="reqback" style={{ marginTop: 8, flexBasis: "100%" }}>
-                We still have to set this account&apos;s currency, so it
-                cannot be funded yet. Message us and we will do it.
-              </p>
+                {tr("adv.weStillHaveToSet2")}</p>
             ) : null}
           </div>
         )}
@@ -3969,8 +3966,7 @@ export default function AdvertiserApp() {
           className={`navlink${view === "referrals" ? " on" : ""}`}
           onClick={() => go("referrals")}
         >
-          <Ic name="i-gift" /> Affiliate program
-        </button>
+          <Ic name="i-gift" /> {" "}{tr("label.affiliateProgram")}</button>
         <div className="side-foot">
           <span className="avatar">
             <PsmAvatar
@@ -4495,7 +4491,7 @@ export default function AdvertiserApp() {
                 <span className="dtx">
                   {dueSubInvoice
                     ? unpaidSubCount > 1
-                      ? `Outstanding (${unpaidSubCount} invoices)`
+                      ? tr("adv.outstandingInvoices", { unpaidSubCount: String(unpaidSubCount) })
                       : tr("label.adv.outstanding")
                     : tr("label.adv.nextPayment")}{" "}
                   <b>
@@ -4538,7 +4534,7 @@ export default function AdvertiserApp() {
                       : tr("adv.seeYourPlanAndInvoices")
                   }
                 >
-                  {dueSubInvoice ? "Pay" : tr("label.adv.view")} <Ic name="i-arrow" />
+                  {dueSubInvoice ? tr("adv.pay") : tr("label.adv.view")} <Ic name="i-arrow" />
                 </button>
               </div>
             )}
@@ -4570,7 +4566,7 @@ export default function AdvertiserApp() {
                       ? tr("label.adv.checking")
                       : (accounts ?? []).length === 0
                         ? tr("label.adv.noneYet")
-                        : `${activeAccts.length} active`}
+                        : tr("adv.active", { length: String(activeAccts.length) })}
                 </div>
               </div>
               <div className="stat" onClick={() => go("billing")}>
@@ -4637,14 +4633,12 @@ export default function AdvertiserApp() {
                            exactly this; the tile was missed a second
                            time. */
                         unpaidSubCount > 1
-                        ? `${unpaidSubText} outstanding (${unpaidSubCount} invoices)`
-                        : `${dueBillAmount} outstanding`
+                        ? tr("adv.outstandingInvoices2", { unpaidSubText: String(unpaidSubText), unpaidSubCount: String(unpaidSubCount) })
+                        : tr("adv.outstanding", { dueBillAmount: String(dueBillAmount) })
                       : subscription?.next_payment_date
-                        ? `${
-                            shownPlanName && subscription?.status
+                        ? tr("adv.renews", { v: String(shownPlanName && subscription?.status
                               ? subStatusLabel(subscription.status, tr) + " · "
-                              : ""
-                          }renews ${dayjs(subscription.next_payment_date).format("D MMM")}`
+                              : ""), v2: String(dayjs(subscription.next_payment_date).format("D MMM")) })
                         : freePlan
                           ? // The owner, 28-09, on this tile as well:
                             // "'Not billed by us' is lelijk, houd het
@@ -4665,10 +4659,9 @@ export default function AdvertiserApp() {
             <div className="card">
               <div className="phead" style={{ alignItems: "center" }}>
                 <h2>
-                  <Ic name="i-ad" /> Your ad accounts
-                </h2>
+                  <Ic name="i-ad" /> {" "}{tr("label.adv.yourAdAccounts")}</h2>
                 <button className="btn ghost sm" onClick={() => go("accounts")}>
-                  View all <Ic name="i-arrow" />
+                  {tr("btn.viewAll")}{" "}<Ic name="i-arrow" />
                 </button>
               </div>
               <div style={{ marginTop: 14 }}>
@@ -4680,9 +4673,7 @@ export default function AdvertiserApp() {
                   </div>
                 ) : accountsError ? (
                   <p className="cap" style={{ margin: 0 }}>
-                    We couldn&apos;t load your ad accounts just now — this is
-                    not an empty list. Reload to try again.
-                  </p>
+                    {tr("adv.weCouldnTLoadYour5")}</p>
                 ) : (
                   <p className="cap" style={{ margin: 0 }}>
                     {/* This invited an action the app refuses. It never
@@ -4693,7 +4684,7 @@ export default function AdvertiserApp() {
                         away. The Accounts tab's own empty state already
                         gets this right; the dashboard did not. */}
                     {requestBlockedReason()
-                      ? `No ad accounts yet. ${requestBlockedReason()}.`
+                      ? tr("adv.noAdAccountsYet", { v: String(requestBlockedReason()) })
                       : tr("adv.noAdAccountsYetAsk")}
                   </p>
                 )}
@@ -4756,13 +4747,9 @@ export default function AdvertiserApp() {
               <div className="card">
                 <h2 style={{ marginTop: 0 }}>{tr("label.adv.affiliateProgram")}</h2>
                 <p className="cap" style={{ marginBottom: 14 }}>
-                  We couldn&apos;t check where you stand just now. This does
-                  not mean anything has changed — reload and it should be
-                  back.
-                </p>
+                  {tr("adv.weCouldnTCheckWhere")}</p>
                 <button className="btn" onClick={() => window.location.reload()}>
-                  Reload
-                </button>
+                  {tr("label.adv.reload")}</button>
               </div>
             ) : !isAffiliate && !affiliateUnknown && (applicationOpen || applicationRefused) ? (
               // Applied, or refused: an answer, not the offer again with
@@ -4804,22 +4791,14 @@ export default function AdvertiserApp() {
                     The rate is agreed per affiliate, so the page says
                     that instead of picking one for them. */}
                 <p>
-                  Share one link. Anyone who signs up through it is yours and
-                  stays yours — and you earn from what they do with us, for
-                  as long as they keep going.
-                </p>
+                  {tr("adv.shareOneLinkAnyoneWho")}</p>
                 <ul className="jh-list">
                   <li>
-                    <Ic name="i-check" /> One link, yours for good
-                  </li>
+                    <Ic name="i-check" /> {" "}{tr("adv.oneLinkYoursForGood")}</li>
                   <li>
-                    <Ic name="i-check" /> You keep earning, not just on their
-                    first month
-                  </li>
+                    <Ic name="i-check" /> {" "}{tr("adv.youKeepEarningNotJust")}</li>
                   <li>
-                    <Ic name="i-check" /> Your rate agreed with us before you
-                    start
-                  </li>
+                    <Ic name="i-check" /> {" "}{tr("adv.yourRateAgreedWithUs")}</li>
                 </ul>
                 <button
                   className="btn grad"
@@ -4862,8 +4841,7 @@ export default function AdvertiserApp() {
               </div>
               <div className="xh-in">
                 <p className="xh-eyebrow">
-                  <Ic name="i-gift" /> Your total earnings
-                </p>
+                  <Ic name="i-gift" /> {" "}{tr("adv.yourTotalEarnings")}</p>
                 {affUnavailable ? (
                   <>
                     <h2 className="xh-amt">
@@ -4946,8 +4924,8 @@ export default function AdvertiserApp() {
                     <span className="xh-pill">
                       <Ic name="i-trend" />{" "}
                       {affMonthUnavailable
-                        ? "this month — not loaded"
-                        : `+${twoLeg(affMonth.totals.earnings_eur, affMonth.totals.earnings_usd)} this month`}
+                        ? tr("adv.thisMonthNotLoaded")
+                        : tr("adv.thisMonth", { v: String(twoLeg(affMonth.totals.earnings_eur, affMonth.totals.earnings_usd)) })}
                     </span>
                   </>
                 )}
@@ -4974,8 +4952,7 @@ export default function AdvertiserApp() {
                   <span className="ci b">
                     <Ic name="i-trend" />
                   </span>{" "}
-                  Earned
-                </div>
+                  {tr("label.adv.earned")}</div>
                 <div className="v win">
                   {affRangedUnavailable
                     ? "—"
@@ -5066,8 +5043,7 @@ export default function AdvertiserApp() {
                   </div>
                   <div className="xs-acts">
                     <button className="btn sm" onClick={copyReferral}>
-                      <Ic name="i-copy" /> Copy link
-                    </button>
+                      <Ic name="i-copy" /> {" "}{tr("label.adv.copyLink")}</button>
                     <a
                       className="btn ghost sm wa"
                       href={`https://wa.me/?text=${encodeURIComponent(
@@ -5094,10 +5070,7 @@ export default function AdvertiserApp() {
                    and ask for something they already have sends them to
                    support about an account that works. */
                 <p className="cap" style={{ margin: "10px 0 0" }}>
-                  We couldn&apos;t check your referral link just now. This
-                  does not mean you don&apos;t have one — reload and it should
-                  appear.
-                </p>
+                  {tr("adv.weCouldnTCheckYour2")}</p>
               ) : (
                 <p className="cap" style={{ margin: "10px 0 0" }}>
                   {isAffiliate
@@ -5118,8 +5091,7 @@ export default function AdvertiserApp() {
             >
               <div className="xl-head">
                 <h2>
-                  <Ic name="i-user" /> Your referrals
-                </h2>
+                  <Ic name="i-user" /> {" "}{tr("label.adv.yourReferrals")}</h2>
                 {!affRangedUnavailable ? (
                   <span className="xl-count">{affRanged.rows.length}</span>
                 ) : null}
@@ -5184,7 +5156,7 @@ export default function AdvertiserApp() {
                   referrals ook". */}
               {affRanged.rows.length > 5 ? (
                 <button className="xl-more" onClick={() => setRefsAll((v) => !v)}>
-                  {refsAll ? tr("label.adv.showFewer") : `View all ${affRanged.rows.length}`}
+                  {refsAll ? tr("label.adv.showFewer") : tr("adv.viewAll", { length: String(affRanged.rows.length) })}
                   <Ic name="i-chev" />
                 </button>
               ) : null}
@@ -5381,15 +5353,14 @@ export default function AdvertiserApp() {
                     : t("dash.companyAdd")}
                 </span>
                 <a className="dlink" href="/complete-profile">
-                  Add <Ic name="i-arrow" />
+                  {tr("btn.add")}{" "}<Ic name="i-arrow" />
                 </a>
               </div>
             )}
             {pendingTopups.length > 0 && (
               <div className="card">
                 <h2>
-                  Pending wallet top-up{pendingTopups.length > 1 ? "s" : ""}
-                </h2>
+                  {tr("adv.pendingWalletTopUp", { v: String(pendingTopups.length > 1 ? "s" : "") })}</h2>
                 {/* This was one flex row: amount, then "Ref … · awaiting
                     verification" as a single sentence, then a badge pushed
                     to the right with margin-left:auto. On a phone the
@@ -5425,7 +5396,7 @@ export default function AdvertiserApp() {
                             wired the money, came back to check, and read a
                             different one for the payment they had just
                             made. */}
-                        Bank transfer · Ref{" "}
+                        {tr("adv.bankTransferRef")}{" "}
                         {formatPaymentReference(referralCode, t.reference_no) ||
                           (t.reference_no ?? "—")}
                       </div>
@@ -5453,8 +5424,7 @@ export default function AdvertiserApp() {
             <div className="card" style={{ padding: "16px 8px 8px" }}>
               <div style={{ padding: "0 14px 8px" }}>
                 <h2>
-                  <Ic name="i-wallet" /> Wallet activity
-                </h2>
+                  <Ic name="i-wallet" /> {" "}{tr("label.adv.walletActivity")}</h2>
                 {activityIncomplete ? (
                   <p
                     style={{
@@ -5627,7 +5597,7 @@ export default function AdvertiserApp() {
                                 data-label="Description"
                                 style={{ color: "var(--txt-2)" }}
                               >
-                                Funded {t.account_name || "an ad account"}
+                                {tr("label.adv.funded")}{" "}{t.account_name || tr("label.adv.anAdAccount")}
                                 {/* ── WHY, WHEN IT WAS REFUSED ──────────
                                     The reject dialog tells the admin
                                     "your reason is shown to them", and
@@ -5832,8 +5802,7 @@ export default function AdvertiserApp() {
                                 "pending" ? (
                                   <>
                                     <span className="badge pend">
-                                      Requested
-                                    </span>
+                                      {tr("label.stRequested")}</span>
                                     {/* ── EN WAT DAT BETEKENT ──────────
                                         Een openstaand verzoek wordt van
                                         het plafond van dat account
@@ -6120,8 +6089,7 @@ export default function AdvertiserApp() {
                                   })
                                 }
                               >
-                                Why?
-                              </button>
+                                {tr("adv.why")}</button>
                             ) : null}
                             </span>
                           </td>
@@ -6231,20 +6199,17 @@ export default function AdvertiserApp() {
                   Both are actions; both belong in the action slot. */}
               <div className="phead-actions">
                 <button className="btn ghost" onClick={() => setTaxOpen(true)}>
-                  <Ic name="i-help" /> Tax rates
-                </button>
+                  <Ic name="i-help" /> {" "}{tr("label.adv.taxRates")}</button>
                 {(accounts ?? []).length > 0 &&
                   (canRequestAccount ? (
                     <RequestAdAccountDialog onNeedTopUp={() => go("wallet")}>
                       <button className="btn grad">
-                        <Ic name="i-plus" /> Request one
-                      </button>
+                        <Ic name="i-plus" /> {" "}{tr("label.adv.requestOne")}</button>
                     </RequestAdAccountDialog>
                   ) : (
                     <>
                       <button className="btn grad" disabled>
-                        <Ic name="i-plus" /> Request one
-                      </button>
+                        <Ic name="i-plus" /> {" "}{tr("label.adv.requestOne")}</button>
                       {/* A title does not fire on a disabled control, so
                           the reason it is dead has to be said out loud --
                           this file makes that point about the Requests
@@ -6280,10 +6245,7 @@ export default function AdvertiserApp() {
                   color: "var(--danger)",
                 }}
               >
-                We couldn&apos;t check whether you have a request in
-                progress. If you just sent one, it is not lost — reload
-                to see it.
-              </p>
+                {tr("adv.weCouldnTCheckWhether")}</p>
             ) : null}
             {liveRequestCards.length ? (
               <div className="grid3" style={{ marginBottom: 14 }}>
@@ -6357,21 +6319,15 @@ export default function AdvertiserApp() {
                               <>
                                 {" "}
                                 <strong>
-                                  The {cur}
-                                  {money2(back)} fee is back in your wallet.
-                                </strong>
+                                  {tr("adv.theFeeIsBackIn", { cur: String(cur), v: String(money2(back)) })}</strong>
                               </>
                             ) : null}{" "}
                             <span style={{ color: "var(--faint)" }}>
-                              You can close this — it stays on the Requests
-                              tab.
-                            </span>
+                              {tr("adv.youCanCloseThisIt")}</span>
                           </>
                         ) : (
                           <>
-                            Asked on {dayjs(r.created_at).format("D MMM")}.
-                            {v.hint ? ` ${v.hint}` : ""}
-                          </>
+                            {tr("adv.askedOn", { v: String(dayjs(r.created_at).format("D MMM")), v2: String(v.hint ? ` ${v.hint}` : "") })}</>
                         )}
                       </p>
                     </div>
@@ -6428,13 +6384,11 @@ export default function AdvertiserApp() {
                     className="btn"
                     onClick={() => window.location.reload()}
                   >
-                    <Ic name="i-refresh" /> Reload
-                  </button>
+                    <Ic name="i-refresh" /> {" "}{tr("label.adv.reload")}</button>
                 ) : canRequestAccount ? (
                   <RequestAdAccountDialog onNeedTopUp={() => go("wallet")}>
                     <button className="btn">
-                      <Ic name="i-plus" /> Request ad account
-                    </button>
+                      <Ic name="i-plus" /> {" "}{tr("label.adv.requestAdAccount")}</button>
                   </RequestAdAccountDialog>
                 ) : !companyComplete && !companyUnknown ? (
                   /* ── DE KNOP WIJST NAAR WAT DIT SCHERM AL ZEGT ────
@@ -6464,12 +6418,10 @@ export default function AdvertiserApp() {
                       window.location.href = "/complete-profile";
                     }}
                   >
-                    <Ic name="i-shield" /> Add your company details
-                  </button>
+                    <Ic name="i-shield" /> {" "}{tr("adv.addYourCompanyDetails")}</button>
                 ) : (
                   <button className="btn" onClick={() => go("billing")}>
-                    <Ic name="i-shield" /> Go to billing
-                  </button>
+                    <Ic name="i-shield" /> {" "}{tr("label.adv.goToBilling")}</button>
                 )}
               </div>
             )}
@@ -6512,8 +6464,7 @@ export default function AdvertiserApp() {
                 {canRequestAccount ? (
                   <RequestAdAccountDialog onNeedTopUp={() => go("wallet")}>
                     <button className="btn grad">
-                      <Ic name="i-plus" /> New request
-                    </button>
+                      <Ic name="i-plus" /> {" "}{tr("label.adv.newRequest")}</button>
                   </RequestAdAccountDialog>
                 ) : (
                   <button
@@ -6521,8 +6472,7 @@ export default function AdvertiserApp() {
                     disabled
                     title={requestBlockedReason() ?? undefined}
                   >
-                    <Ic name="i-plus" /> New request
-                  </button>
+                    <Ic name="i-plus" /> {" "}{tr("label.adv.newRequest")}</button>
                 )}
               </div>
             </div>
@@ -6620,8 +6570,7 @@ export default function AdvertiserApp() {
                                 {cur}
                                 {money2(paid)}
                               </b>{" "}
-                              came off your wallet for this request.
-                            </>
+                              {tr("adv.cameOffYourWalletFor")}</>
                           ) : null}
                           {paid > 0 && back > 0 ? " " : null}
                           {back > 0 ? (
@@ -6630,8 +6579,7 @@ export default function AdvertiserApp() {
                                 {cur}
                                 {money2(back)}
                               </b>{" "}
-                              went back in.
-                            </>
+                              {tr("adv.wentBackIn")}</>
                           ) : null}
                         </p>
                       ) : null}
@@ -6755,8 +6703,8 @@ export default function AdvertiserApp() {
                       (chargedUnknown
                         ? tr("label.adv.subscription")
                         : lastChargedAmount != null
-                          ? `${chargedMoneyNeat(lastChargedAmount)} / month`
-                          : `${planMoneyNeat(subscription.amount)} / month`)
+                          ? tr("adv.month", { v: String(chargedMoneyNeat(lastChargedAmount)) })
+                          : tr("adv.month", { v: String(planMoneyNeat(subscription.amount)) }))
                     : freePlan
                       ? // ── SAY THE ONE THING THAT IS TRUE, AND STOP ──
                         //
@@ -6781,7 +6729,7 @@ export default function AdvertiserApp() {
                           // "an invoice of EUR 150.00 is still open".
                           // The admin card next door said "PLAN EUR 150
                           // / mo - Not billing" and was right.
-                          `${planMoneyNeat(stoppedSub.amount)} / month`
+                          tr("adv.month", { v: String(planMoneyNeat(stoppedSub.amount)) })
                         : noPlan
                           ? tr("label.adv.noPlanYet")
                           : tr("label.adv.subscription")}
@@ -6803,10 +6751,10 @@ export default function AdvertiserApp() {
                     ? dayjs(subscription.next_payment_date).isAfter(
                         dayjs().startOf("day"),
                       )
-                      ? `Renews ${dayjs(subscription.next_payment_date).format("D MMM YYYY")}`
+                      ? tr("adv.renews2", { v: String(dayjs(subscription.next_payment_date).format("D MMM YYYY")) })
                       : dueSubInvoice
-                        ? `Renewed ${dayjs(subscription.next_payment_date).format("D MMM YYYY")} · invoice below`
-                        : `Due for renewal since ${dayjs(subscription.next_payment_date).format("D MMM YYYY")}`
+                        ? tr("adv.renewedInvoiceBelow", { v: String(dayjs(subscription.next_payment_date).format("D MMM YYYY")) })
+                        : tr("adv.dueForRenewalSince", { v: String(dayjs(subscription.next_payment_date).format("D MMM YYYY")) })
                     : "—"}
                 </div>
                 <div
@@ -6870,8 +6818,7 @@ export default function AdvertiserApp() {
                 style={freePlan ? { display: "none" } : undefined}
               >
                 <h2>
-                  <Ic name="i-clock" /> This month
-                </h2>
+                  <Ic name="i-clock" /> {" "}{tr("label.adv.thisMonth")}</h2>
                 {/* Two different situations, two different sentences. The
                     first one was printed whether or not anything was owed,
                     so a customer who had just paid was still being told how
@@ -6893,7 +6840,7 @@ export default function AdvertiserApp() {
                           // the customer not to worry, sitting on top of
                           // the field saying nobody knows when.
                           unpaidSubCount > 1
-                          ? `You have ${unpaidSubCount} invoices open, together ${unpaidSubText}. The oldest is below — pay that one first.`
+                          ? tr("adv.youHaveInvoicesOpenTogether", { unpaidSubCount: String(unpaidSubCount), unpaidSubText: String(unpaidSubText) })
                           : dueBillDate
                             ? tr("adv.payItFromYourWallet")
                             : tr("adv.payItFromYourWallet2")
@@ -6977,17 +6924,15 @@ export default function AdvertiserApp() {
                                   : tr("label.adv.dueDateNotSet")
                               } · ${dueBillAmount}`
                             : awaitingFirstInvoice
-                              ? `${planMoney2(subscription.amount)} · we raise it overnight`
+                              ? tr("adv.weRaiseItOvernight", { v: String(planMoney2(subscription.amount)) })
                             : subscription.next_payment_date
-                              ? `Next on ${dayjs(subscription.next_payment_date).format("D MMM YYYY")}${
-                                  chargedUnknown
+                              ? tr("adv.nextOn", { v: String(dayjs(subscription.next_payment_date).format("D MMM YYYY")), v2: String(chargedUnknown
                                     ? ""
                                     : ` · ${
                                         lastChargedAmount != null
                                           ? chargedMoney(lastChargedAmount)
                                           : planMoney2(subscription.amount)
-                                      }`
-                                }`
+                                      }`) })
                               : tr("adv.weLlTellYouWhen")}
                         </div>
                       </div>
@@ -7016,8 +6961,7 @@ export default function AdvertiserApp() {
                         </span>
                       ) : (
                         <span className="badge ok" style={{ marginLeft: "auto" }}>
-                          Paid
-                        </span>
+                          {tr("adv.paid")}</span>
                       )}
                     </div>
                     {/* NO BUTTON WHEN THERE IS NOTHING TO PRESS.
@@ -7094,16 +7038,16 @@ export default function AdvertiserApp() {
                           }
                         />{" "}
                         {canPayInvoice(dueSubInvoice)
-                          ? `Pay ${dueSubSymbol}${money2(dueSubInvoice.total)} from wallet`
+                          ? tr("adv.payFromWallet", { dueSubSymbol: String(dueSubSymbol), v: String(money2(dueSubInvoice.total)) })
                           : canExchangeToPay(dueSubInvoice)
-                            ? `Exchange to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`
+                            ? tr("adv.exchangeToPay", { dueSubSymbol: String(dueSubSymbol), v: String(money2(dueSubInvoice.total)) })
                             : // Zeg wat de knop DOET. "Top up to pay"
                               // boven een wallet waar je niet mag
                               // opwaarderen is een belofte die het
                               // volgende scherm breekt.
                               !companyComplete && !companyUnknown
                               ? tr("adv.addYourCompanyDetailsTo")
-                              : `Top up to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`}
+                              : tr("adv.topUpToPay", { dueSubSymbol: String(dueSubSymbol), v: String(money2(dueSubInvoice.total)) })}
                       </button>
                     ) : invError ? (
                       <button
@@ -7111,9 +7055,7 @@ export default function AdvertiserApp() {
                         style={{ marginTop: 14 }}
                         onClick={() => window.location.reload()}
                       >
-                        <Ic name="i-refresh" /> Couldn&apos;t load your invoices
-                        — reload
-                      </button>
+                        <Ic name="i-refresh" /> {" "}{tr("adv.couldnTLoadYourInvoices")}</button>
                     ) : null}
                     {/* ── ONE CONTROL MUST NOT TAKE THE OTHER AWAY ─────
                         The primary button is Pay, or Exchange, or Top up —
@@ -7133,9 +7075,7 @@ export default function AdvertiserApp() {
                           }}
                           onClick={() => go("wallet")}
                         >
-                          Or top up your {invCurrency(dueSubInvoice)} wallet
-                          instead
-                        </button>
+                          {tr("adv.orTopUpYourWallet", { v: String(invCurrency(dueSubInvoice)) })}</button>
                       ) : (eurBal > 0 || usdBal > 0) ? (
                         <button
                           className="linkish"
@@ -7154,10 +7094,7 @@ export default function AdvertiserApp() {
                             );
                           }}
                         >
-                          Or exchange from your{" "}
-                          {invCurrency(dueSubInvoice) === "USD" ? "EUR" : "USD"}{" "}
-                          wallet
-                        </button>
+                          {tr("adv.orExchangeFromYourWallet", { v: String(invCurrency(dueSubInvoice) === "USD" ? "EUR" : "USD") })}</button>
                       ) : null
                     ) : null}
                   </>
@@ -7173,14 +7110,12 @@ export default function AdvertiserApp() {
                      one screen that could tell them otherwise, the invoice
                      goes past due, gets dunned, and is auto-debited anyway. */
                   <p className="cap" style={{ margin: 0 }}>
-                    We couldn&apos;t read your plan just now, so we can&apos;t
-                    show what&apos;s due.{" "}
+                    {tr("adv.weCouldnTReadYour6")}{" "}
                     <button
                       className="linkish"
                       onClick={() => window.location.reload()}
                     >
-                      Reload
-                    </button>
+                      {tr("label.adv.reload")}</button>
                   </p>
                 ) : advReadsWillRun && !subLoaded ? (
                   /* Still arriving. Saying nothing is the only honest
@@ -7221,12 +7156,9 @@ export default function AdvertiserApp() {
                     {dueSubInvoice ? (
                       <>
                         <p className="cap" style={{ margin: 0 }}>
-                          No plan is running on your account right now, so
-                          nothing new is being charged — but{" "}
-                          {unpaidSubCount > 1
+                          {tr("adv.noPlanIsRunningOn", { v: String(unpaidSubCount > 1
                             ? `${unpaidSubCount} invoices are still open, together ${unpaidSubText}.`
-                            : `an invoice of ${dueSubSymbol}${money2(dueSubInvoice.total)} is still open.`}
-                        </p>
+                            : `an invoice of ${dueSubSymbol}${money2(dueSubInvoice.total)} is still open.`) })}</p>
                         <button
                           className="btn block grad"
                           style={{ marginTop: 14 }}
@@ -7258,10 +7190,10 @@ export default function AdvertiserApp() {
                             }
                           />{" "}
                           {canPayInvoice(dueSubInvoice)
-                            ? `Pay ${dueSubSymbol}${money2(dueSubInvoice.total)} from wallet`
+                            ? tr("adv.payFromWallet", { dueSubSymbol: String(dueSubSymbol), v: String(money2(dueSubInvoice.total)) })
                             : canExchangeToPay(dueSubInvoice)
-                              ? `Exchange to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`
-                              : `Top up to pay ${dueSubSymbol}${money2(dueSubInvoice.total)}`}
+                              ? tr("adv.exchangeToPay", { dueSubSymbol: String(dueSubSymbol), v: String(money2(dueSubInvoice.total)) })
+                              : tr("adv.topUpToPay", { dueSubSymbol: String(dueSubSymbol), v: String(money2(dueSubInvoice.total)) })}
                         </button>
                         <a
                           className="linkish"
@@ -7273,9 +7205,7 @@ export default function AdvertiserApp() {
                           }}
                           onClick={() => setView("help")}
                         >
-                          Ask us in your {referralCode || "PSM"} group about
-                          restarting your plan
-                        </a>
+                          {tr("adv.askUsInYourGroup", { v: String(referralCode || "PSM") })}</a>
                       </>
                     ) : (
                       <>
@@ -7324,8 +7254,8 @@ export default function AdvertiserApp() {
                         >
                           <WhatsappIcon />{" "}
                           {stoppedSub
-                            ? `Ask us in your ${referralCode || "PSM"} group to start it again.`
-                            : `Ask us in your ${referralCode || "PSM"} group to set up a plan.`}
+                            ? tr("adv.askUsInYourGroup2", { v: String(referralCode || "PSM") })
+                            : tr("adv.askUsInYourGroup3", { v: String(referralCode || "PSM") })}
                         </p>
                       </>
                     )}
@@ -7352,8 +7282,7 @@ export default function AdvertiserApp() {
                 }}
               >
                 <h2 style={{ minWidth: 0 }}>
-                  <Ic name="i-receipt" /> Invoices
-                </h2>
+                  <Ic name="i-receipt" /> {" "}{tr("label.adv.invoices")}</h2>
                 <span style={{ marginLeft: "auto" }}>
                   <InvoiceExportButton />
                 </span>
@@ -7522,11 +7451,9 @@ export default function AdvertiserApp() {
                                       canPayInvoice(inv)
                                         ? tr("adv.payThisFromYourWallet2")
                                         : canExchangeToPay(inv)
-                                          ? `Your ${
-                                              invCurrency(inv) === "USD"
+                                          ? tr("adv.yourWalletHasMoneyIn", { v: String(invCurrency(inv) === "USD"
                                                 ? "EUR"
-                                                : "USD"
-                                            } wallet has money in it — convert enough to settle this`
+                                                : "USD") })
                                           : tr("adv.yourWalletDoesNotCover")
                                     }
                                     onClick={() => {
@@ -7546,7 +7473,7 @@ export default function AdvertiserApp() {
                                               ? {
                                                   amount: n.amount,
                                                   currency: n.currency,
-                                                  label: "to pay this invoice",
+                                                  label: tr("adv.toPayThisInvoice"),
                                                 }
                                               : null,
                                           );
@@ -7619,7 +7546,7 @@ export default function AdvertiserApp() {
                       ? tr("label.adv.showFewer")
                       : (invoices ?? []).length >= 30
                         ? tr("adv.viewYour30MostRecent")
-                        : `View all ${(invoices ?? []).length} invoices`}
+                        : tr("adv.viewAllInvoices", { length: String((invoices ?? []).length) })}
                     <Ic name="i-chev" />
                   </button>
                 )}
@@ -7735,8 +7662,7 @@ export default function AdvertiserApp() {
                       alignItems: "center",
                     }}
                   >
-                    <Ic name="i-user" /> You
-                  </span>
+                    <Ic name="i-user" /> {" "}{tr("label.adv.you")}</span>
                 </h2>
                 <p className="cap" style={{ margin: "4px 0 12px" }}>
                   {tr("adv.yourNameIsWhatWe")}
@@ -7796,8 +7722,7 @@ export default function AdvertiserApp() {
                       alignItems: "center",
                     }}
                   >
-                    <Ic name="i-building" /> Company
-                  </span>
+                    <Ic name="i-building" /> {" "}{tr("label.adv.company")}</span>
                 </h2>
                 <p className="cap" style={{ margin: "4px 0 0" }}>
                   {tr("adv.thisIsWhatYourInvoices")}
@@ -7810,12 +7735,9 @@ export default function AdvertiserApp() {
                     <span className="atx">
                       <b>{tr("adv.youWereFillingThisIn")}</b>{" "}
                       <span>
-                        Saved on this device{" "}
-                        {dayjs(compDraft.restoredDraft.savedAt).format(
+                        {tr("adv.savedOnThisDeviceNothing", { v: String(dayjs(compDraft.restoredDraft.savedAt).format(
                           "D MMM, HH:mm",
-                        )}
-                        . Nothing was sent to us.
-                      </span>
+                        )) })}</span>
                     </span>
                     <button
                       className="btn sm"
@@ -7834,8 +7756,7 @@ export default function AdvertiserApp() {
                       type="button"
                       onClick={() => void compDraft.clear()}
                     >
-                      Discard
-                    </button>
+                      {tr("label.adv.discard")}</button>
                   </div>
                 ) : null}
                 <div style={{ marginTop: 16 }}>
@@ -8046,10 +7967,7 @@ export default function AdvertiserApp() {
                       `billings` too, so the two cannot drift apart. */}
                   {companyError ? (
                     <p className="cap" style={{ marginTop: 8 }}>
-                      We couldn&apos;t load your company details, so this form
-                      is empty — saving it would wipe what is stored. Reload
-                      and try again.
-                    </p>
+                      {tr("adv.weCouldnTLoadYour6")}</p>
                   ) : companyBusy ? (
                     /* A title attribute is invisible on a phone, and this
                        is a phone app -- the same point this file makes
@@ -8065,8 +7983,7 @@ export default function AdvertiserApp() {
               </div>
               <div className="card">
                 <h2>
-                  <Ic name="i-bell" /> Notification preferences
-                </h2>
+                  <Ic name="i-bell" /> {" "}{tr("adv.notificationPreferences")}</h2>
                 <p className="cap">{tr("adv.pickWhatSWorthA")}</p>
                 {/* ── FROM THE CATALOGUE, NOT TWO HARD-CODED ROWS ──────
                     The catalogue already carries an `audience` on every
@@ -8121,13 +8038,10 @@ export default function AdvertiserApp() {
                 <span
                   style={{ display: "inline-flex", gap: 8, alignItems: "center" }}
                 >
-                  <Ic name="i-gift" /> Become an affiliate
-                </span>
+                  <Ic name="i-gift" /> {" "}{tr("adv.becomeAnAffiliate")}</span>
               </h2>
               <p className="cap">
-                Share one link and earn from the advertisers you bring in —
-                for as long as they keep going. We agree your rate first.
-              </p>
+                {tr("adv.shareOneLinkAndEarn")}</p>
               {/* ── NOT A mailto: ─────────────────────────────────────
                   This used to set location.href to a mailto:. On a
                   machine with no mail client registered — most machines,
@@ -8140,8 +8054,7 @@ export default function AdvertiserApp() {
                 // Applied: say where it stands, and where to follow it --
                 // not a greyed-out button.
                 <p className="cap" style={{ margin: 0 }}>
-                  <b>{tr("adv.applicationReceived")}</b> We&apos;re setting up your rate —
-                  follow it under{" "}
+                  <b>{tr("adv.applicationReceived")}</b> {" "}{tr("adv.weReSettingUpYour")}{" "}
                   <button
                     type="button"
                     className="lnk"
@@ -8163,9 +8076,7 @@ export default function AdvertiserApp() {
                   </button>
                   {applicationRefused ? (
                     <p className="cap" style={{ margin: "8px 0 0" }}>
-                      Not this time{affiliateRefusal ? `: ${affiliateRefusal}` : "."} You
-                      can apply again whenever you like.
-                    </p>
+                      {tr("adv.notThisTimeYouCan", { v: String(affiliateRefusal ? `: ${affiliateRefusal}` : ".") })}</p>
                   ) : null}
                 </>
               )}
@@ -8248,8 +8159,7 @@ export default function AdvertiserApp() {
             <div className="grid2">
               <div className="card">
                 <h2>
-                  <Ic name="i-help" /> How it works
-                </h2>
+                  <Ic name="i-help" /> {" "}{tr("label.adv.howItWorks")}</h2>
                 {/* ── HET HANDBOEK IN PLAATS VAN DRIE VRAGEN ──────────
                     De eigenaar, 30-09: "PSM app guide > affiliates >
                     advertisers > admins > super admin."
@@ -8289,8 +8199,7 @@ export default function AdvertiserApp() {
                   klopt. */}
               <div className="card">
                 <h2>
-                  <Ic name="i-mail" /> Talk to us
-                </h2>
+                  <Ic name="i-mail" /> {" "}{tr("label.adv.talkToUs")}</h2>
                 <p className="cap">{talkToUsLine(referralCode)}</p>
               </div>
             </div>
@@ -8451,17 +8360,13 @@ export default function AdvertiserApp() {
               {whyRefused.reason}
             </div>
             <p className="whynote">
-              Nothing was taken from your wallet and your balance is
-              unchanged. Once it is sorted out, start a new top-up — you
-              will be given a fresh reference to quote.
-            </p>
+              {tr("adv.nothingWasTakenFromYour2")}</p>
             <div className="mfoot">
               <button
                 className="btn ghost"
                 onClick={() => setWhyRefused(null)}
               >
-                Close
-              </button>
+                {tr("btn.close")}</button>
               <button
                 className="btn"
                 onClick={() => {
@@ -8618,8 +8523,7 @@ export default function AdvertiserApp() {
                 className="btn ghost"
                 onClick={() => setSignOutOpen(false)}
               >
-                Cancel
-              </button>
+                {tr("btn.cancel")}</button>
               <button
                 className="btn"
                 onClick={() => {
@@ -8627,8 +8531,7 @@ export default function AdvertiserApp() {
                   logout();
                 }}
               >
-                <LogoutGlyph /> Sign out
-              </button>
+                <LogoutGlyph /> {" "}{tr("menu.signOut")}</button>
             </div>
           </div>
         </div>
@@ -8745,8 +8648,7 @@ function WalletCard({
                 maximumFractionDigits: 2,
               })}
             </b>{" "}
-            awaiting verification
-          </>
+            {tr("adv.awaitingVerification")}</>
         ) : (
           tr("label.adv.availableToSpend")
         )}
@@ -8794,7 +8696,7 @@ function CopyRef({ value }: { value: string }) {
       type="button"
       className="copyref"
       title={tr("adv.copyThisReference")}
-      aria-label={`Copy reference ${value}`}
+      aria-label={tr("adv.copyReference", { value: String(value) })}
       onClick={(e) => {
         e.stopPropagation();
         // clipboard is unavailable over plain http and in some embedded

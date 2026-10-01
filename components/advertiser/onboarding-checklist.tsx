@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useEffect, useState } from "react";
 import { Ic } from "./adv-icons";
 import {
@@ -137,6 +138,7 @@ export default function OnboardingChecklist({
   unavailable = false,
   onNavigate,
 }: Props) {
+  const { t: tr } = useT();
   const [manual, setManual] = useState<string[]>([]);
   const [dismissed, setDismissed] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -180,7 +182,7 @@ export default function OnboardingChecklist({
   const steps: Step[] = [
     {
       id: "company",
-      title: "Add your company details",
+      title: tr("adv.addYourCompanyDetails"),
       // Names what is actually left when it is one or two things. A
       // generic "add your company details" to somebody who has already
       // saved the company card reads as though nothing saved — and what
@@ -191,7 +193,7 @@ export default function OnboardingChecklist({
           ? `Still needed: ${companyMissing.join(" and ")}.`
           : "Add your legal name, VAT ID and country so we can invoice you.",
       icon: "i-building",
-      cta: "Add details",
+      cta: tr("label.onb.addDetails"),
       // NOT "settings". The settings card saves `companies` only —
       // updateOwnProfileAndCompany never touches `billings`, which the
       // gate also requires — so a customer filled it in, read "Company
@@ -202,7 +204,7 @@ export default function OnboardingChecklist({
     },
     {
       id: "topup",
-      title: "Top up your wallet",
+      title: tr("label.onb.topUpYourWallet"),
       desc: "Fund your wallet by bank transfer to start spending.",
       icon: "i-wallet",
       cta: "Top up",
@@ -212,21 +214,21 @@ export default function OnboardingChecklist({
     },
     {
       id: "account",
-      title: "Request an ad account",
+      title: tr("req.requestAnAdAccount"),
       // No hours quoted. A number on screen is a promise, and this one is
       // not ours to make — it depends on the platform, not on us.
       desc: "We set it up for you on our verified Business Manager.",
       icon: "i-ad",
-      cta: "Request",
+      cta: tr("label.onb.request"),
       view: "accounts",
       auto: accountsCount > 0,
     },
     {
       id: "affiliate",
-      title: "Earn as an affiliate",
+      title: tr("onb.earnAsAnAffiliate"),
       desc: "Refer other advertisers and earn commission on what they pay.",
       icon: "i-gift",
-      cta: "Learn more",
+      cta: tr("label.onb.learnMore"),
       view: "referrals",
       auto: false, // informational — completed by a manual tick
       removeWhenDone: true,
@@ -319,13 +321,13 @@ export default function OnboardingChecklist({
             pushed onto a second line: flex-wrap sent a faint 18px "×" to
             the bottom-right corner on a phone, where nobody saw it. */}
         <span className="onb-done-txt">
-          <span className="onb-done-t">You&apos;re all set</span>
-          <span className="onb-done-s">Your account is ready to run.</span>
+          <span className="onb-done-t">{tr("label.onb.youReAllSet")}</span>
+          <span className="onb-done-s">{tr("onb.yourAccountIsReadyTo")}</span>
         </span>
         <button
           className="onb-done-x"
-          aria-label="Dismiss"
-          title="Dismiss"
+          aria-label={tr("label.onb.dismiss")}
+          title={tr("label.onb.dismiss")}
           onClick={() => persist({ dismissed: true })}
         >
           <Ic name="i-x" />
@@ -350,13 +352,13 @@ export default function OnboardingChecklist({
         aria-expanded={!collapsed}
       >
         <span className="onb-head-t">
-          <h2>Get started</h2>
+          <h2>{tr("label.onb.getStarted")}</h2>
           <span className="onb-head-s">
             {ticksUnknown
               ? " "
               : remaining === 1
-                ? "1 step left"
-                : `${remaining} steps left`}
+                ? tr("label.onb.1StepLeft")
+                : tr("onb.stepsLeft", { remaining: String(remaining) })}
           </span>
         </span>
         {/* A thin bar rather than a "1/4" pill. The pill was the loudest
@@ -393,8 +395,8 @@ export default function OnboardingChecklist({
                     disabled={s.auto}
                     aria-label={
                       s.auto
-                        ? `${s.title} — completed`
-                        : `Mark "${s.title}" not done`
+                        ? tr("onb.completed", { title: String(s.title) })
+                        : tr("onb.markNotDone", { title: String(s.title) })
                     }
                   >
                     <Ic name="i-check" />
@@ -450,10 +452,10 @@ export default function OnboardingChecklist({
                   disabled={!s.removeWhenDone}
                   aria-label={
                     s.removeWhenDone
-                      ? `Dismiss "${s.title}"`
-                      : `${s.title} — ticks itself once you have done it`
+                      ? tr("onb.dismiss", { title: String(s.title) })
+                      : tr("onb.ticksItselfOnceYouHave", { title: String(s.title) })
                   }
-                  title={s.optional ? "Not interested — hide this" : undefined}
+                  title={s.optional ? tr("onb.notInterestedHideThis") : undefined}
                 >
                   {s.optional ? "×" : null}
                 </button>

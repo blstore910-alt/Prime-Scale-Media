@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   requestAgain,
@@ -230,6 +231,7 @@ const BmIdFields = ({
   control: Control<FormValues>;
   setValue: UseFormSetValue<FormValues>;
 }) => {
+  const { t: tr } = useT();
   // ── THE REFUSAL HAD NOWHERE TO LAND ───────────────────────────────
   //
   // The Meta branch attaches its error to the ARRAY ROOT
@@ -299,9 +301,7 @@ const BmIdFields = ({
           read the five boxes as five accounts pays EUR 50, waits, and
           gets a single account. Say it here, where the boxes are. */}
       <p className="text-muted-foreground text-xs">
-        This is one ad account. List every Business Manager it should be
-        shared with — for a second account, send a second request.
-      </p>
+        {tr("req.thisIsOneAdAccount")}</p>
       {bmError && (
         <p className="text-sm text-destructive" role="alert">
           {bmError}
@@ -312,7 +312,7 @@ const BmIdFields = ({
           <div className="flex-1">
             <Input
               id={i === 0 ? "fb-bm-id" : `fb-bm-id-${i}`}
-              placeholder={i === 0 ? "Enter FB BM ID" : "Another BM ID"}
+              placeholder={i === 0 ? tr("label.req.enterFbBmId") : tr("label.req.anotherBmId")}
               value={val ?? ""}
               onChange={(e) => {
                 const next = [...rows];
@@ -330,10 +330,9 @@ const BmIdFields = ({
               size="sm"
               className="mt-1 shrink-0"
               onClick={() => write(rows.filter((_, j) => j !== i))}
-              aria-label={`Remove Business Manager ID ${i + 1}`}
+              aria-label={tr("req.removeBusinessManagerId", { v: String(i + 1) })}
             >
-              Remove
-            </Button>
+              {tr("btn.remove")}</Button>
           )}
         </div>
       ))}
@@ -365,13 +364,11 @@ const BmIdFields = ({
                 for the same click. Same word whether or not the first
                 box has been typed in: what the button does does not
                 change. */}
-            + Add an extra BM ID
-          </Button>
+            {tr("req.addAnExtraBmId")}</Button>
         </div>
       ) : (
         <p className="text-xs text-muted-foreground">
-          That is the maximum of {BM_ID_MAX}. Ask us if you need more.
-        </p>
+          {tr("req.thatIsTheMaximumOf", { BMIDMAX: String(BM_ID_MAX) })}</p>
       )}
       {/* The second copy of the same sentence used to sit here, and it
           promised something that is not true: "we will come back to you
@@ -463,6 +460,7 @@ export default function AdAccountRequestForm({
    */
   onNeedTopUp?: () => void;
 }) {
+  const { t: tr } = useT();
   const { profile } = useAppContext();
   const { mutate, isPending } = useCreateAdAccountRequest();
 
@@ -604,7 +602,7 @@ export default function AdAccountRequestForm({
       // No wallet row means the price is UNKNOWN, which the rest of this
       // component already knows how to say.
       if (!w.data) {
-        throw new Error("We could not read your wallet balance just now.");
+        throw new Error(tr("req.weCouldNotReadYour"));
       }
 
       // ── THE SAME COMPARISON THE SQL MAKES, CASE AND ALL ───────────
@@ -891,7 +889,7 @@ export default function AdAccountRequestForm({
 
   const onSubmit = (values: FormValues) => {
     if (!profile) {
-      toast.error("User profile not found");
+      toast.error(tr("req.userProfileNotFound"));
       return;
     }
     if (!confirming) {
@@ -1022,33 +1020,26 @@ export default function AdAccountRequestForm({
                this shows -- see feeBlocksSubmit. */
             <>
               <div className="font-medium">
-                We couldn&apos;t work out what this costs
-              </div>
+                {tr("req.weCouldnTWorkOut")}</div>
               <div className="text-muted-foreground text-xs mt-0.5">
-                Your plan and balance didn&apos;t load, so we can&apos;t
-                tell you the price — and we won&apos;t take money from
-                your wallet without showing it first.
-              </div>
+                {tr("req.yourPlanAndBalanceDidn")}</div>
               <button
                 type="button"
                 className="mt-2 text-xs font-medium underline underline-offset-2"
                 onClick={() => void refetchFeePreview()}
               >
-                Try again
-              </button>
+                {tr("label.req.tryAgain")}</button>
             </>
           ) : feeUnknown ? (
             <>
               <div className="font-medium">
-                Checking what this request costs…
-              </div>
+                {tr("req.checkingWhatThisRequestCosts")}</div>
               <div className="text-muted-foreground text-xs mt-0.5">
-                Your plan may include it at no cost.
-              </div>
+                {tr("req.yourPlanMayIncludeIt")}</div>
             </>
           ) : isFree ? (
             <>
-              <div className="font-medium">Included in your plan — no fee</div>
+              <div className="font-medium">{tr("req.includedInYourPlanNo")}</div>
               <div className="text-muted-foreground text-xs mt-0.5">
                 {/* The free branch is reached AFTER the allowance is
                     exhausted -- that is what a free-request perk is for
@@ -1058,13 +1049,11 @@ export default function AdAccountRequestForm({
                     says which of the two is covering it, because the
                     server distinguishes plan_included from perk and
                     this did not. */}
-                {Math.max(0, included - used)} of {included} included ad
-                account{included === 1 ? "" : "s"} left
+                {Math.max(0, included - used)} of {included} {" "}{tr("req.includedAdAccount")}{included === 1 ? "" : "s"} left
                 {included - used <= 0
-                  ? " — this one is covered by a free-request perk"
+                  ? ` ${tr("req.thisOneIsCoveredBy")}`
                   : ""}
-                . Your wallet won&apos;t be charged for this request.
-              </div>
+                {tr("req.yourWalletWonTBe")}</div>
             </>
           ) : (
             <>
@@ -1074,9 +1063,7 @@ export default function AdAccountRequestForm({
               {rateUnknown || feeAmount === null ? (
                 <>
                   <div className="font-medium">
-                    We can&apos;t work out the fee in {selectedCurrency} right
-                    now.
-                  </div>
+                    {tr("req.weCanTWorkOut", { selectedCurrency: String(selectedCurrency) })}</div>
                   {/* ── ALLEEN EEN UITWEG DIE BESTAAT ─────────────
                       Dit zei onvoorwaardelijk "request a EUR account
                       instead". Maar de EUR-keuze wordt alleen getekend
@@ -1087,28 +1074,19 @@ export default function AdAccountRequestForm({
                       dat is erger dan geen uitweg, want hij gaat hem
                       zoeken. */}
                   <div className="text-muted-foreground text-xs mt-0.5">
-                    The conversion rate could not be read.{" "}
-                    {eurOffered
+                    {tr("req.theConversionRateCouldNot", { v: String(eurOffered
                       ? "Ask us to set it, or request a EUR account instead — nothing is charged until you submit."
-                      : "Ask us to set it — nothing is charged until you submit, so nothing is lost by waiting."}
-                  </div>
+                      : "Ask us to set it — nothing is charged until you submit, so nothing is lost by waiting.") })}</div>
                 </>
               ) : (
                 <>
                   <div className="font-medium">
-                    Ad-account request fee: {feeSymbol}
-                    {feeAmount}
-                  </div>
+                    {tr("req.adAccountRequestFee", { feeSymbol: String(feeSymbol), feeAmount: String(feeAmount) })}</div>
                   <div className="text-muted-foreground text-xs mt-0.5">
-                    Charged from your wallet when you submit. Balance:{" "}
-                    {feeSymbol}
-                    {feeBalance.toFixed(2)} → {feeSymbol}
-                    {(feeBalance - feeAmount).toFixed(2)}
-                  </div>
+                    {tr("req.chargedFromYourWalletWhen", { feeSymbol: String(feeSymbol), v: String(feeBalance.toFixed(2)), feeSymbol2: String(feeSymbol), v2: String((feeBalance - feeAmount).toFixed(2)) })}</div>
                   {!feeEnough && (
                     <div className="text-destructive text-xs mt-1 font-medium">
-                      Not enough balance — top up before requesting.
-                      {/* ── EN DE WEG ERHEEN ────────────────────────
+                      {tr("req.notEnoughBalanceTopUp")}{/* ── EN DE WEG ERHEEN ────────────────────────
                           De zin stond hier met een dode Send-knop
                           eronder en verder niets. Opwaarderen kan
                           alleen op een ander scherm, en dit is een
@@ -1125,8 +1103,7 @@ export default function AdAccountRequestForm({
                             onNeedTopUp();
                           }}
                         >
-                          Top up now
-                        </button>
+                          {tr("label.req.topUpNow")}</button>
                       ) : null}
                     </div>
                   )}
@@ -1144,7 +1121,7 @@ export default function AdAccountRequestForm({
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-2">
           {/* Platform Radio Group */}
           <div className="space-y-3">
-            <Label className="text-base font-semibold">Select Platform</Label>
+            <Label className="text-base font-semibold">{tr("label.req.selectPlatform")}</Label>
             <Controller
               control={control}
               name="platform"
@@ -1223,7 +1200,7 @@ export default function AdAccountRequestForm({
           </div>
           {/* Currency Radio Group */}
           <div className="space-y-3">
-            <Label className="text-base font-semibold">Currency</Label>
+            <Label className="text-base font-semibold">{tr("label.adv.currency")}</Label>
             <Controller
               control={control}
               name="currency"
@@ -1278,12 +1255,12 @@ export default function AdAccountRequestForm({
           </div>
 
           <SelectField
-            label="Timezone"
+            label={tr("label.acct.timezone")}
             name="timezone"
             id="timezone-select"
             control={control}
             options={TIMEZONES}
-            placeholder="Select Timezone"
+            placeholder={tr("label.req.selectTimezone")}
           />
 
           {/* Platform Specific Metadata Fields */}
@@ -1298,7 +1275,7 @@ export default function AdAccountRequestForm({
           )}
 
           <InputField
-            label="Website URL"
+            label={tr("label.req.websiteUrl")}
             name="website_url"
             id="website-url"
             placeholder="https://example.com"
@@ -1306,10 +1283,10 @@ export default function AdAccountRequestForm({
           />
 
           <TextareaField
-            label="Notes"
+            label={tr("req.notes")}
             name="notes"
             id="account-notes"
-            placeholder="Add notes..."
+            placeholder={tr("req.addNotes")}
             control={control}
           />
         </div>
@@ -1327,9 +1304,9 @@ export default function AdAccountRequestForm({
           <span>
             {feeBlocksSubmit
               ? feePreviewError
-                ? "Price unknown — try again above"
-                : "Working out the price…"
-              : "Send the request"}
+                ? tr("req.priceUnknownTryAgainAbove")
+                : tr("req.workingOutThePrice")
+              : tr("label.req.sendTheRequest")}
           </span>
         </Button>
       </DialogFooter>
@@ -1344,7 +1321,7 @@ export default function AdAccountRequestForm({
         onOpenChange={(next) => {
           if (!next) setConfirming(null);
         }}
-        title="Send this request?"
+        title={tr("req.sendThisRequest")}
         lead={
           // The duplicate warning goes FIRST when there is one: it is the
           // reason to stop, and the sentence after it is the reason to
@@ -1358,9 +1335,9 @@ export default function AdAccountRequestForm({
             .filter(Boolean)
             .join(" ")
         }
-        cta={againBlocks ? "Wait a moment" : "Yes, send it"}
+        cta={againBlocks ? tr("label.req.waitAMoment") : tr("label.adv.yesSendIt")}
         busy={isPending}
-        busyLabel="Sending…"
+        busyLabel={tr("btn.sending")}
         disabled={!feeEnough || feeBlocksSubmit || againBlocks}
         disabledHint={
           againBlocks
@@ -1394,9 +1371,9 @@ export default function AdAccountRequestForm({
         }}
       >
         <ConfirmFact label="Platform" value={PLATFORM_LABEL[confirming?.platform ?? "meta-ads"]} />
-        <ConfirmFact label="Currency" value={confirming?.currency ?? ""} />
+        <ConfirmFact label={tr("label.adv.currency")} value={confirming?.currency ?? ""} />
         <ConfirmFact
-          label="Cost"
+          label={tr("label.req.cost")}
           value={
             feeUnknown
               ? "Worked out when you submit"

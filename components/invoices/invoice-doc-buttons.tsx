@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useState } from "react";
 import { Download, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -37,6 +38,7 @@ export default function InvoiceDocButtons({
   size?: "sm" | "";
   showLabels?: boolean;
 }) {
+  const { t: tr } = useT();
   const [busy, setBusy] = useState(false);
 
   const download = async () => {
@@ -48,7 +50,7 @@ export default function InvoiceDocButtons({
         const payload = (await res.json().catch(() => null)) as {
           error?: string;
         } | null;
-        throw new Error(payload?.error || "We couldn't prepare that invoice.");
+        throw new Error(payload?.error || tr("invdoc.weCouldnTPrepareThat"));
       }
       const blob = await res.blob();
       // downloadBlob: revoking the object URL on the next line races
@@ -56,7 +58,7 @@ export default function InvoiceDocButtons({
       downloadBlob(blob, `invoice-${fileLabel}.pdf`);
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "We couldn't prepare that invoice.",
+        err instanceof Error ? err.message : tr("invdoc.weCouldnTPrepareThat"),
       );
     } finally {
       setBusy(false);
@@ -83,15 +85,15 @@ export default function InvoiceDocButtons({
             "noopener,noreferrer",
           );
           if (!w) {
-            toast.error("Your browser blocked the new tab.", {
-              description: "Use Download instead, or allow pop-ups for this site.",
+            toast.error(tr("invdoc.yourBrowserBlockedTheNew"), {
+              description: tr("invdoc.useDownloadInsteadOrAllow"),
             });
           }
         }}
-        title="Open the invoice in a new tab"
+        title={tr("invdoc.openTheInvoiceInA")}
       >
         <Eye />
-        {showLabels ? <span className="alab">View</span> : null}
+        {showLabels ? <span className="alab">{tr("btn.view")}</span> : null}
       </button>
       <button
         type="button"
@@ -101,7 +103,7 @@ export default function InvoiceDocButtons({
           e.stopPropagation();
           void download();
         }}
-        title="Save the invoice as a PDF"
+        title={tr("invdoc.saveTheInvoiceAsA")}
       >
         {busy ? <Loader2 className="animate-spin" /> : <Download />}
         {showLabels ? <span className="alab">Download</span> : null}

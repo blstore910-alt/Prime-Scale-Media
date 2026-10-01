@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { Ic } from "./adv-icons";
 
 /**
@@ -59,6 +60,7 @@ export default function BalanceHero({
    */
   quote?: string | null;
 }) {
+  const { t: tr } = useT();
   return (
     <section className="hero">
       {/* Decoration only — the same slow ribbon and starfield the sign-in
@@ -67,7 +69,7 @@ export default function BalanceHero({
       <span className="hero-ribbon" aria-hidden="true" />
       <span className="hero-stars" aria-hidden="true" />
 
-      <p className="hero-greet">{returning ? "Welcome back" : "Welcome"}</p>
+      <p className="hero-greet">{returning ? tr("dash.welcomeBack") : tr("dash.welcome")}</p>
       <h1 className="hero-h">{firstName}</h1>
       {/* Zeer klein en zacht, en onder de naam. De eigenaar, 30-09:
           "zeer kleine subtiele quote voor advertisers en affiliates,
