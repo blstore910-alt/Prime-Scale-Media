@@ -62,6 +62,12 @@ const CSS = `
 .tpx-bank-desc{font-size:12px;color:rgba(255,255,255,.72);line-height:1.4;margin:0 0 6px}
 .tpx-bank-row{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid rgba(255,255,255,.1)}
 .tpx-bank-row>div{min-width:0}
+.tpx-bank-grid{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:14px;border-top:1px solid rgba(255,255,255,.1)}
+.tpx-bank-grid .tpx-bank-row{border-top:0}
+.tpx-bank-grid .tpx-bank-row+.tpx-bank-row[data-wide=true],.tpx-bank-grid .tpx-bank-row[data-wide=true]{grid-column:1/-1;border-top:1px solid rgba(255,255,255,.1)}
+.tpx-bank-sub{grid-column:1/-1;font-style:normal;font-size:11px;font-weight:700;letter-spacing:.06em;color:rgba(255,255,255,.75);padding-top:10px}
+.tpx-bank .tpx-mini .tpx-val{font-size:14px;font-weight:650}
+.tpx-bank .tpx-mini .tpx-copy{width:30px;height:30px;border-radius:9px}
 .tpx-lbl{display:block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tpx-mut)}
 .tpx-bank .tpx-lbl{color:rgba(255,255,255,.55)}
 .tpx-val{display:block;font-size:14px;font-weight:650;line-height:1.3;margin-top:2px;white-space:pre-wrap;word-break:break-word}
