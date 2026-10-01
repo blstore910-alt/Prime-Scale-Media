@@ -37,7 +37,6 @@ import { toast } from "sonner";
 import * as z from "zod";
 import {
   BankTransferInstructions,
-  InstantTransferInstructions,
   bankTransferCurrencies,
   bankBeneficiary,
   type BankGroup,
@@ -1170,7 +1169,6 @@ export default function WalletTopupDialog({
                   />
                 </div>
 
-                {bankGroup === "muxue" && <InstantTransferInstructions />}
 
                 {/* Client code first, then the reference — so a bank
                     statement shows whose money it is before anything has been

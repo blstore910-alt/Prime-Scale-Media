@@ -19,10 +19,8 @@
  * empty rather than being inferred from a neighbouring one.
  */
 
-import {
-  bankInstructions,
-  type BankGroup,
-} from "@/lib/bank-beneficiaries";
+import { type BankGroup } from "@/lib/bank-beneficiaries";
+import { bankInstructionsAdmin as bankInstructions } from "@/lib/bank-muxue-admin";
 
 export type BuiltInBankDraft = {
   label: string;

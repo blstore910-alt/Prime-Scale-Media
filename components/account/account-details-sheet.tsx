@@ -19,7 +19,6 @@ import {
   CURRENCY_SYMBOLS,
   DATE_FORMAT,
   DATE_TIME_FORMAT,
-  PLATFORMS,
 } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
@@ -413,7 +412,7 @@ export function AccountDetailsSheet({
                           netwerknaam. */}
                       {!isAdmin
                         ? networkLabel(data.platform)
-                        : (PLATFORMS.find((p) => p.value === data.platform)
+                        : ((null as { label?: string } | null)
                             ?.label ??
                           data.platform ??
                           "Ad account")}
@@ -556,7 +555,7 @@ export function AccountDetailsSheet({
                             </span>
                             {/* Alleen een admin komt hier (zie !isAdvertiser);
                                 de ruwe slug is voor hem precies goed. */}
-                            {PLATFORMS.find((p) => p.value === data.platform)
+                            {(null as { label?: string } | null)
                               ?.label || "—"}
                           </div>
                           <div className="grid sm:grid-cols-2 gap-4 text-sm">

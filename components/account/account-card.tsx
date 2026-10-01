@@ -1,4 +1,4 @@
-import { PLATFORMS } from "@/lib/constants";
+import { PLATFORMS } from "@/lib/admin-platforms";
 import { AdAccount } from "@/lib/types/account";
 import {
   CheckCircle2,

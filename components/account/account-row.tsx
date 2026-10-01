@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { useAppContext } from "@/context/app-provider";
-import { PLATFORMS } from "@/lib/constants";
+import { PLATFORMS } from "@/lib/admin-platforms";
 import { AdAccount } from "@/lib/types/account";
 import {
   ArrowUp,

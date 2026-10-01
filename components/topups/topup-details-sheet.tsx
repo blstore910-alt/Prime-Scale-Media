@@ -9,7 +9,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAppContext } from "@/context/app-provider";
-import { CURRENCY_SYMBOLS, PLATFORMS, TOPUP_TYPES } from "@/lib/constants";
+import { CURRENCY_SYMBOLS, TOPUP_TYPES } from "@/lib/constants";
+import { PLATFORMS } from "@/lib/admin-platforms";
 import { landedOnAccount } from "@/lib/pure-topup-landed";
 import { createClient } from "@/lib/supabase/client";
 import { Topup } from "@/lib/types/topup";

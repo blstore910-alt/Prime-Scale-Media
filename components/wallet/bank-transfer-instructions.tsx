@@ -288,34 +288,4 @@ function InstructionItem({
   );
 }
 
-// MUXUE also offers an instant Airwallex channel (USD / EUR).
-export function InstantTransferInstructions() {
-  const { t: tr } = useT();
-  return (
-    <div className="rounded-lg border bg-muted/20 p-4">
-      <p className="text-sm text-muted-foreground mb-4">
-        {tr("bank.forInstantTransfersUseThese")}</p>
-      <div className="space-y-2">
-        <InstructionItem
-          label={tr("label.bank.channel")}
-          value="Airwallex (instant - USD, EUR)"
-        />
-        <InstructionItem
-          label={tr("label.bank.accountName")}
-          value="牧雪貿易有限公司"
-          copyable={true}
-        />
-        <InstructionItem
-          label={tr("bank.alternativeAccountName")}
-          value="MUXUE TRADE LIMITED"
-          copyable={true}
-        />
-        <InstructionItem
-          label={tr("label.bank.accountNumber")}
-          value="1011106829132869"
-          copyable={true}
-        />
-      </div>
-    </div>
-  );
-}
+// (MUXUE / Airwallex weg: er gaat niets meer heen, en de naam laadde bij elke klant.)

@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import TablePagination from "@/components/ui/table-pagination";
-import { PLATFORMS } from "@/lib/constants";
+import { PLATFORMS } from "@/lib/admin-platforms";
 import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
 import { safeErrorMessage } from "@/lib/pure-error";

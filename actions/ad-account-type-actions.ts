@@ -1,11 +1,11 @@
 "use server";
 
 import {
-  AD_ACCOUNT_TYPE_SEED,
   type AdAccountPlatformGroup,
   type AdAccountType,
   type AdAccountTypeOption,
 } from "@/lib/types/ad-account-type";
+import { AD_ACCOUNT_TYPE_SEED } from "@/lib/types/ad-account-type-seed";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { createClient } from "@/lib/supabase/server";
 import { isMissingColumn } from "@/lib/page-all-rows";

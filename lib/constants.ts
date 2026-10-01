@@ -120,16 +120,8 @@ export const TOPUP_TYPES = [
   { label: "Subscription", value: "subscription" },
 ];
 
-export const PLATFORMS = [
-  { label: "Meta-HK-Premium", value: "hk-meta-premium" },
-  { label: "Meta-HK-Business", value: "hk-meta-business" },
-  { label: "Meta-HK-Business-Green", value: "hk-meta-business-green" },
-  { label: "Meta-EU-Premium", value: "eu-meta-premium" },
-  { label: "Meta-EU-PSM", value: "eu-meta-psm" },
-  { label: "Meta-EU-PSM-GH", value: "eu-meta-psm-gh" },
-  { label: "Google", value: "google" },
-  { label: "Tiktok", value: "tiktok" },
-];
+// PLATFORMS (de interne typenamen) staat in lib/admin-platforms.ts:
+// dit bestand laadt ook bij de klant (lekcontrole 01-10).
 export const COMMISSION_TYPE_LABELS: Record<string, string> = {
   // The only value the accrual trigger writes. Without it the Type
   // column fell back to printing the raw word "percentage".

@@ -4,7 +4,7 @@ import InputField from "@/components/form/input-field";
 import SelectField from "@/components/form/select-field";
 import { useAppContext } from "@/context/app-provider";
 import { toastResult } from "@/lib/action-warning";
-import { PLATFORMS } from "@/lib/constants";
+import { PLATFORMS } from "@/lib/admin-platforms";
 import { useAdAccountTypes } from "@/hooks/use-ad-account-types";
 import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
 import { AdAccountRequest } from "@/lib/types/ad-account-request";

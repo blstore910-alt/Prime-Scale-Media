@@ -1,6 +1,6 @@
 "use client";
 
-import { PLATFORMS } from "@/lib/constants";
+import { PLATFORMS } from "@/lib/admin-platforms";
 import { formatBmIds, parseBmIds } from "@/lib/pure-bm-ids";
 import { CopyText } from "@/components/ui/copy-text";
 import { platformFamily, platformLabel } from "@/lib/pure-platform-badge";

@@ -3,10 +3,8 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listActiveAdAccountTypes } from "@/actions/ad-account-type-actions";
-import {
-  AD_ACCOUNT_TYPE_SEED,
-  type AdAccountTypeOption,
-} from "@/lib/types/ad-account-type";
+import { type AdAccountTypeOption } from "@/lib/types/ad-account-type";
+import { AD_ACCOUNT_TYPE_SEED } from "@/lib/types/ad-account-type-seed";
 
 // Shared source of ad-account types for the create/update forms. Reads
 // the tenant's active types from the DB; falls back to the seed list so
