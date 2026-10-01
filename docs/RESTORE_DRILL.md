@@ -19,7 +19,18 @@ we echt draaien, met een logboek waarin de uitkomst komt.
 | **E. wallet_ledger** | in de database | alles sinds 28-09 | elke saldobeweging, met saldo voor en na. Geschreven door een trigger, dus niet te omzeilen |
 | **F. Buiten ons** | Wise, RockAds/Falkyn, Brevo, Vercel | eigen bewaartermijnen | de waarheid over geld dat binnenkwam (Wise), wat er op ad accounts staat (leverancier-API), welke mails er gingen (Brevo), welke acties de server deed (Vercel-logs) |
 
-**Eerst nagaan, eenmalig:** staat PITR aan? Supabase → Project →
+**PITR staat AAN** (gezien 01-10): elke 2 minuten gelogd, 7 dagen terug.
+Het slechtste geval is dus 2 minuten werk kwijt, niet 24 uur.
+
+> ### LET OP: "Start a restore" op die pagina zet PRODUCTIE terug
+> De knop **Start a restore** onder *Restore your database from a backup*
+> herstelt **dit** project naar het gekozen moment: alles daarna is weg,
+> en de app ligt eruit zolang het herstel loopt. Dat is voor een echte
+> ramp, niet voor een oefening. Voor de oefening gebruik je **Restore to
+> a new project** (eigen tabblad of knop op dezelfde Backups-pagina) --
+> dat laat productie staan.
+
+**(Oude regel, voor een nieuw project:)** staat PITR aan? Supabase → Project →
 Database → Backups. Staat er *Point in time* met een bewaartermijn, dan
 is laag A er. Zo niet, dan is het slechtste geval **24 uur** werk kwijt
 (laag B of C) in plaats van **2 minuten**. De add-on kost per maand een
@@ -135,9 +146,11 @@ Doel: weten dat het werkt **voordat** het nodig is, en hoe lang het duurt.
 
 **B. Een echt herstel (30–60 minuten, eens per kwartaal)**
 
-1. Supabase → Database → Backups → kies een moment (PITR) of de backup
-   van vannacht → **Restore to a new project**. *Niet* "restore" op het
-   productieproject.
+1. Supabase → Database → Backups → **Restore to a new project** (NIET
+   "Start a restore") → kies als moment **het nieuwste dat kan**: na de
+   laatste deploy en de laatste plak, zodat je de huidige stand test en
+   niet een van vorige week (de eigenaar, 01-10: "PITR alleen testen met
+   laatste nieuwste deploys"). Noteer het gekozen tijdstip.
 2. Wacht tot het nieuwe project klaar is. Noteer hoe lang dat duurde:
    dat is je hersteltijd.
 3. Draai `supabase/checks/RESTORE-DRILL-TELLING.sql` in de SQL-editor
