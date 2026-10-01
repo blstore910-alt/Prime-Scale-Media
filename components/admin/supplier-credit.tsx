@@ -410,11 +410,8 @@ function SupplierRows({
               De synctijd verdwijnt op een telefoon (hij zit in de
               tooltip van de rij); "our bank" blijft, want dat is geen
               tijdstempel maar wat de rij IS. */}
-          {s.readAt ? (
-            <span className="sc-when">
-              {s.readAt ? whenShort(s.readAt) : null}
-            </span>
-          ) : null}
+          {/* De eigenaar, 01-10: "synced just now" onder elke rij is lelijk --
+              weg. De synctijd staat nog in de tooltip van de rij. */}
         </td>
         {currencies.map((c) => {
           const v = byCur.get(c);
