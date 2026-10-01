@@ -35,7 +35,13 @@ export type TeamMember = {
   name: string | null;
   role: string;
   isYou: boolean;
+  /** Plak 184. Wat dit lid mag; leeg = alleen kijken. */
+  permissions: string[];
 };
+
+/** De rechten die een lid kan krijgen. Dezelfde lijst als de check op
+ *  subject_members.permissions in plak 184. */
+const RECHTEN = ["topup", "exchange", "request", "fund", "withdraw", "pay", "company"];
 export type TeamInvite = {
   id: string;
   email: string;
@@ -85,11 +91,20 @@ export async function listTeam(): Promise<
   if (!eig.ok) return eig;
   const db = await createAdminClient();
 
-  const { data: leden, error: ledenFout } = await db
-    .from("subject_members")
-    .select("id, user_id, role")
-    .eq("subject_kind", "advertiser")
-    .eq("subject_id", eig.adv.id);
+  // permissions bestaat pas na plak 184; zonder: opnieuw zonder, en
+  // dan heeft niemand rechten -- zoals ervoor.
+  const lees = (kol: string) =>
+    db.from("subject_members").select(kol).eq("subject_kind", "advertiser").eq("subject_id", eig.adv.id);
+  let { data: ledenRuw, error: ledenFout } = await lees("id, user_id, role, permissions");
+  if (ledenFout && /permissions/.test(ledenFout.message ?? "")) {
+    ({ data: ledenRuw, error: ledenFout } = await lees("id, user_id, role"));
+  }
+  const leden = (ledenRuw ?? []) as unknown as {
+    id: string;
+    user_id: string;
+    role: string;
+    permissions?: string[] | null;
+  }[];
   if (ledenFout) {
     return {
       ok: false,
@@ -141,6 +156,7 @@ export async function listTeam(): Promise<
       name: namen.get(String(l.user_id))?.name ?? null,
       role: String(l.role),
       isYou: String(l.user_id) === eig.userId,
+      permissions: Array.isArray(l.permissions) ? l.permissions.map(String) : [],
     }))
     .sort((a, b) =>
       a.role === "owner" ? -1 : b.role === "owner" ? 1 : String(a.name).localeCompare(String(b.name)),
@@ -245,6 +261,50 @@ export async function inviteTeamMember(
   }
 
   return { ok: true, data: { link, emailSent } };
+}
+
+/**
+ * Wat een lid mag. Alleen de eigenaar, alleen voor een lid van ZIJN
+ * account, alleen rechten uit de vaste lijst. De database toetst ze
+ * daarna zelf in elke geldfunctie (plak 184) -- dit zet ze alleen.
+ */
+export async function setTeamMemberPermissions(
+  memberId: string,
+  permissions: string[],
+): Promise<{ ok: true; data: { permissions: string[] } } | { ok: false; error: string }> {
+  const eig = await eigenAdverteerder();
+  if (!eig.ok) return eig;
+  const db = await createAdminClient();
+
+  const { data: rijen, error } = await db
+    .from("subject_members")
+    .select("id, role, subject_id")
+    .eq("id", String(memberId ?? ""))
+    .limit(1);
+  if (error) return { ok: false, error: safeErrorMessage(error) };
+  const rij = (rijen ?? [])[0];
+  if (!rij || String(rij.subject_id) !== eig.adv.id) {
+    return { ok: false, error: "That person is not on your team." };
+  }
+  if (rij.role === "owner") return { ok: false, error: "The owner can already do everything." };
+
+  const schoon = Array.from(new Set((permissions ?? []).map(String).filter((p) => RECHTEN.includes(p))));
+  const { data: bij, error: schrijfFout } = await db
+    .from("subject_members")
+    .update({ permissions: schoon })
+    .eq("id", rij.id)
+    .eq("subject_id", eig.adv.id)
+    .select("id");
+  if (schrijfFout) {
+    return {
+      ok: false,
+      error: /permissions/.test(schrijfFout.message ?? "")
+        ? "Rights per person need plak 184 first."
+        : safeErrorMessage(schrijfFout),
+    };
+  }
+  if (!(bij ?? []).length) return { ok: false, error: "Nothing was changed." };
+  return { ok: true, data: { permissions: schoon } };
 }
 
 export async function removeTeamMember(

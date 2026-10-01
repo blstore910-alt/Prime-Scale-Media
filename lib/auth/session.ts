@@ -90,13 +90,24 @@ async function withTeamAdvertiser<
   if (!res.data.some(lacksOwnAdvertiser)) return res;
 
   try {
-    const { data: leden, error: ledenFout } = await supabase
-      .from("subject_members")
-      .select("subject_id, tenant_id, role")
-      .eq("user_id", userId)
-      .eq("subject_kind", "advertiser")
-      .order("created_at", { ascending: true });
-    if (ledenFout || !leden?.length) return res;
+    // permissions komt met plak 184. Bestaat de kolom nog niet, dan
+    // opnieuw zonder: een lid ziet dan alles en mag niets, zoals ervoor.
+    const lees = (kol: string) =>
+      supabase
+        .from("subject_members")
+        .select(kol)
+        .eq("user_id", userId)
+        .eq("subject_kind", "advertiser")
+        .order("created_at", { ascending: true });
+    let { data: ledenRuw, error: ledenFout } = await lees("subject_id, tenant_id, role, permissions");
+    if (ledenFout) ({ data: ledenRuw, error: ledenFout } = await lees("subject_id, tenant_id, role"));
+    const leden = (ledenRuw ?? []) as unknown as {
+      subject_id: string;
+      tenant_id: string;
+      role: string;
+      permissions?: string[] | null;
+    }[];
+    if (ledenFout || !leden.length) return res;
 
     const ids = leden.map((l) => String(l.subject_id));
     const { data: advs, error: advFout } = await supabase
@@ -115,6 +126,7 @@ async function withTeamAdvertiser<
         subject_id: String(l.subject_id),
         tenant_id: String(l.tenant_id),
         role: String(l.role),
+        permissions: Array.isArray(l.permissions) ? l.permissions : [],
       })),
       advs.map((a) => ({ ...a, id: String(a.id) })),
     );

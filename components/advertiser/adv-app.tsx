@@ -338,7 +338,6 @@ export default function AdvertiserApp() {
   // voorkant: de ingang zegt meteen WAAROM niet.
   const teamRole =
     (profile as { team_role?: string | null } | null)?.team_role ?? null;
-  const isViewer = teamRole === "viewer";
   // ── EEN TEAMLID ZIET HETZELFDE ALS DE ADVERTEERDER ──────────────
   //
   // De eigenaar, 01-10: "ik wil gewoon dat een tweede user net als
@@ -359,15 +358,19 @@ export default function AdvertiserApp() {
   const permKlassen = isTeamMember
     ? PERMS.filter((p) => p === "owner" || !teamPerms.includes(p)).map((p) => `perm-no-${p}`).join(" ")
     : "";
-  const viewerRefusal = (): boolean => {
-    if (!isViewer) return false;
+  // Per recht (plak 184). Zonder recht: de knop staat er al niet, en
+  // komt iemand er toch (een oude tab, een deep link), dan zegt dit
+  // waarom -- en weigert de database het daarna nog eens.
+  const viewerRefusal = (perm?: string): boolean => {
+    if (!isTeamMember) return false;
+    if (perm && teamPerms.includes(perm)) return false;
     toast.info(t("viewer.title"), { description: t("viewer.body") });
     return true;
   };
 
   const [topupCurrency, setTopupCurrency] = useState<"EUR" | "USD">("EUR");
   const openTopup = (cur: "EUR" | "USD") => {
-    if (viewerRefusal()) return;
+    if (viewerRefusal("topup")) return;
     setTopupCurrency(cur);
     setTopupOpen(true);
   };
@@ -397,7 +400,7 @@ export default function AdvertiserApp() {
     cur: "EUR" | "USD",
     need?: { amount: number; currency: "EUR" | "USD"; label: string } | null,
   ) => {
-    if (viewerRefusal()) return;
+    if (viewerRefusal("exchange")) return;
     setExchangeFrom(cur);
     setExchangeNeed(need ?? null);
     setExchangeOpen(true);
@@ -3348,7 +3351,7 @@ export default function AdvertiserApp() {
     go("notif");
   };
   const openAcctTopup = (a: AdAccount) => {
-    if (viewerRefusal()) return;
+    if (viewerRefusal("fund")) return;
     setAcctTopup(a);
     setAcctTopupOpen(true);
   };
@@ -3585,7 +3588,7 @@ export default function AdvertiserApp() {
     items?: unknown;
     currency?: string | null;
   }) => {
-    if (viewerRefusal()) return;
+    if (viewerRefusal("pay")) return;
     // ── THE MODAL, WHICH WAS THE ONE THAT WAS MISSED ────────────────
     //
     // The card and the amount column were changed to read the invoice's
@@ -4333,7 +4336,7 @@ export default function AdvertiserApp() {
                 // form that writes both companies and billings, and the
                 // billing row is half of what the gate checks.
                 if (v === "complete-profile") {
-                  if (!viewerRefusal()) router.push("/complete-profile");
+                  if (!viewerRefusal("company")) router.push("/complete-profile");
                   return;
                 }
                 go(v as View);
@@ -4371,7 +4374,7 @@ export default function AdvertiserApp() {
                 <button data-perm="company"
                   className="dlink"
                   onClick={() => {
-                    if (!viewerRefusal()) router.push("/complete-profile");
+                    if (!viewerRefusal("company")) router.push("/complete-profile");
                   }}
                 >
                   {t("btn.add")} <Ic name="i-arrow" />

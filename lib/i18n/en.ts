@@ -145,8 +145,8 @@ export const en = {
   "menu.signOut": "Sign out",
   "tab.team": "Team",
   "page.team.sub": "Who can see this account.",
-  "team.ownerIntro": "Let a colleague look along. They see everything, and cannot touch the money.",
-  "team.memberIntro": "You are on {account}'s account as a {role}. You can see balances, ad accounts and invoices; only the account owner can move money or change the team.",
+  "team.ownerIntro": "Let a colleague in. They see everything; you tick what they may do.",
+  "team.memberIntro": "You are on {account}'s account as a {role}. You see balances, ad accounts and invoices; what you can do is set by the account owner.",
   "btn.invite": "Invite",
   "btn.sending": "Sending…",
   "btn.remove": "Remove",
@@ -1334,6 +1334,21 @@ export const en = {
   "isignup.teamLede": "You'll see {account}'s account as a {role}: balances, ad accounts and invoices. Moving money stays with the owner.",
   "isignup.teamJoining": "Viewing {account} as {role}",
   "team.chip": "Team member · {account}",
+  // ── rechten per teamlid ──
+  "label.teamAlways": "Always",
+  "label.teamIfTicked": "If you tick it",
+  "team.tickMoney": "Top up, exchange, fund and pay",
+  "team.tickRequests": "Request and withdraw",
+  "team.rightsSaved": "Rights saved",
+  "team.onlyViewing": "Views only. Tick what this colleague may do.",
+  "label.roleMember": "member",
+  "team.perm.topup": "Top up wallet",
+  "team.perm.exchange": "Exchange",
+  "team.perm.request": "Request ad accounts",
+  "team.perm.fund": "Fund ad accounts",
+  "team.perm.withdraw": "Withdraw from ad accounts",
+  "team.perm.pay": "Pay invoices",
+  "team.perm.company": "Edit company",
 } as const;
 
 export type Key = keyof typeof en;

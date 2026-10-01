@@ -35,7 +35,12 @@ import {
   inviteTeamMember,
   listTeam,
   removeTeamMember,
+  setTeamMemberPermissions,
 } from "@/actions/team-actions";
+
+// De rechten per lid (plak 184), in de volgorde waarin een klant ze
+// denkt: geld erin, geld rond, geld eruit, papierwerk.
+const RECHTEN = ["topup", "exchange", "request", "fund", "withdraw", "pay", "company"] as const;
 
 const CSS = `
 .tm{display:flex;flex-direction:column;gap:14px}
@@ -106,7 +111,17 @@ const CSS = `
 .tm .sk{height:38px;border-radius:12px;background:var(--panel-2);margin:6px 0;
   animation:tmPulse 1.2s ease-in-out infinite}
 @keyframes tmPulse{50%{opacity:.55}}
-@media (max-width:420px){.tm .rights{grid-template-columns:1fr}}
+.tm .perms{display:flex;flex-wrap:wrap;gap:6px;margin:-2px 0 10px 49px}
+.tm .perm{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:.74rem;font-weight:700;
+  padding:6px 10px;border-radius:99px;cursor:pointer;border:1px solid var(--line-2);
+  background:var(--panel);color:var(--txt-2);transition:background .15s,color .15s,border-color .15s}
+.tm .perm .box{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--line-2);display:grid;
+  place-items:center;font-size:.6rem;color:#fff}
+.tm .perm.on{background:var(--primary-tint);border-color:var(--primary);color:var(--primary-600)}
+.tm .perm.on .box{background:linear-gradient(135deg,#5B8DFF,#8B5CF6);border-color:transparent}
+.tm .perm:disabled{opacity:.6;cursor:default}
+.tm .permhint{margin:-4px 0 10px 49px;font-size:.72rem;color:var(--faint)}
+@media (max-width:420px){.tm .rights{grid-template-columns:1fr}.tm .perms,.tm .permhint{margin-left:0}}
 `;
 
 const initials = (s: string | null | undefined) =>
@@ -135,7 +150,7 @@ function Rights() {
   return (
     <div className="rights">
       <div className="rcol">
-        <h4>{t("label.teamCanSee")}</h4>
+        <h4>{t("label.teamAlways")}</h4>
         <ul>
           <li><span className="dot yes">✓</span>{t("team.canBalances")}</li>
           <li><span className="dot yes">✓</span>{t("team.canAccounts")}</li>
@@ -143,10 +158,10 @@ function Rights() {
         </ul>
       </div>
       <div className="rcol">
-        <h4>{t("label.teamCannot")}</h4>
+        <h4>{t("label.teamIfTicked")}</h4>
         <ul>
-          <li><span className="dot no">✕</span>{t("team.notMoney")}</li>
-          <li><span className="dot no">✕</span>{t("team.notRequests")}</li>
+          <li><span className="dot yes">+</span>{t("team.tickMoney")}</li>
+          <li><span className="dot yes">+</span>{t("team.tickRequests")}</li>
           <li><span className="dot no">✕</span>{t("team.notTeam")}</li>
         </ul>
       </div>
@@ -249,6 +264,19 @@ function EigenaarsTeam({
     onError: (e) => toast.error((e as Error).message),
   });
 
+  const rechten = useMutation({
+    mutationFn: async (v: { id: string; permissions: string[] }) => {
+      const res = await setTeamMemberPermissions(v.id, v.permissions);
+      if (!res.ok) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success(t("team.rightsSaved"));
+      vernieuw();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
   const intrekken = useMutation({
     mutationFn: async (id: string) => {
       const res = await cancelTeamInvite(id);
@@ -341,7 +369,8 @@ function EigenaarsTeam({
               {t("label.members")} <span className="n">{members.length}</span>
             </div>
             {members.map((m, i) => (
-              <div key={m.id} className="row">
+              <div key={m.id}>
+              <div className="row">
                 <div className={`av${i % 2 ? " alt" : ""}`}>{initials(m.name ?? m.email)}</div>
                 <div className="who">
                   <b>
@@ -353,8 +382,8 @@ function EigenaarsTeam({
                 <span className={`rol${m.role === "owner" ? " owner" : ""}`}>
                   {m.role === "owner"
                     ? t("label.roleOwner")
-                    : m.role === "manager"
-                      ? t("label.roleManager")
+                    : (m.permissions ?? []).length
+                      ? t("label.roleMember")
                       : t("label.roleViewer")}
                 </span>
                 {m.role !== "owner" ? (
@@ -366,6 +395,39 @@ function EigenaarsTeam({
                     {t("btn.remove")}
                   </button>
                 ) : null}
+              </div>
+              {m.role !== "owner" ? (
+                <>
+                  <div className="perms">
+                    {RECHTEN.map((r) => {
+                      const aan = (m.permissions ?? []).includes(r);
+                      return (
+                        <button
+                          key={r}
+                          type="button"
+                          className={`perm${aan ? " on" : ""}`}
+                          aria-pressed={aan}
+                          disabled={rechten.isPending}
+                          onClick={() =>
+                            rechten.mutate({
+                              id: m.id,
+                              permissions: aan
+                                ? (m.permissions ?? []).filter((x) => x !== r)
+                                : [...(m.permissions ?? []), r],
+                            })
+                          }
+                        >
+                          <span className="box">{aan ? "✓" : ""}</span>
+                          {t(`team.perm.${r}` as Parameters<typeof t>[0])}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {!(m.permissions ?? []).length ? (
+                    <p className="permhint">{t("team.onlyViewing")}</p>
+                  ) : null}
+                </>
+              ) : null}
               </div>
             ))}
             {members.length <= 1 && !invites.length ? (

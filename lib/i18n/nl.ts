@@ -148,8 +148,8 @@ export const nl: Record<Key, string> = {
   "menu.signOut": "Uitloggen",
   "tab.team": "Team",
   "page.team.sub": "Wie dit account kan zien.",
-  "team.ownerIntro": "Laat een collega meekijken. Die ziet alles, en kan niet aan het geld komen.",
-  "team.memberIntro": "Je kijkt mee op het account van {account}, als {role}. Je ziet saldi, ad accounts en facturen; alleen de eigenaar kan geld verplaatsen of het team wijzigen.",
+  "team.ownerIntro": "Laat een collega meekijken. Die ziet alles; jij vinkt aan wat die mag.",
+  "team.memberIntro": "Je kijkt mee op het account van {account}, als {role}. Je ziet saldi, ad accounts en facturen; wat je mag, bepaalt de eigenaar.",
   // "Nodig uit" (9) past niet in de ruimte van "Invite" (6)+2. Naast een
   // e-mailveld zegt "Verstuur" hetzelfde.
   "btn.invite": "Verstuur",
@@ -1342,4 +1342,19 @@ export const nl: Record<Key, string> = {
   "isignup.teamLede": "Je kijkt mee op het account van {account} als {role}: saldi, ad accounts en facturen. Geld verplaatsen blijft bij de eigenaar.",
   "isignup.teamJoining": "Meekijken op {account} als {role}",
   "team.chip": "Teamlid · {account}",
+  // ── rechten per teamlid ──
+  "label.teamAlways": "Altijd",
+  "label.teamIfTicked": "Met vinkje",
+  "team.tickMoney": "Top-up, exchange, funden en betalen",
+  "team.tickRequests": "Aanvragen en terugboeken",
+  "team.rightsSaved": "Rechten bewaard",
+  "team.onlyViewing": "Kijkt alleen mee. Vink aan wat deze collega mag.",
+  "label.roleMember": "lid",
+  "team.perm.topup": "Wallet top-up",
+  "team.perm.exchange": "Exchange",
+  "team.perm.request": "Ad accounts aanvragen",
+  "team.perm.fund": "Ad accounts funden",
+  "team.perm.withdraw": "Terugboeken",
+  "team.perm.pay": "Facturen betalen",
+  "team.perm.company": "Bedrijf bewerken",
 };

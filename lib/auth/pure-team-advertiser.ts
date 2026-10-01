@@ -16,6 +16,8 @@ export type Membership = {
   subject_id: string;
   tenant_id: string;
   role: string;
+  /** Plak 184. Leeg zolang die niet gedraaid is: dan mag een lid niets. */
+  permissions?: string[] | null;
 };
 
 export type AdvertiserLike = { id: string };
@@ -44,6 +46,11 @@ export function attachTeamAdvertiser<P extends ProfileLike>(
     const lid = leden.find((l) => String(l.tenant_id) === String(p.tenant_id));
     const adv = lid && advs.find((a) => String(a.id) === String(lid.subject_id));
     if (!lid || !adv) return p;
-    return { ...p, advertiser: [adv], team_role: String(lid.role) };
+    return {
+      ...p,
+      advertiser: [adv],
+      team_role: String(lid.role),
+      team_permissions: Array.isArray(lid.permissions) ? lid.permissions.map(String) : [],
+    };
   });
 }

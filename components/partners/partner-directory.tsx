@@ -88,8 +88,8 @@ export const PARTNER_CSS = `
 
 /* De banner: blauw naar paars, een stippenraster en een glans. 58px --
    genoeg voor kleur, niet genoeg om hoogte te kosten. */
-.ptile .pt-hero{position:relative;height:58px;overflow:hidden;
-  display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:11px 12px 0 14px;
+.ptile .pt-hero{position:relative;height:68px;overflow:hidden;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:10px 12px 0 14px;
   background:
     radial-gradient(70% 160% at 0% 0%,color-mix(in srgb,var(--acc) 75%,transparent),transparent 65%),
     radial-gradient(60% 160% at 100% 0%,rgba(139,92,246,.6),transparent 65%),

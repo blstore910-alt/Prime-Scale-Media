@@ -216,3 +216,39 @@ export async function fetchSlashBalances(): Promise<{
       : null,
   };
 }
+
+/**
+ * Wat Slash per rekening teruggeeft, voor /api/slash-probe. De eigenaar,
+ * 01-10: het paneel zei $0.00 terwijl Business Checking $2,669.95 heeft.
+ * Dit laat zien welke rekeningen er zijn en welke saldotypes, zonder
+ * sleutel en zonder volledig id (alleen de laatste vier tekens).
+ */
+export async function probeSlash(): Promise<unknown> {
+  const key = creds();
+  if (!key) return { error: "No Slash key is set." };
+  const out: Record<string, unknown> = {};
+  for (const path of ["/account", "/accounts"]) {
+    const { body, error } = await get(path, key);
+    if (error) {
+      out[path] = { error };
+      continue;
+    }
+    const items = ((body as { items?: unknown[] } | null)?.items ?? (Array.isArray(body) ? body : [])) as Record<string, unknown>[];
+    const rekeningen = [];
+    for (const a of items.slice(0, 10)) {
+      const id = String(a.id ?? "");
+      const ruw = Object.fromEntries(
+        Object.entries(a).filter(([k]) => !/number|routing|id$/i.test(k)),
+      );
+      const saldo: Record<string, unknown> = {};
+      for (const bp of [`/account/${encodeURIComponent(id)}/balance`, `/accounts/${encodeURIComponent(id)}/balances`]) {
+        const { body: b, error: be } = await get(bp, key);
+        saldo[bp.replace(id, "{id}")] = be ? { error: be } : b;
+      }
+      rekeningen.push({ idEind: id.slice(-4), velden: ruw, saldo });
+    }
+    out[path] = { aantal: items.length, rekeningen };
+    break;
+  }
+  return out;
+}
