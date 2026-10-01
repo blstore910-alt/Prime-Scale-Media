@@ -2,6 +2,41 @@
 
 > Geschreven 01-10-2026, na test 3. De eigenaar: *"maak alvast slimme
 > test 4 en geef ook de prompt, vooral alle mogelijke reizen."*
+> Bijgewerkt 01-10 avond: alles wat er die dag bij kwam (R11 rechten per
+> lid, R19 beheertools, R20 de lekcontrole, vaste klantcode, factuur-pdf,
+> schema in de backup) en **wanneer we live gaan** (onderaan).
+
+---
+
+## Wanneer is het af — en moet alles foutloos zijn?
+
+**Nee, niet alles. Wel alles waar geld of vertrouwen aan hangt.** Een
+bug is één van drie soorten, en alleen de eerste houdt live tegen:
+
+| soort | voorbeeld | houdt live tegen? |
+|---|---|---|
+| **BLOKKER** | een bedrag klopt niet tot op de cent; geld kan dubbel of verdwijnen; een klant ziet een leverancier, type of marge; een klant komt bij een ander z'n gegevens; een knop die geld zou moeten bewegen doet niets; een reis loopt dood | **JA** — eerst fixen, dan de reis opnieuw |
+| **HINDERLIJK** | een verkeerde tekst, een lelijke lege staat, een vertaling die mist | nee — fixen in dezelfde ronde als het snel kan, anders op de lijst |
+| **WENS** | iets dat mooier of slimmer kan | nee — naar `docs/NEXT_SESSION_FIRST.md` |
+
+**Live met echte klanten** zodra: alle reizen met geld (R1, R3–R9, R11,
+R14) staan op **werkt**, R20 (lekcontrole) staat op **schoon**, en er
+staat **geen enkele BLOKKER** open. Dat is de regel uit CLAUDE.md: de
+acht reizen, binair. Een HINDERLIJK-lijstje is normaal en mag mee live.
+
+## Hoe lang duurt test 4 (tegenover test 3)
+
+Test 3 liep van 30-09 21:35 tot 01-10 middag: vier accounts, en
+onderweg tientallen fixes — elke reis vond iets. Test 4 heeft meer
+accounts (negen) maar er is sindsdien veel gefixt, dus per reis minder
+oponthoud. Schatting:
+
+- **actief werk: 6 tot 10 uur**, waarvan jij alleen de wachtwoorden en
+  Join-knoppen doet (± 20 minuten verspreid);
+- **plus één nacht**, omdat de facturen, de automatische afschrijving en
+  de backup (R8, R17) alleen 's nachts draaien;
+- dus **twee dagen kalender**, als er geen BLOKKER opduikt. Elke blokker
+  kost een fix + deploy (± 15 minuten) en de reis opnieuw.
 
 ---
 
@@ -58,7 +93,11 @@ Staat er iets op FOUT, dan begint test 4 niet. En:
 
 Elk via de **echte** weg aangemaakt — dat test reis 1 meteen mee. De
 eigenaar typt elk wachtwoord en drukt elke Join; Claude doet de rest.
-Wegwerp-mailboxen werken. De codes worden PSM0021 en verder.
+Wegwerp-mailboxen werken. De codes worden **PSM0023** en verder (PSM0022
+is het factuurtest-account van de eigenaar). **Sinds plak 187 ligt de
+code vast bij het uitnodigen** — het uitnodigscherm toont "PSM00xx
+reserved for them"; controleer dat de klant na het aanmelden precies die
+code heeft.
 
 | # | rol | plan / community | taal | wallet | ad account (type) | wat dit account bewijst |
 |---|---|---|---|---|---|---|
@@ -68,7 +107,8 @@ Wegwerp-mailboxen werken. De codes worden PSM0021 en verder.
 | **T4-N** | adverteerder | **NSA**-community (5%) | EN | EUR | **Meta-HK-Premium** (handmatig) | de community-fee op elk scherm; de HK-bankroute bij de top-up |
 | **T4-F** | affiliate | — | EN | EUR + USD | — | link, referral, commissie, uitbetaling in beide valuta |
 | **T4-R** | adverteerder via de link van T4-F | Flex | EN | EUR | Meta-EU-PSM-GH (handmatig) | attributie, commissie op top-up én op plan, clawback bij terugboeking |
-| **T4-V** | teamlid (viewer) van T4-A | — | EN | — | — | meekijken: ziet alles van T4-A, kan niets dat geld verplaatst |
+| **T4-V** | teamlid van T4-A, **zonder** rechten | — | EN | — | — | meekijken: ziet alles van T4-A, kan niets dat geld verplaatst |
+| **T4-W** | teamlid van T4-A, **met** Exchange + Fund | — | EN | — | — | rechten per lid (plak 184): precies de aangevinkte knoppen werken, de rest niet — ook niet op de server |
 | **T4-U** | affiliate die óók wil adverteren | — | EN | — | — | de "Advertise with us too"-route naar een adverteerdersdashboard |
 | **T4-0** | adverteerder **zonder** plan | — | EN | EUR | — | de lege staten: geen plan, aanvragen geblokkeerd, wat er dan staat |
 
@@ -98,6 +138,14 @@ verandert), ook als je er maar één echt uitvoert.
 - **Randen:** verlopen uitnodiging; e-mail die al een account heeft;
   bevestigingsmail opnieuw (wacht-teller); wachtwoord < 12 tekens;
   "wachtwoord vergeten" → herstellink → nieuw wachtwoord.
+- **Klantcode vast:** na "Create invite" staat er "PSM00xx reserved for
+  them"; twee uitnodigingen achter elkaar krijgen twee verschillende
+  codes; opnieuw uitnodigen naar hetzelfde adres houdt dezelfde code;
+  na aanmelden heeft de klant exact die code (`invitations.client_code`
+  = `advertisers.tenant_client_code`).
+- **Factuurmail bij aanmelden:** wie met een plan binnenkomt krijgt
+  meteen de eerste factuur + een mail **met de pdf als bijlage**, binnen
+  enkele seconden (`notification_emails.sent_at`).
 - **Database:** `advertisers` (code, tenant), `subscriptions` (plan,
   bedrag, status), `advertiser_plans`, `wallets` (2 rijen per klant),
   `user_profiles.locale`.
@@ -112,6 +160,9 @@ uitvoeren:
   van "sep."? Noteer het in één regel; fixen hoort bij een later rondje,
   tenzij het een knop onleesbaar maakt;
 - terug naar EN, herladen: blijft het EN?
+- **beheerkant, 2 minuten:** Manual → taal Nederlands (met de hand
+  geschreven) en één andere taal (bv. Polski): de eerste keer "Downloading
+  the … language pack", daarna het hele handboek vertaald.
 
 Bewust Engels (geen fout): top-up, exchange, wallet, ad account, fee,
 referral, Pay now; de factuur-pdf, de e-mails, partnerbeschrijvingen,
@@ -193,8 +244,13 @@ de beheerkant.
   180 — dat ging één keer mis).
 - **Beheer:** een abonnement maken zónder plan → geweigerd met de
   lijst plannen; met plan → bedrag past bij het plan.
-- **Facturen-pdf:** downloaden, en (zodra Drive gekoppeld is) staat de
-  pdf in `Facturen/<jaar>/<maand>/`.
+- **Facturen-pdf:** downloaden, en de pdf staat na betaling in
+  `Facturen/<jaar>/<maand>/` op Drive (nacht, R17).
+- **De mail heeft de pdf als bijlage**: bij de nachtelijke factuur én via
+  de knop **Email** op /invoices (beheer). Een betaalde factuur gemaild
+  = de "paid"-versie. Een geannuleerde factuur: knop weg.
+- **Geen telefoonnummer** in een mail; onderaan alleen "Ask us in your
+  WhatsApp group".
 
 ### R9 — Affiliate (T4-F, T4-R)
 
@@ -210,6 +266,10 @@ de beheerkant.
   bankgegevens; intrekken; beheer betaalt uit met kenmerk / weigert met
   reden.
 - **Export** (CSV) met de periodefilter.
+- **Affiliate per community** (plak 188): Settings → Plans & Communities
+  → op de NSA-kaart "Affiliate program: Off". T4-N ziet dan geen "Earn"
+  en geen aanmeldknop meer; een directe aanroep van de aanmelding wordt
+  geweigerd ("not available on your plan"). Daarna weer **On** zetten.
 
 ### R10 — Ook adverteren (T4-U)
 
@@ -217,14 +277,21 @@ de beheerkant.
   na herladen een adverteerdersdashboard, met link en verdiensten
   intact. Eén keer weigeren met reden.
 
-### R11 — Team (T4-A eigenaar, T4-V viewer)
+### R11 — Team (T4-A eigenaar, T4-V zonder rechten, T4-W met rechten)
 
-- T4-A → Team → nodig een collega uit → link kopiëren → T4-V meldt
-  zich aan met die link.
+- T4-A → Team → nodig twee collega's uit → T4-V en T4-W melden zich aan.
+  De aanmeldpagina zegt "you are joining PSM00xx's team" en vraagt niet
+  naar een referral.
+- **Team-scherm:** eerst op een lid klikken, dan pas zijn instellingen
+  (accordeon). Per recht een schakelaar: Top up, Exchange, Fund an ad
+  account, Request an ad account, Withdraw from an ad account, Pay
+  invoices, Company details.
+- **T4-W:** zet Exchange en Fund aan. T4-W kan precies die twee; de
+  andere knoppen zijn er niet of zeggen waarom.
 - **T4-V ziet:** de saldi, ad accounts, facturen en het rapport van
-  T4-A, met de banner "alleen lezen".
+  T4-A; in het avatarmenu "Team member · PSM00xx".
 - **T4-V kan niet:** top-up, exchange, funden, aanvragen, betalen, het
-  team wijzigen. Elke knop zegt waarom.
+  team wijzigen.
 - **En op de server:** een directe aanroep van een geldactie als
   viewer moet geweigerd worden (niet alleen een verborgen knop).
 - T4-A haalt T4-V weg → T4-V ziet niets meer van T4-A. Een
@@ -254,7 +321,9 @@ de beheerkant.
 
 ### R15 — Eigenaarsschermen
 
-- Supplier-tegoed (RockAds, Falkyn, Wise) — Slash verborgen.
+- "What we hold" op het dashboard: RockAds, Falkyn, **Bestads**, Wise,
+  **Slash** (ZANEL, het credit-saldo — op 01-10 $2,669.95). Tijdens het
+  laden staan ze er alle vijf als skelet; geen "synced just now".
 - RockAds-reconciliatie (`/api/supplier-recon`): erin, eruit, 2%,
   DST, afwijkende tarieven.
 - Een ad account koppelen aan een RockAds-account; de naam neemt over.
@@ -268,8 +337,12 @@ de beheerkant.
 - `npm run backup:verify -- <zip>` → "Alles klopt", exit 0.
 - Run `/api/cron/invoice-drive` → elke betaalde factuur van T4 staat in
   de juiste maandmap; `invoices.drive_file_id` gevuld.
-- **Oefening A** uit `docs/RESTORE_DRILL.md` (de zip), en plan
-  oefening B (herstel naar een nieuw project).
+- **In de zip** (sinds 01-10): `schema.sql` (plak 190 — het hele
+  schema), `NOODPLAN.md` en `docs/` (RESTORE_DRILL, RUNBOOK, …), naast
+  tables/, auth/, storage/ en manifest.json. Geen `schema-ONTBREEKT.txt`.
+- **Oefening A** uit `docs/RESTORE_DRILL.md` (de zip) is gedaan op 01-10.
+  Oefening B (PITR naar een nieuw project) is niet nodig voor test 4;
+  plan hem voor de eerste grote groep klanten (zie NOODPLAN §3).
 
 ### R17 — De nacht (de dag erna)
 
@@ -278,7 +351,7 @@ de beheerkant.
 - `npm run ochtend && npm run rondje`, en de telling uit
   `RESTORE-DRILL-TELLING.sql`: regel 6 nog **0**.
 
-### R18 — Wat een klant NIET mag zien (doorlopend, bij elke reis)
+### R18 — Wat een klant NIET mag zien (doorlopend, bij elke reis; zie ook R20)
 
 Bij elk klantscherm (alle T4-accounts behalve beheer):
 
@@ -289,7 +362,81 @@ Bij elk klantscherm (alle T4-accounts behalve beheer):
 - Een klant kan via de URL (`?view=...`, een id van een ander) niets
   van een andere klant openen.
 
+### R19 — De beheertools van 01-10 (eigenaar + een gewone admin)
+
+- **Bankknop** (bankicoon rechtsboven, elke admin): elke bank × valuta
+  open; elk gegeven kopieert; klant kiezen → naam en code in het bericht;
+  "Open WhatsApp" opent met de tekst. Het bericht noemt **geen**
+  leverancier of accounttype.
+- **Bestads-saldo** (Owner → Supplier balance): + Add entry voor elke
+  soort (We sent met EUR → koers en wisselgat; Client top-up met klant uit
+  de lijst; Fee; DST; Correction ±). Een **correctie door een gewone
+  admin** wacht bovenaan → de eigenaar keurt goed / wijst af met reden →
+  pas dan telt hij. End balance invullen → "Matches" of "Check ±$x".
+  Een top-up in de app op een Bestads-account (T4-N) verschijnt vanzelf
+  als "App"-regel, met "our fee" erbij.
+- **Rooster** (More → Schedule): eigenaars staan er niet op. Gewone admin:
+  My preferences opslaan. Eigenaar: Auto-fill → diensten volgens de
+  voorkeuren, gaten rood; Copy last week; Lock until → een gewone admin
+  kan die dagen niet meer wijzigen; roostermaker en urenkijker kiezen.
+  Mobiel: dagstrook met stippen.
+- **On now** onder "Welcome back" zodra er een dienst loopt.
+- **Uren**: "Hours this week" alleen voor eigenaars en de gekozen admin;
+  een gewone admin ziet het blok niet (en de tabel is niet leesbaar uit
+  de browser).
+- **Handboek**: 18 hoofdstukken; een gewone admin ziet de vier
+  eigenaarshoofdstukken niet.
+- **Partners** (beheer): een partner toevoegen met icoon, verbergen,
+  verwijderen (twee klikken); de klant ziet de tegel meteen.
+
+### R20 — De lekcontrole: wat een klant nooit mag zien
+
+Eén keer helemaal, met een adverteerder (T4-N, HK-account), een
+adverteerder met een API-account (T4-A) en een affiliate (T4-F):
+
+- **Woorden** die nergens mogen staan — niet op het scherm, niet in de
+  JSON achter de pagina, niet in een mail, pdf, melding of export:
+  RockAds, SeamX, Falkyn, Bestads, Gradyn, Slash, Muxue (als
+  leverancier), "We pay", supplier fee, marge, en de interne typenamen en
+  afkortingen: `hk-meta-premium`, `hk-meta-business`, `eu-meta-psm`,
+  `eu-meta-psm-gh`, Meta-HK-…, Meta-EU-PSM, GH, HK.
+- **Hoe**: elk klantscherm open, DevTools → Network → elke respons
+  doorzoeken op die woorden; de mails en pdf's uit R1/R3/R8 doorzoeken.
+- **Uitkomst van de codecontrole van 01-10** staat in het logboek
+  (regel R20); wat daar gevonden is, is gefixt of staat er als open.
+
 ---
+
+### R21 — Elke schermmaat
+
+De eigenaar, 01-10: "ik zag vaak bugs op verschillende maten telefoons en
+desktop". Vijf breedtes, in het ingebouwde paneel (resize) en in Chrome:
+
+| breedte | staat voor |
+|---|---|
+| **360** | kleine Android (Samsung A-serie) |
+| **390** | iPhone 12–16 (de standaard van elke reis) |
+| **430** | grote iPhone (Pro Max / Plus) |
+| **768** | tablet / smal laptopvenster |
+| **1440** | desktop |
+
+Per breedte, voor elk KLANTscherm (dashboard, wallet, top-up-dialoog
+alle stappen, exchange, ad accounts, aanvraag, funden, terugboeken,
+billing, referrals, team, partners, help, instellingen) en de
+belangrijkste BEHEERschermen (dashboard, wallet topups, ad-account
+topups, aanvragen, invoices, supplier balance, schedule, manual):
+
+- **geen zijwaartse scroll** van de pagina: `document.documentElement.scrollWidth`
+  mag niet groter zijn dan de breedte — Claude meet dit per scherm met
+  één script;
+- **geen afgekapte knop of bedrag**, geen tekst over een andere heen;
+- **elke dialoog past**: de knoppen onderaan zijn bereikbaar, ook met het
+  toetsenbord open; sluiten kan altijd;
+- **de onderbalk** (mobiel) bedekt geen knop of laatste regel;
+- **tabellen** scrollen binnen hun kader, niet de hele pagina.
+
+Een vondst is een BLOKKER als een knop met geld onbereikbaar of
+onleesbaar wordt, anders HINDERLIJK.
 
 ## Volgorde
 
@@ -302,9 +449,9 @@ Bij elk klantscherm (alle T4-accounts behalve beheer):
 5. R11 (team).
 6. R14, R15 (beheer) — grotendeels al gelopen als tweede tab bij de
    reizen hierboven; hier de rest.
-7. R16 (backups), en de volgende ochtend R17.
+7. R19 (beheertools), R16 (backups), en de volgende ochtend R17.
 8. R2: de supersnelle NL-check (max 10 minuten).
-9. R18 loopt de hele tijd mee.
+9. R18 loopt de hele tijd mee; R20 en R21 elk één keer helemaal, aan het eind.
 
 ## Wat test 4 klaar maakt
 
@@ -328,6 +475,7 @@ eigenaar nodig is).
 | R1 | T4-V | EN | | | | |
 | R1 | T4-U | EN | | | | |
 | R1 | T4-0 | EN | | | | |
+| R1 | T4-W | EN | | | | |
 | R2 | T4-B (snelle check) | NL | | | | |
 | R3 | T4-A EUR | EN | | | | |
 | R3 | T4-B USD | EN | | | | |
@@ -356,3 +504,6 @@ eigenaar nodig is).
 | R16 | eigenaar | | | | | |
 | R17 | de nacht | | | | | |
 | R18 | doorlopend | | | | | |
+| R19 | beheertools | EN | | | | |
+| R20 | lekcontrole | EN | | | | |
+| R21 | schermmaten 360/390/430/768/1440 | EN | | | | |

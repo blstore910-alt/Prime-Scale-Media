@@ -20,6 +20,7 @@ const LABELS: Record<string, string> = {
   ad_account_topup: "Ad-account top-up",
   ad_account_request: "Ad-account request",
   fee: "Fee",
+  dst: "Digital services tax",
   refund: "Refund",
 };
 

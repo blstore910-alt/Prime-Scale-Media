@@ -125,12 +125,14 @@ type AccountDetailsRow = Partial<AdAccount> & {
  */
 function networkLabel(slug?: string | null): string {
   const group = platformGroupFromSlug(String(slug ?? ""));
+  // Zonder "Premium": dat woord zit ook in de interne typenamen
+  // (Meta-HK-Premium). Lekcontrole 01-10.
   return group === "meta"
-    ? "Meta Premium"
+    ? "Meta"
     : group === "google"
-      ? "Google Premium"
+      ? "Google"
       : group === "tiktok"
-        ? "TikTok Premium"
+        ? "TikTok"
         : "Ad account";
 }
 
@@ -399,7 +401,10 @@ export function AccountDetailsSheet({
                         werk al -- en zonder glyph past de pil beter
                         naast de accountnaam op een telefoon. */}
                     <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-white/[0.16] px-2.5 py-1 text-[0.7rem] font-semibold tracking-wide ring-1 ring-white/25 backdrop-blur-sm">
-                      {isAdvertiser
+                      {/* Het interne label alleen voor een admin; zolang het
+                          profiel nog laadt is de kijker onbekend, dus de
+                          netwerknaam. */}
+                      {!isAdmin
                         ? networkLabel(data.platform)
                         : (PLATFORMS.find((p) => p.value === data.platform)
                             ?.label ??

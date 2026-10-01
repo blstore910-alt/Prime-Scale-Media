@@ -192,9 +192,10 @@ export const bankInstructions: Record<BankGroup, BankGroupConfig> = {
     routes: "Meta-EU-PSM-GH",
     accounts: {
       USD: {
-        account_name: "ZANEL ENTERPRISE — USD (Slash / Column N.A.)",
+        // Geen "Slash": dat is onze bankleverancier, de klant ziet dit.
+        account_name: "ZANEL ENTERPRISE — USD (Column N.A.)",
         description:
-          "Send a domestic or international wire, ACH, or FedNow transfer in USD to ZANEL ENTERPRISE’s Slash account (held with Column N.A.).",
+          "Send a domestic or international wire, ACH, or FedNow transfer in USD to ZANEL ENTERPRISE’s account at Column N.A.",
         sections: [
           {
             title: "Beneficiary details",

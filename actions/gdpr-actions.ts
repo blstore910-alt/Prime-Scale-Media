@@ -1,5 +1,6 @@
 "use server";
 
+import { customerPlatformName } from "@/lib/pure-platform-badge";
 import { adminOnlyNotificationTypes } from "@/lib/notification-catalog";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
@@ -136,6 +137,9 @@ export async function exportOwnData(): Promise<
       "id, email, role, status, created_at, expires_at",
   };
 
+  const metNetwerk = (rows: unknown[]) =>
+    (rows as Record<string, unknown>[]).map((r) => ({ ...r, platform: customerPlatformName(r.platform) ?? "Ad account" }));
+
   async function ownedBy(table: string, column: string, ids: string[]) {
     if (ids.length === 0) return [];
     const cols = EXPORT_COLUMNS[table];
@@ -265,8 +269,10 @@ export async function exportOwnData(): Promise<
       // empty array is a statement about THEIR data ("you have none") and
       // that statement would be false — the commissions exist, they are
       // just not theirs. The note below says so plainly instead.
-      ad_account_requests: adAccountRequests,
-      ad_accounts: adAccounts,
+      // platform is de interne typeslug (hk-meta-premium); de klant krijgt
+      // de netwerknaam. Lekcontrole 01-10.
+      ad_account_requests: metNetwerk(adAccountRequests),
+      ad_accounts: metNetwerk(adAccounts),
       notifications,
       invitations,
       // Accurate, and now complete: it did not mention the third party's

@@ -4,7 +4,18 @@ uitkomst heeft. Zeg in een zin waar je begint, en begin dan.
 
 WAT TEST 4 IS: dezelfde reizen als test 3, maar over elke soort
 account (API en handmatig, EUR en USD, elk plan, NSA, geen plan), elke
-rol (adverteerder, affiliate, teamlid, eigenaar). Alles in het
+rol (adverteerder, affiliate, teamlid met en zonder rechten, eigenaar,
+gewone admin), plus de beheertools van 01-10 (R19: bankknop,
+Bestads-saldo, rooster, uren, handboek, partners), de lekcontrole (R20)
+en elke schermmaat (R21: 360, 390, 430, 768, 1440).
+
+ELKE VONDST IS EEN VAN DRIE (zie bovenaan TEST_4.md):
+  BLOKKER    geld klopt niet, lek van leverancier/type/marge, data van
+             een ander, dode geldknop, doodlopende reis -> meteen fixen,
+             reis opnieuw. Live gaat pas met NUL open blokkers.
+  HINDERLIJK tekst, lege staat, vertaling -> fixen als het snel kan,
+             anders op de lijst in het logboek
+  WENS       -> docs/NEXT_SESSION_FIRST.md, niet nu Alles in het
 Engels. Nederlands alleen als SUPERSNELLE check aan het eind (R2, max
 tien minuten, alleen kijken) -- geen tijd aan besteden. Elke TAK minstens een keer, op het account waar hij van nature
 voorkomt. Een reis is binair: werkt of werkt niet.
@@ -49,7 +60,8 @@ LAAG 0 EERST, ELKE OCHTEND:
 Staat er iets op FOUT, of is regel 6 niet 0, dan begint er geen reis.
 
 PER REIS:
-  1. openen op 390px in het juiste venster, in het Engels
+  1. openen op 390px in het juiste venster, in het Engels; elke dialoog
+     die geld beweegt ook even op 360px (de kleinste telefoon)
   2. ELKE TAK van elke dialoog: elke keuze, Next, Back, kijken wat er
      verandert -- pas dan een echt uitvoeren
   3. het bedrag op het scherm tegen de database (npm run check)
@@ -67,11 +79,13 @@ PUSHEN per account gebundeld, niet per fix. Iets kapots gaat meteen.
 Een NIEUWE route, pagina of server action: eerst npx next build
 lokaal. Alleen `git push origin feat/redesign-advertiser:main`.
 
-DE VIER DINGEN WAAR JE NAAR KIJKT, en niet meer:
+DE VIJF DINGEN WAAR JE NAAR KIJKT, en niet meer:
   - een cijfer boven een lees die niet aankwam
   - een lijst die stil is afgekapt
   - een knop die niets doet
   - een lege staat boven echte rijen
+  - een pagina die opzij scrollt of een knop die van het scherm valt
+    (meet: document.documentElement.scrollWidth > innerWidth)
 
 GEEN "WAARSCHIJNLIJK". Lees de code of vraag mij een SQL. Een
 zelfverzekerde 0 boven een mislukte lees is een fout.

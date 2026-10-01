@@ -1,5 +1,6 @@
 "use server";
 
+import { accountNameProblem } from "@/lib/pure-account-name";
 import { feeIsAPrice, isTenantOwner } from "@/actions/_fee-is-a-price";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { wroteSomething } from "./_shared";
@@ -295,6 +296,11 @@ export async function createAdAccountAsAdmin(
   //
   // A read that FAILS is not a clean name. Refusing costs one retry;
   // proceeding costs an ambiguity nobody can unpick afterwards.
+  // De klant ziet de naam: geen HK, GH of leverancier erin (lekcontrole 01-10).
+  {
+    const probleem = accountNameProblem(String(cleaned.name ?? ""));
+    if (probleem) return { ok: false, error: probleem, code: "invalid" };
+  }
   {
     const wanted = String(cleaned.name ?? "").trim();
     if (wanted) {
@@ -426,6 +432,10 @@ export async function updateAdAccountAsAdmin(
   const cleaned: Record<string, unknown> = {};
   for (const col of AD_ACCOUNT_UPDATE_ALLOWED) {
     if (col in payload) cleaned[col] = payload[col];
+  }
+  if ("name" in cleaned) {
+    const probleem = accountNameProblem(String(cleaned.name ?? ""));
+    if (probleem) return { ok: false, error: probleem, code: "invalid" };
   }
   // Number(), not typeof: the create path coerces and this did not, so
   // a string "500" skipped the bound entirely and "-5" skipped BOTH the
@@ -1228,7 +1238,10 @@ export async function createAdAccountFromRequest(
     payload: {
       ad_account_id: created.data.id,
       account_name: accountInput.name ?? null,
-      platform: accountInput.platform ?? null,
+      // GEEN platform: dat is de interne typeslug (eu-meta-psm,
+      // hk-meta-premium) en de klant leest zijn eigen meldingsrij -- dan
+      // stond hij in de JSON achter de pagina. Niets las hem. Lekcontrole
+      // 01-10.
     },
   });
   return { ...created, warning: notifyWarning };

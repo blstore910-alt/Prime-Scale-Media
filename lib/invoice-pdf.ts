@@ -692,8 +692,12 @@ export const INVOICE_DOC_CSS = `
     const amount =
       toNumber(item.amount) > 0 ? toNumber(item.amount) : net + tax;
     const itemType = compactText(item.name).toLowerCase() || invoiceTypeKey;
+    // Een DST-regel heeft alleen een description (dst_charge_invoice);
+    // zonder die terugval stond er "Dst" op de pdf.
     const baseDescription =
-      formatLabel(item.name ?? invoiceTypeKey) || "Line item";
+      (item.name
+        ? formatLabel(item.name)
+        : compactText((item as { description?: string | null }).description) || formatLabel(invoiceTypeKey)) || "Line item";
     const itemDetails: string[] = [];
 
     if (itemType === "wallet_topup") {
