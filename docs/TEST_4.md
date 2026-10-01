@@ -92,7 +92,7 @@ die elke klant kon lezen.
 
 **Stand 01-10 avond — Blok 0 DICHT:**
 
-- L1 dicht: plak 192 (my_ad_accounts) + code; klanten lezen ad_accounts niet meer.
+- L1: plak 192 sloot hem, maar zes serverpaden lazen de tabel nog als klant (fee-offerte brak) -> plak 197 zette de regels terug. Code 95287ad2 leest nu via de view of met de service-sleutel na een eigendomscheck; **plak 198 sluit hem weer — open tot hij geplakt en gecontroleerd is.**
 - L2 dicht: een bundel per rol (components/role-split), typelijsten, MUXUE en
   het eigenaarshandboek naar beheerbestanden.
 - L3 bewust geaccepteerd: de leveranciersvelden bij terugboekingen zijn leeg en
@@ -510,7 +510,7 @@ eigenaar nodig is).
 | R1 | T4-0 | EN | | | | |
 | R1 | T4-W | EN | | | | |
 | R2 | T4-B (snelle check) | NL | | | | |
-| R3 | T4-A EUR | EN | | | | |
+| R3 | T4-A EUR | EN | werkt | alle dialoogtakken (EUR/USD wallet x EUR/USD/GBP/HKD), herontwerp in 4 rondes; Verify door Lasse | wallet_topups 500 EUR completed; wallet EUR 0.00 -> 500.00; ledger 1 regel +500.00 (0.00 -> 500.00, actor); melding wallet_topup_completed | herontwerp topup (263db364 .. 14a7d9fa); kopieerknop in dialoog (7022c035); Other amount/Precharge naar Details (66d36cee). Open: reject-met-reden en Other amount (twee admins) nog te lopen |
 | R3 | T4-B USD | EN | | | | |
 | R3 | T4-N HK | EN | | | | |
 | R4 | T4-A / T4-B | | | | | |
