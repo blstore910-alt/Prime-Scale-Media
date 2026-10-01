@@ -7,14 +7,18 @@ deze volgorde, één voor één.
 |---|---|---|
 | 1 | UptimeRobot meldde down | ✅ vals alarm: /api/health las met de anon-sleutel; gefixt, 200 |
 | 2 | Plans & Communities + Ad-account types: onduidelijk | ✅ kaarten met kleur, labels, leveranciersblok met marge |
-| 3 | Factuurmail testen met het eigen adres van de eigenaar | ⏳ nodig: een uitnodiging naar een eigen adres (plus-alias), plan erop, aanmelden |
-| 4 | Bestads (= leverancier Muxue, Meta-HK) op het dashboard + dagelijkse reconciliatie zoals de spreadsheet: begin, wat wij erheen sturen (EUR→USD of USD), klant-top-ups eraf, fees, DST, verwacht eind, echt eind, verschil, status, notities | ⏳ high -- nieuwe tabel (plak) + scherm |
-| 5 | Affiliateprogramma per community aan/uit met één knop (bv. heel NSA uit) | ⏳ |
+| 3 | Factuurmail testen met het eigen adres van de eigenaar | ✅ PSM0022 (baris0546+psmtest@hotmail.com, Flex): factuur 149 EUR 75, mail 3 s na aanmelden ontvangen. Sinds cb385575 met de pdf als bijlage -- nog niet in een echte mail gezien (de volgende factuurmail) |
+| 4 | Bestads (= leverancier Muxue, Meta-HK) op het dashboard + dagelijkse reconciliatie zoals de spreadsheet: begin, wat wij erheen sturen (EUR→USD of USD), klant-top-ups eraf, fees, DST, verwacht eind, echt eind, verschil, status, notities | ✅ /supplier-ledger: alle regels in een lijst met klant en naam, + Add entry met klantenlijst, eindsaldo, correcties wachten op een super admin, wisselgat. Plakken 185/186 |
+| 5 | Affiliateprogramma per community aan/uit met één knop (bv. heel NSA uit) | ✅ knop op elke plankaart; plak 188 (server weigert ook) |
 | 6 | Alle e-mailtemplates "super wow" | ⏳ |
-| 7 | Rooster voor medewerkers: tijdblokken, dagen, voorkeuren; AI vult in en past aan; vastzetten voor weken/maanden; één admin maakt het | ⏳ groot |
-| 8 | Wie er NU live hoort te zijn (uit het rooster): klein en subtiel bovenaan het dashboard | ⏳ na 7 |
-| 9 | Inlog-uren en activiteit per admin bijhouden (in/uit, actieve tijd) -- alleen super-admin (en eventueel één admin) | ⏳ na 7 |
+| 7 | Rooster voor medewerkers: tijdblokken, dagen, voorkeuren; AI vult in en past aan; vastzetten voor weken/maanden; één admin maakt het | ✅ /schedule: week, blokken, Auto-fill uit voorkeuren (regels, geen AI -- er is geen API-sleutel), vorige week kopieren, slot tot datum, roostermaker. Plak 189 |
+| 8 | Wie er NU live hoort te zijn (uit het rooster): klein en subtiel bovenaan het dashboard | ✅ "On now" onder de begroeting |
+| 9 | Inlog-uren en activiteit per admin bijhouden (in/uit, actieve tijd) -- alleen super-admin (en eventueel één admin) | ✅ Hours op /schedule: actieve minuten (hartslag), gepland, eerst/laatst gezien, acties uit audit -- alleen eigenaars + gekozen admin |
 | 10 | Admin- en super-admin-handboek 10x duidelijker, voor iemand die met nul kennis begint: wat, waarom, hoe, de workflow, de wachtrijen op de homepage -- met een taalkiezer voor heel veel talen | ⏳ |
+
+Ook op 01-10 erbij gekomen en klaar: klantcode vast bij uitnodigen
+(plak 187), bankgegevens-knop met WhatsApp-bericht voor elke admin, en de
+knop in mails Outlook-proof (Word negeerde padding op een link).
 
 ---
 
