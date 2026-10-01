@@ -4156,7 +4156,7 @@ export default function AdvertiserApp() {
                     style={{ justifyContent: "space-between", cursor: "default" }}
                   >
                     <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-                      <Ic name="i-msg" /> {t("label.language")}
+                      <Ic name="i-globe" /> {t("label.language")}
                     </span>
                     <LanguageSwitcher compact />
                   </div>
