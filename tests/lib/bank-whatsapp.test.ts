@@ -16,10 +16,10 @@ test("TURLIT EUR: IBAN en BIC staan erin, de SEPA-uitleg niet", () => {
 });
 
 test("het bericht noemt de klant, de referentie-stap, en nooit een leverancier of type", () => {
-  for (const g of ["turlit", "zanel", "muxue"] as const) {
-    for (const [cur, acc] of Object.entries(bankInstructions[g].accounts)) {
+  for (const g of ["turlit", "zanel"] as const) {
+    for (const [cur, acc] of Object.entries(bankInstructions[g]!.accounts)) {
       const t = bankWhatsAppText({
-        beneficiary: bankInstructions[g].beneficiary,
+        beneficiary: bankInstructions[g]!.beneficiary,
         currency: cur,
         sections: acc!.sections,
         clientCode: "PSM0022",

@@ -16,10 +16,11 @@ import { GUIDE_NL } from "../../components/guide/customer-guide-nl";
  * customer-guide-no-leak.test.ts: dat bestand importeert lucide-iconen,
  * en die lopen niet onder node:test.
  */
-const SRC = fs.readFileSync("components/admin/manual-content.ts", "utf8");
+// Sinds de lekcontrole van 01-10 in een eigen bestand (de klant laadt het).
+const SRC = fs.readFileSync("components/admin/manual-customer.ts", "utf8");
 
 function secties(naam: string) {
-  const start = SRC.indexOf(`const ${naam}: Section[] = [`);
+  const start = SRC.indexOf(`export const ${naam}: Section[] = [`);
   const eind = SRC.indexOf("\n];", start);
   const tekst = SRC.slice(start, eind).replace(/^\s*\/\/.*$/gm, "");
   return tekst

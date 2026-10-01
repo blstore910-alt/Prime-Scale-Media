@@ -2,7 +2,7 @@
 // lib/bank-beneficiaries.ts gehaald (lekcontrole 01-10): dat bestand laadt
 // ook bij de klant, en er gaat niets meer naar MUXUE.
 
-import { bankInstructions } from "@/lib/bank-beneficiaries";
+import { bankInstructions, type BankGroup, type BankGroupConfig } from "@/lib/bank-beneficiaries";
 
 const MUXUE = {
   muxue: {
@@ -94,4 +94,4 @@ const MUXUE = {
 };
 
 /** Alle bankgegevens inclusief MUXUE, voor beheerschermen. */
-export const bankInstructionsAdmin = { ...bankInstructions, ...MUXUE } as typeof bankInstructions;
+export const bankInstructionsAdmin: Record<BankGroup, BankGroupConfig> = { ...bankInstructions, ...MUXUE };

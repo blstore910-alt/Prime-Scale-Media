@@ -288,7 +288,10 @@ export const ADV_CSS = `
     radial-gradient(110% 90% at 100% 100%,rgba(139,92,246,.3),transparent 56%),
     linear-gradient(160deg,#04050E,#07161f 55%,#0e2a33)}
   .wallet .wsh{position:absolute;top:-45%;right:-12%;width:60%;height:170%;
-    background:radial-gradient(circle,rgba(255,255,255,.14),transparent 62%);pointer-events:none}
+    /* closest-side: de glans vloeit uit vóór de rand van zijn vlak. Met
+       "circle" stopte hij abrupt halverwege de kaart -- de eigenaar, 01-10:
+       "wallet is raar, letterlijk 2 vlakken". */
+    background:radial-gradient(closest-side,rgba(255,255,255,.14),transparent);pointer-events:none}
   .wallet .wl{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.85;position:relative}
   .wallet .wv{font-family:var(--hd);font-weight:800;font-size:2.5rem;letter-spacing:-.02em;margin:6px 0 2px;position:relative}
   .wallet .wl{opacity:1;color:rgba(255,255,255,.6)}

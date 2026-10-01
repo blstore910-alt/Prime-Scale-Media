@@ -30,8 +30,9 @@ import {
   CUSTOMER_GUIDES,
   type Note,
   type Section,
-} from "@/components/admin/manual-content";
+} from "@/components/admin/manual-customer";
 import { useT } from "@/hooks/use-t";
+import { LANGUAGES, RTL_LANGUAGES, useBrowserTranslate } from "@/hooks/use-browser-translate";
 import type { Locale } from "@/lib/i18n";
 import { GUIDE_HEAD_NL, GUIDE_NL } from "./customer-guide-nl";
 
@@ -106,16 +107,24 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){
   .cguide .cg-chev,.cguide .cg-item{transition:none}
 }
+.cguide .cg-lang{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
+.cguide .cg-lang select{height:36px;border-radius:10px;border:1px solid var(--line,#e3e8f4);
+  background:var(--surface,#fff);color:inherit;padding:0 10px;font-weight:700;font-size:.85rem}
+.cguide .cg-lang-st{font-size:.78rem;color:var(--muted,#6b7280)}
+.cguide .cg-lang-btn{height:36px;border-radius:10px;border:0;padding:0 14px;font-weight:800;
+  font-size:.85rem;background:var(--primary-600,#3a6fff);color:#fff;cursor:pointer}
 `;
 
 function Hoofdstuk({
   s,
   open,
   onToggle,
+  tt = (x: string) => x,
 }: {
   s: Section;
   open: boolean;
   onToggle: () => void;
+  tt?: (x: string) => string;
 }) {
   const Icon = s.icon;
   return (
@@ -130,7 +139,7 @@ function Hoofdstuk({
           <Icon />
         </span>
         <span className="cg-tt">
-          <b>{s.title}</b>
+          <b>{tt(s.title)}</b>
           {/* Het PAD, zodat de lezer weet waar hij moet drukken zonder
               het hele hoofdstuk te lezen. */}
           <span>{s.path}</span>
@@ -139,10 +148,10 @@ function Hoofdstuk({
       </button>
       {open ? (
         <div className="cg-body">
-          <p className="cg-intro">{s.intro}</p>
+          <p className="cg-intro">{tt(s.intro)}</p>
           <ol>
             {s.steps.map((st, i) => (
-              <li key={i}>{st}</li>
+              <li key={i}>{tt(st)}</li>
             ))}
           </ol>
           {s.notes && s.notes.length > 0 ? (
@@ -153,8 +162,8 @@ function Hoofdstuk({
                   className="cg-note"
                   style={{ background: TONE[n.tone].bg, color: TONE[n.tone].fg }}
                 >
-                  <b>{n.label}</b>
-                  {n.text}
+                  <b>{tt(n.label)}</b>
+                  {tt(n.text)}
                 </div>
               ))}
             </div>
@@ -176,13 +185,46 @@ export default function CustomerGuideView({
   // op een telefoon weer de muur tekst die dit moest vermijden.
   const [open, setOpen] = useState<string | null>(null);
 
+  // ── EEN TAALKIEZER, ZOALS IN HET HANDBOEK VAN DE MEDEWERKERS ──────
+  // De eigenaar, 01-10: "bij customer moet er ook zo'n language selector
+  // bij get help". Engels en Nederlands staan erin (NL volgt de taal van
+  // de app); elke andere taal vertaalt de browser.
+  const teksten = guide.sections.flatMap((x) => [x.title, x.intro, ...x.steps, ...(x.notes ?? []).flatMap((n) => [n.label, n.text])]);
+  const vt = useBrowserTranslate(teksten, "psm.help.lang", ["en", "nl"]);
+  const keuze = vt.lang === "en" && locale === "nl" ? "nl" : vt.lang;
+  const bronTaal: Locale = keuze === "nl" ? "nl" : "en";
+  const tt = keuze === "en" || keuze === "nl" ? (x: string) => x : vt.tt;
+
   return (
-    <div className="cguide">
+    <div className="cguide" lang={keuze} dir={RTL_LANGUAGES.has(keuze) ? "rtl" : "ltr"}>
       <style>{CSS}</style>
+      <div className="cg-lang">
+        <select value={keuze} onChange={(e) => vt.kies(e.target.value)} aria-label="Language">
+          {LANGUAGES.map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.label}
+            </option>
+          ))}
+        </select>
+        {vt.stand === "busy" ? (
+          <span className="cg-lang-st">
+            {vt.voortgang === 0
+              ? `Downloading the ${vt.label} language pack — only the first time…`
+              : `Translating… ${vt.voortgang}%`}
+          </span>
+        ) : vt.stand === "needsClick" && keuze !== "en" && keuze !== "nl" ? (
+          <button type="button" className="cg-lang-btn" onClick={vt.opnieuw}>
+            Translate into {vt.label}
+          </button>
+        ) : vt.stand === "unsupported" && keuze !== "en" && keuze !== "nl" ? (
+          <span className="cg-lang-st">{"Your browser can't translate this itself — right-click and choose Translate."}</span>
+        ) : null}
+      </div>
       {guide.sections.map((s) => (
         <Hoofdstuk
           key={s.id}
-          s={inTaal(s, locale)}
+          s={inTaal(s, bronTaal)}
+          tt={tt}
           open={open === s.id}
           onToggle={() => setOpen((cur) => (cur === s.id ? null : s.id))}
         />

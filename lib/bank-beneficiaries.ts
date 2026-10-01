@@ -32,7 +32,7 @@ type BankDetail = {
   sections: BankSection[];
 };
 
-type BankGroupConfig = {
+export type BankGroupConfig = {
   // Beneficiary account holder, shown in the summary.
   beneficiary: string;
   // Human label for which ad-account families route here.
@@ -42,7 +42,10 @@ type BankGroupConfig = {
   accounts: Partial<Record<TransferCurrency, BankDetail>>;
 };
 
-export const bankInstructions: Record<BankGroup, BankGroupConfig> = {
+// Zonder MUXUE (alleen nog in lib/bank-muxue-admin.ts, voor beheer): ook de
+// sleutel laadde anders bij elke klant.
+export const bankInstructions: Record<Exclude<BankGroup, "muxue">, BankGroupConfig> &
+  Partial<Record<"muxue", BankGroupConfig>> = {
   turlit: {
     beneficiary: "TURLIT LLC",
     accounts: {
@@ -259,5 +262,4 @@ export const bankInstructions: Record<BankGroup, BankGroupConfig> = {
   // MUXUE staat hier leeg: er gaat niets meer heen, en de echte gegevens
   // (met de leveranciersnaam) laadden zo in de browser van elke klant.
   // De volledige gegevens: lib/bank-muxue-admin.ts, alleen voor beheer.
-  muxue: { beneficiary: "—", accounts: {} },
 };

@@ -55,12 +55,12 @@ const CURRENCY_ORDER: TransferCurrency[] = ["USD", "EUR", "GBP", "HKD"];
 
 // The transfer currencies a bank group can receive, in canonical order.
 export function bankTransferCurrencies(group: BankGroup): TransferCurrency[] {
-  const available = bankInstructions[group].accounts;
+  const available = bankInstructions[group === "zanel" ? "zanel" : "turlit"].accounts;
   return CURRENCY_ORDER.filter((c) => available[c]);
 }
 
 export function bankBeneficiary(group: BankGroup): string {
-  return bankInstructions[group].beneficiary;
+  return bankInstructions[group === "zanel" ? "zanel" : "turlit"].beneficiary;
 }
 
 interface BankTransferInstructionsProps {
@@ -90,12 +90,12 @@ export function BankTransferInstructions({
   override = null,
 }: BankTransferInstructionsProps) {
   const { t: tr } = useT();
-  const detail = bankInstructions[group].accounts[transferCurrency];
+  const detail = bankInstructions[group === "zanel" ? "zanel" : "turlit"].accounts[transferCurrency];
 
   if (!detail) {
     return (
       <div className="rounded-md bg-yellow-50 border border-yellow-600 p-3 text-sm text-yellow-700">
-        {tr("bank.doesNotAcceptPleaseChoose", { beneficiary: String(bankInstructions[group].beneficiary), transferCurrency: String(transferCurrency) })}</div>
+        {tr("bank.doesNotAcceptPleaseChoose", { beneficiary: String(bankInstructions[group === "zanel" ? "zanel" : "turlit"].beneficiary), transferCurrency: String(transferCurrency) })}</div>
     );
   }
 

@@ -28,15 +28,20 @@ import fs from "node:fs";
  * arrays worden uit de tekst geknipt op hun eigen `const NAAM`-regel.
  */
 
-const SRC = fs.readFileSync("components/admin/manual-content.ts", "utf8");
+// Sinds de lekcontrole van 01-10 staan de klanthandboeken in een eigen bestand.
+const SRC = fs.readFileSync("components/admin/manual-customer.ts", "utf8");
+// Het eigenaarshandboek bleef bij de beheerkant.
+const SRC_BEHEER = fs.readFileSync("components/admin/manual-content.ts", "utf8");
 
 /** De tekst van `const NAAM: Section[] = [ ... ];` */
 function array(naam: string): string {
-  const start = SRC.indexOf(`const ${naam}: Section[] = [`);
-  assert.ok(start >= 0, `${naam} niet gevonden in manual-content.ts`);
-  const eind = SRC.indexOf("\n];", start);
+  const klant = SRC.indexOf(`export const ${naam}: Section[] = [`);
+  const bron = klant >= 0 ? SRC : SRC_BEHEER;
+  const start = klant >= 0 ? klant : SRC_BEHEER.indexOf(`const ${naam}: Section[] = [`);
+  assert.ok(start >= 0, `${naam} niet gevonden`);
+  const eind = bron.indexOf("\n];", start);
   assert.ok(eind > start, `einde van ${naam} niet gevonden`);
-  return SRC.slice(start, eind);
+  return bron.slice(start, eind);
 }
 
 /** Commentaar weg: een uitleg MAG de leverancier noemen, klanttekst niet. */

@@ -4426,11 +4426,8 @@ export default function AdvertiserApp() {
                   ? walletError
                     ? t("dash.walletReadFailed")
                     : t("dash.walletSettingUp")
-                  : !companyComplete && !companyUnknown
-                    ? companyMissing.length && companyMissing.length <= 2
-                      ? t("dash.stillNeededFirst", { fields: companyMissingText })
-                      : t("dash.companyFirst")
-                    : null
+                  // Het bedrijf: niet hier, de balk erboven zegt het.
+                  : null
               }
               loading={walletBusy}
               // ── "WELCOME BACK" ON THE FIRST VISIT EVER ────────────
@@ -4730,9 +4727,11 @@ export default function AdvertiserApp() {
                         were ready, and found the button dead one tab
                         away. The Accounts tab's own empty state already
                         gets this right; the dashboard did not. */}
-                    {requestBlockedReason()
-                      ? tr("adv.noAdAccountsYet", { v: String(requestBlockedReason()) })
-                      : tr("adv.noAdAccountsYetAsk")}
+                    {!companyComplete && !companyUnknown
+                      ? tr("label.adv.noAdAccountsYet")
+                      : requestBlockedReason()
+                        ? tr("adv.noAdAccountsYet", { v: String(requestBlockedReason()) })
+                        : tr("adv.noAdAccountsYetAsk")}
                   </p>
                 )}
               </div>
@@ -5307,11 +5306,10 @@ export default function AdvertiserApp() {
                           // Zelfde woorden als requestBlockedReason,
                           // zodat de twee knoppen niet twee dingen
                           // zeggen over dezelfde blokkade.
-                          !companyComplete && !companyUnknown
-                          ? companyMissing.length && companyMissing.length <= 2
-                            ? `Still needed first: ${companyMissing.join(" and ")}`
-                            : tr("dash.companyFirst")
-                          : undefined
+                          // EEN melding per scherm (de eigenaar, 01-10: "100
+                          // plekken add your company details"): de balk
+                          // boven de kaarten zegt het, met de knop erbij.
+                          undefined
                 }
               />
               <WalletCard
@@ -5362,11 +5360,10 @@ export default function AdvertiserApp() {
                           // Zelfde woorden als requestBlockedReason,
                           // zodat de twee knoppen niet twee dingen
                           // zeggen over dezelfde blokkade.
-                          !companyComplete && !companyUnknown
-                          ? companyMissing.length && companyMissing.length <= 2
-                            ? `Still needed first: ${companyMissing.join(" and ")}`
-                            : tr("dash.companyFirst")
-                          : undefined
+                          // EEN melding per scherm (de eigenaar, 01-10: "100
+                          // plekken add your company details"): de balk
+                          // boven de kaarten zegt het, met de knop erbij.
+                          undefined
                 }
               />
             </div>

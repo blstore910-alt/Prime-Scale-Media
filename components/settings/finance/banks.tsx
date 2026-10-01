@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { bankForTypeSlug } from "@/lib/bank-routing";
-import { bankInstructions } from "@/lib/bank-beneficiaries";
+import { bankInstructionsAdmin as bankInstructions } from "@/lib/bank-muxue-admin";
 import { builtInBankDraft, builtInCurrencies } from "@/lib/bank-builtin";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
