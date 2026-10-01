@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import useWalletTransactions from "./use-wallet-transactions";
 import WalletTransactionApproveDialog from "./wallet-transaction-approve-dialog";
+import { OtherAmountButton, ProposalStrip, useTopupProposals } from "./topup-amount-proposal";
 import WalletTransactionDetailsSheet from "./wallet-transaction-details-sheet";
 import WalletTransactionRejectDialog from "./wallet-transaction-reject-dialog";
 import PaymentSlipDialog from "./payment-slip-dialog";
@@ -293,6 +294,8 @@ export default function PsmVerifyTopups({
     null,
   );
   const [approveOpen, setApproveOpen] = useState(false);
+  // Een ander bedrag, door twee admins (plak 194).
+  const proposals = useTopupProposals();
   const [rejectOpen, setRejectOpen] = useState(false);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [prechargingId, setPrechargingId] = useState<string | null>(null);
@@ -526,6 +529,9 @@ export default function PsmVerifyTopups({
         >
           {transactions.map((t: WalletTopupWithAdvertiser) => {
             const pend = t.status === "pending";
+            const voorstel = pend
+              ? (proposals.data?.proposals ?? []).find((x) => x.topupId === t.id) ?? null
+              : null;
             return (
               <div
                 key={t.id}
@@ -727,8 +733,18 @@ export default function PsmVerifyTopups({
                   </button>
                   {pend && (
                       <>
+                        {voorstel ? (
+                          <ProposalStrip
+                            p={voorstel}
+                            me={proposals.data?.me ?? ""}
+                            claimed={Number(t.amount)}
+                            currency={String(t.currency ?? "EUR")}
+                          />
+                        ) : null}
                         <button
                           className="btn sm tupmain"
+                          disabled={!!voorstel}
+                          title={voorstel ? "Another amount is proposed — confirm or cancel that first." : undefined}
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelected(t);
@@ -737,6 +753,13 @@ export default function PsmVerifyTopups({
                         >
                           <Check /> Verify
                         </button>
+                        {!voorstel && !proposals.data?.plakNodig ? (
+                          <OtherAmountButton
+                            topupId={t.id}
+                            claimed={Number(t.amount)}
+                            currency={String(t.currency ?? "EUR")}
+                          />
+                        ) : null}
                         {/* A reason that lives only in a title attribute
                             is invisible on a phone and unreliable on a
                             disabled button -- and it named "the Advances
