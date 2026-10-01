@@ -25,7 +25,7 @@
 // hetzelfde is en hetzelfde blijft.
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Languages, Loader2 } from "lucide-react";
 import {
   CUSTOMER_GUIDES,
   type Note,
@@ -107,12 +107,32 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){
   .cguide .cg-chev,.cguide .cg-item{transition:none}
 }
-.cguide .cg-lang{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
-.cguide .cg-lang select{height:36px;border-radius:10px;border:1px solid var(--line,#e3e8f4);
-  background:var(--surface,#fff);color:inherit;padding:0 10px;font-weight:700;font-size:.85rem}
-.cguide .cg-lang-st{font-size:.78rem;color:var(--muted,#6b7280)}
-.cguide .cg-lang-btn{height:36px;border-radius:10px;border:0;padding:0 14px;font-weight:800;
-  font-size:.85rem;background:var(--primary-600,#3a6fff);color:#fff;cursor:pointer}
+/* De taalkaart: dezelfde donkere kaart als het handboek van de
+   medewerkers (de eigenaar, 01-10: "bij admin was het 10x mooier"). */
+.cguide .cg-lang{position:relative;overflow:hidden;display:grid;gap:10px;margin:0 0 14px;
+  padding:14px 16px;border-radius:16px;color:#fff;
+  background:linear-gradient(120deg,#0a0f2e,#1b2160);
+  box-shadow:0 18px 36px -24px rgba(20,30,80,.7)}
+.cguide .cg-lang::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.6;
+  background:radial-gradient(60% 120% at 0% 0%,rgba(91,141,255,.55),transparent 60%),
+    radial-gradient(50% 120% at 100% 0%,rgba(139,92,246,.5),transparent 60%)}
+.cguide .cg-lang > *{position:relative}
+.cguide .cg-lang-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cguide .cg-lang-row b{font-size:.92rem;font-weight:800}
+.cguide .cg-lang-pick{display:inline-flex;align-items:center;gap:8px;border-radius:12px;
+  padding:6px 12px;background:rgba(255,255,255,.12);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.cguide .cg-lang-pick svg{width:16px;height:16px}
+.cguide .cg-lang select{background:transparent;color:#fff;border:0;outline:0;font-weight:800;
+  font-size:.9rem;cursor:pointer}
+.cguide .cg-lang select option{color:#0a0f2e}
+.cguide .cg-lang-st{display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:600;
+  color:rgba(255,255,255,.88)}
+.cguide .cg-lang-st svg{width:14px;height:14px;animation:cgspin 1s linear infinite;flex:0 0 auto}
+@keyframes cgspin{to{transform:rotate(360deg)}}
+.cguide .cg-lang-btn{justify-self:start;display:inline-flex;align-items:center;gap:8px;height:38px;
+  border-radius:12px;border:0;padding:0 16px;font-weight:800;font-size:.86rem;
+  background:#fff;color:#0a0f2e;cursor:pointer}
+.cguide .cg-lang-btn svg{width:16px;height:16px}
 `;
 
 function Hoofdstuk({
@@ -199,22 +219,29 @@ export default function CustomerGuideView({
     <div className="cguide" lang={keuze} dir={RTL_LANGUAGES.has(keuze) ? "rtl" : "ltr"}>
       <style>{CSS}</style>
       <div className="cg-lang">
-        <select value={keuze} onChange={(e) => vt.kies(e.target.value)} aria-label="Language">
-          {LANGUAGES.map((l) => (
-            <option key={l.code} value={l.code}>
-              {l.label}
-            </option>
-          ))}
-        </select>
+        <div className="cg-lang-row">
+          <label className="cg-lang-pick">
+            <Languages aria-hidden="true" />
+            <select value={keuze} onChange={(e) => vt.kies(e.target.value)} aria-label="Language">
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <b>{keuze === "en" || keuze === "nl" ? "Help in your language" : vt.label}</b>
+        </div>
         {vt.stand === "busy" ? (
           <span className="cg-lang-st">
+            <Loader2 aria-hidden="true" />
             {vt.voortgang === 0
-              ? `Downloading the ${vt.label} language pack — only the first time…`
-              : `Translating… ${vt.voortgang}%`}
+              ? `Downloading the ${vt.label} language pack — only the first time, up to a minute…`
+              : `Translating to ${vt.label}… ${vt.voortgang}%`}
           </span>
         ) : vt.stand === "needsClick" && keuze !== "en" && keuze !== "nl" ? (
           <button type="button" className="cg-lang-btn" onClick={vt.opnieuw}>
-            Translate into {vt.label}
+            <Languages aria-hidden="true" /> Translate into {vt.label}
           </button>
         ) : vt.stand === "unsupported" && keuze !== "en" && keuze !== "nl" ? (
           <span className="cg-lang-st">{"Your browser can't translate this itself — right-click and choose Translate."}</span>
