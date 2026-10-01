@@ -533,10 +533,10 @@ eigenaar nodig is).
 | R1 | T4-N | EN | half | aangemeld; bedrijfsgegevens nog niet | PSM0026, NSA-plan, bedrijf 0 | open: onboarding |
 | R1 | T4-F | EN | half | aangemeld als affiliate | PSM0028 | open: dashboard lopen (R9) |
 | R1 | T4-R | EN | | | | |
-| R1 | T4-V | EN | | | | |
+| R1 | T4-V | EN | werkt | teamuitnodiging -> aanmelden -> dashboard (na fix 0642aa8b) | subject_members viewer | zie R11 |
 | R1 | T4-U | EN | half | aangemeld als affiliate | PSM0027 | open: R10 |
 | R1 | T4-0 | EN | werkt | zonder plan: Billing zegt het een keer; aanvragen geblokkeerd | PSM0029, geen plan, bedrijf 1 | geen plan != gratis plan (6921ffca, plak 196) |
-| R1 | T4-W | EN | | | | |
+| R1 | T4-W | EN | werkt | teamuitnodiging -> aanmelden -> meteen dashboard | subject_members viewer -> [exchange, fund] | zie R11 |
 | R2 | T4-B (snelle check) | NL | | | | |
 | R3 | T4-A EUR | EN | werkt | alle dialoogtakken (EUR/USD wallet x EUR/USD/GBP/HKD), herontwerp in 4 rondes; Verify door Lasse | wallet_topups 500 EUR completed; wallet EUR 0.00 -> 500.00; ledger 1 regel +500.00 (0.00 -> 500.00, actor); melding wallet_topup_completed | herontwerp topup (263db364 .. 14a7d9fa); kopieerknop in dialoog (7022c035); Other amount/Precharge naar Details (66d36cee). Open: reject-met-reden en Other amount (twee admins) nog te lopen |
 | R3 | T4-A USD → EUR-wallet | EN | werkt (indienen + weigeren met reden) | stap 1 bon: $1.000 × 0,88243363 = €882,43, fee €5,29, bijschrijving €877,14; stap 2 'maak precies $1.000 over' | wallet_topups 877.14 EUR pending, ref 0231606101, één keer | 0,6% bij andere valuta (119c9809). Geweigerd door Lasse met 'No payment found': status rejected + reden; wallet bleef 500.00, 1 ledgerregel; melding wallet_topup_rejected (877.14 + reden); klant ziet 'Rejected' + 'Why?' met precies die reden |
@@ -558,7 +558,7 @@ eigenaar nodig is).
 | R8 | T4-0 geen plan | EN | | | | |
 | R9 | T4-F + T4-R | EN | | | | |
 | R10 | T4-U | EN | | | | |
-| R11 | T4-A + T4-V | EN | werkt (V) | T4-A Team -> twee uitnodigingen (link ook zichtbaar). Aanmeldpagina: 'Viewing PSM0030 as viewer', geen referral. BLOKKER gevonden + gefixt: na Join landde V op 'we can''t open your account' (0642aa8b). V ziet T4-A: EUR 245.00 / USD 55.76, account, Flex, facturen; geen enkele geldknop (wallet: alleen saldi; accounts: Tax rates/Details; billing: View/Download); avatar 'Team member · PSM0030' | subject_members: V viewer van T4-A, permissions []; invitation accepted. Server: alle zes geldfuncties eisen _psm_can(advertiser, perm) -> viewer zonder rechten wordt geweigerd (uit de definities gelezen, niet aangeroepen) | hinderlijk: 'First name is required' blijft staan na invullen tot Join |
+| R11 | T4-A + T4-V + T4-W | EN | werkt | T4-A Team -> twee uitnodigingen (link ook zichtbaar). Aanmeldpagina: 'Viewing PSM0030 as viewer', geen referral. BLOKKER gevonden + gefixt: na Join landde V op 'we can''t open your account' (0642aa8b). V ziet T4-A: EUR 245.00 / USD 55.76, account, Flex, facturen; geen enkele geldknop (wallet: alleen saldi; accounts: Tax rates/Details; billing: View/Download); avatar 'Team member · PSM0030' | subject_members: V viewer van T4-A, permissions []; invitation accepted. Server: alle zes geldfuncties eisen _psm_can(advertiser, perm) -> viewer zonder rechten wordt geweigerd (uit de definities gelezen, niet aangeroepen) | hinderlijk: 'First name is required' blijft staan na invullen tot Join  T4-W (Exchange + Fund): wallet toont alleen Exchange (geen Top up), accounts alleen Top up/Details (geen Request), billing geen Pay, Details geen Withdraw. Exchange EUR 10 -> $11,18 (fee $0,07, 'Wise mid-market rate'); Fund EUR 10 -> fee EUR 0,50 -> EUR 9,50. TWEE FIXES: rechtenpaneel liep door elkaar op een telefoon (f137447c); twee rechten snel achter elkaar bewaarde er één (65bf9fa3). BLOKKER: Fund-recht werkte niet, fee-offerte zocht alleen een eigen advertiser (03864342). | subject_members W: [exchange, fund]. wallet_exchanges 10 -> 11.18, fee 0.07, door t4w; wallet EUR 245 -> 235 -> 225, USD 55.76 -> 66.94; top_ups 10.00/0.50/9.50 pending, ledger -10.00 | — |
 | R12 | alle | | | | | |
 | R13 | T4-A, T4-B | | | | | |
 | R14 | beheer | EN | | | | |
