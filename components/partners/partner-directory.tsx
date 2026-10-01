@@ -91,10 +91,11 @@ export const PARTNER_CSS = `
 .ptile .pt-hero{position:relative;height:58px;overflow:hidden;
   display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:11px 12px 0 14px;
   background:
-    radial-gradient(80% 140% at 0% 0%,color-mix(in srgb,var(--acc) 95%,#fff 5%),transparent 70%),
-    linear-gradient(120deg,var(--acc),#8B5CF6)}
-.ptile .pt-hero::before{content:"";position:absolute;inset:0;opacity:.45;pointer-events:none;
-  background-image:radial-gradient(rgba(255,255,255,.55) 1px,transparent 1.3px);background-size:13px 13px;
+    radial-gradient(70% 160% at 0% 0%,color-mix(in srgb,var(--acc) 75%,transparent),transparent 65%),
+    radial-gradient(60% 160% at 100% 0%,rgba(139,92,246,.6),transparent 65%),
+    linear-gradient(120deg,#0a0f2e,#151b4d)}
+.ptile .pt-hero::before{content:"";position:absolute;inset:0;opacity:.35;pointer-events:none;
+  background-image:radial-gradient(rgba(255,255,255,.5) 1px,transparent 1.3px);background-size:13px 13px;
   -webkit-mask-image:linear-gradient(90deg,transparent,#000 60%);mask-image:linear-gradient(90deg,transparent,#000 60%)}
 .ptile .pt-hero::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-60%;pointer-events:none;
   background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);
@@ -102,7 +103,8 @@ export const PARTNER_CSS = `
 .ptile:hover .pt-hero::after{left:125%}
 .ptile .pt-cat,.ptile .pt-badge{position:relative;font-size:.6rem;font-weight:800;letter-spacing:.08em;
   text-transform:uppercase;padding:4px 9px;border-radius:99px;color:#fff;white-space:nowrap;
-  background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3);
+  background:rgba(10,15,46,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+  text-shadow:0 1px 1px rgba(0,0,0,.35);
   -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .ptile .pt-badge{text-transform:none;letter-spacing:.01em;font-size:.68rem;background:rgba(255,255,255,.95);
   color:color-mix(in srgb,var(--acc) 75%,#1b1f4a);box-shadow:0 6px 14px -8px rgba(0,0,0,.35)}
