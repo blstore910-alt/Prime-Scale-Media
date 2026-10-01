@@ -140,7 +140,7 @@ function monthStartIso() {
 }
 
 export default function AffiliateApp() {
-  const { t: tr } = useT();
+  const { t: tr, locale: affLocale } = useT();
   const { profile } = useAppContext();
   // ── OPEN ON THE ONE THE NAV CALLS HOME ────────────────────────────
   //
@@ -217,6 +217,7 @@ export default function AffiliateApp() {
     profile?.id ?? null,
     new Date(),
     profile?.role === "advertiser" ? "both" : "affiliate",
+    affLocale,
   );
 
   // Real referral book (all-time) + this-month slice for the topbar pill.
@@ -2104,7 +2105,7 @@ export default function AffiliateApp() {
                     alleen hier stond, is naar het hoofdstuk over wat je
                     verdient verhuisd. */}
                 <p className="cap" style={{ marginTop: 6 }}>
-                  {customerGuideHeading("affiliate").lead}
+                  {customerGuideHeading("affiliate", affLocale).lead}
                 </p>
                 <div style={{ marginTop: 14 }}>
                   <CustomerGuideView audience="affiliate" />

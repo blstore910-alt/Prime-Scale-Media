@@ -9,6 +9,9 @@ import {
   DAILY_QUOTES,
   FOUNDER_QUOTES,
   dailyQuote,
+  ADVERTISER_QUOTES_NL,
+  AFFILIATE_QUOTES_NL,
+  BOTH_QUOTES_NL,
 } from "../../lib/pure-daily-quote";
 
 const A = "11111111-1111-1111-1111-111111111111";
@@ -186,4 +189,18 @@ it("elke quote past op EEN regel in de hero", () => {
     );
   }
 });
+});
+
+it("de Nederlandse quotes staan regel voor regel naast de Engelse, en passen ook", () => {
+  assert.equal(ADVERTISER_QUOTES_NL.length, ADVERTISER_QUOTES.length);
+  assert.equal(AFFILIATE_QUOTES_NL.length, AFFILIATE_QUOTES.length);
+  assert.equal(BOTH_QUOTES_NL.length, BOTH_QUOTES.length);
+  for (const q of [...ADVERTISER_QUOTES_NL, ...AFFILIATE_QUOTES_NL, ...BOTH_QUOTES_NL]) {
+    assert.ok(q.length <= MAX_QUOTE_LEN, `${q.length} tekens, mag er ${MAX_QUOTE_LEN}: ${q}`);
+  }
+  const d = new Date(2026, 9, 1);
+  const i = ADVERTISER_QUOTES.indexOf(dailyQuote("x", d, "advertiser")!);
+  assert.equal(dailyQuote("x", d, "advertiser", "nl"), ADVERTISER_QUOTES_NL[i]);
+  // de balie blijft Engels, ook als iemand nl heeft
+  assert.equal(dailyQuote("x", d, "desk", "nl"), dailyQuote("x", d, "desk"));
 });

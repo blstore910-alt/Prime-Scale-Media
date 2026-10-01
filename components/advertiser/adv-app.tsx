@@ -382,7 +382,7 @@ export default function AdvertiserApp() {
 
   // De taal van deze klant. Zie docs/NL_EN.md; valt terug op Engels
   // zolang plak 177 niet gedraaid is, zodat de app dan werkt als vandaag.
-  const { t } = useT();
+  const { t, tx, locale } = useT();
   // Dezelfde functie onder een naam die een lusvariabele niet kan
   // overschaduwen. In de walletlijst heet een top-uprij toevallig ook
   // `t` (`t.status`, `t.description`), en daarbinnen roept t("...") dan
@@ -3630,7 +3630,7 @@ export default function AdvertiserApp() {
         ...(isPlan
           ? ([] as [string, string][])
           : ([
-              ["What for", invoiceTypeLabel(inv.type)],
+              ["What for", tx(invoiceTypeLabel(inv.type))],
               ["Amount", `${sym}${money2(inv.total)}`],
             ] as [string, string][])),
         // BEFORE AND AFTER. "Out of your EUR wallet" did not say what was
@@ -4415,6 +4415,7 @@ export default function AdvertiserApp() {
                     ? "both"
                     : "affiliate"
                   : "advertiser",
+                locale,
               )}
             />
             {/* Number(), not truthiness. subscriptions.amount is moving from
@@ -4518,7 +4519,7 @@ export default function AdvertiserApp() {
                       is actually outstanding, and stays off the rest of
                       the time. */}
                   {dueBillDate && (dueSubInvoice || dueWithinAWeek)
-                    ? ` · ${dueSubInvoice ? "due" : "on"} ${dayjs(dueBillDate).format("D MMM")}`
+                    ? ` · ${dueSubInvoice ? tr("label.adv.due") : tr("label.adv.on")} ${dayjs(dueBillDate).format("D MMM")}`
                     : ""}
                 </span>
                 {/* "Pay", not "Pay now". The row must hold one line at phone
@@ -5473,7 +5474,7 @@ export default function AdvertiserApp() {
                                 data-label="Description"
                                 style={{ color: "var(--txt-2)" }}
                               >
-                                {invoiceTypeLabel(inv.type)}
+                                {tx(invoiceTypeLabel(inv.type))}
                               </td>
                               {/* ── A MINUS ONLY WHEN MONEY LEFT ──────
                                   Every paid invoice was drawn here as a
@@ -5842,13 +5843,11 @@ export default function AdvertiserApp() {
                                   <span
                                     className="badge pend"
                                     title={
-                                      withdrawalStatusLook("at_supplier")
-                                        .customerHint
+                                      tx(withdrawalStatusLook("at_supplier").customerHint)
                                     }
                                   >
                                     {
-                                      withdrawalStatusLook("at_supplier")
-                                        .customerLabel
+                                      tx(withdrawalStatusLook("at_supplier").customerLabel)
                                     }
                                   </span>
                                 ) : String(w.status ?? "").toLowerCase() ===
@@ -5859,7 +5858,7 @@ export default function AdvertiserApp() {
                                   <span className="badge ok">{tr("label.adv.credited")}</span>
                                 ) : (
                                   <span className="badge pend">
-                                    {withdrawalStatusLook(w.status).customerLabel}
+                                    {tx(withdrawalStatusLook(w.status).customerLabel)}
                                   </span>
                                 )}
                               </td>
@@ -6256,7 +6255,8 @@ export default function AdvertiserApp() {
                   // open -- waiting on THEM -- was told "Ad account on
                   // the way / Waiting for us". We were saying we were
                   // busy on it to somebody who owes us money.
-                  const v = requestStatusView(r.status);
+                  const v0 = requestStatusView(r.status);
+                  const v = { ...v0, label: tx(v0.label), hint: v0.hint ? tx(v0.hint) : null };
                   const st = String(r.status ?? "").toLowerCase();
                   const refused = st === "rejected";
                   const back = Number(r.refunded_amount) || 0;
@@ -6525,7 +6525,8 @@ export default function AdvertiserApp() {
             {myRequests.length ? (
               <div className="grid3">
                 {myRequests.map((r) => {
-                  const v = requestStatusView(r.status);
+                  const v0 = requestStatusView(r.status);
+                  const v = { ...v0, label: tx(v0.label), hint: v0.hint ? tx(v0.hint) : null };
                   const back = Number(r.refunded_amount) || 0;
                   // What it COST is as much a fact as what came back,
                   // and it was on no line of this tab: a paid request
@@ -7375,7 +7376,7 @@ export default function AdvertiserApp() {
                                 change, both "Due", both €-something, and
                                 nothing on the row to tell them apart. */}
                             <td data-label="Type">
-                              {invoiceTypeLabel(inv.type)}
+                              {tx(invoiceTypeLabel(inv.type))}
                             </td>
                             <td data-label="Amount" className="r mono">
                               {invSym}
@@ -7388,7 +7389,7 @@ export default function AdvertiserApp() {
                                 cancelled. */}
                             <td data-label="Status" className="r">
                               <span className={`badge ${invSt.tone}`}>
-                                {invSt.label}
+                                {tx(invSt.label)}
                               </span>
                             </td>
                             {/* Download was admin-only. A customer could
@@ -8133,11 +8134,9 @@ export default function AdvertiserApp() {
                 <p>{t("page.team.sub")}</p>
               </div>
             </div>
-            <div className="card">
-              {view === "team" ? (
-                <TeamPanel teamRole={teamRole} accountCode={referralCode} />
-              ) : null}
-            </div>
+            {view === "team" ? (
+              <TeamPanel teamRole={teamRole} accountCode={referralCode} />
+            ) : null}
           </div>
 
           <div className={`view${view === "partners" ? " on" : ""}`}>
@@ -8174,7 +8173,7 @@ export default function AdvertiserApp() {
                     alleen de FAQ had -- "meestal binnen een werkdag live"
                     -- is naar het hoofdstuk over ad-accounts verhuisd. */}
                 <p className="cap" style={{ marginTop: 6 }}>
-                  {customerGuideHeading("advertiser").lead}
+                  {customerGuideHeading("advertiser", locale).lead}
                 </p>
                 <div style={{ marginTop: 14 }}>
                   <CustomerGuideView audience="advertiser" />

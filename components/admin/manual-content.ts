@@ -105,7 +105,7 @@ const ADVERTISER: Section[] = [
       // customer must never see. What they actually pick is Meta,
       // Google or TikTok, which the app already calls the platform
       // (customerPlatformName).
-      "Open Ad accounts and press Request account. Pick the platform, the currency and the timezone, and give the website you will advertise.",
+      "Open Ad accounts and press Request one. Pick the platform, the currency and the timezone, and give the website you will advertise.",
       "The currency and timezone cannot be changed once the account exists, so check them before submitting.",
       "We review the request. If something is missing you get a reason and can file a new one.",
       // Carried over from the FAQ this handbook replaced in the app's
@@ -225,13 +225,16 @@ const ADVERTISER: Section[] = [
     id: "adv-privacy",
     title: "Notifications and your data",
     icon: ShieldCheck,
-    path: "Settings › Notifications / Privacy",
+    // 01-10: the Export and Activity steps described screens this app
+    // does not have (the GDPR export is out of scope for day one). What
+    // Settings actually holds is below.
+    path: "Settings › Notifications / Your data",
     intro:
-      "You choose what you are told about, and you can take a copy of everything we hold on you.",
+      "You choose what you are told about, and you decide what happens to your account.",
     steps: [
       "Settings › Notifications: switch each kind of alert on or off, and turn on push if you want them on your phone.",
-      "Settings › Privacy: Export downloads everything we hold about you as a file.",
-      "Settings › Activity: every action on your account, with when it happened.",
+      "Settings › Your data: sign out of every device at once, for example after using a shared computer.",
+      "Settings › Your data: ask us to delete your account. We review the request and contact you first; nothing is deleted before that.",
     ],
   },
 ];
@@ -291,11 +294,14 @@ const AFFILIATE: Section[] = [
     title: "Getting paid",
     icon: Wallet,
     path: "Wallet",
-    intro: "Payouts are made by us, by hand, against what has settled.",
+    // 01-10: "there is no self-service withdrawal" stopped being true
+    // when PayoutCard got its Request payout button.
+    intro: "You ask for a payout here; we transfer it by hand.",
     steps: [
-      "Your balance shows what has settled and is payable.",
-      "Payouts are arranged with us directly; there is no self-service withdrawal.",
-      "Every payout appears in your history with its date and amount.",
+      "Wallet shows what you have earned and what is ready to be paid out.",
+      "Once you reach the payout minimum, press Request payout. Choose what to be paid, the currency, and your bank details.",
+      "We check the request and transfer it by hand. Nothing leaves automatically.",
+      "Every payout appears under Earlier payouts with its date, amount and our reference.",
     ],
   },
   {

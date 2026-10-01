@@ -14,7 +14,9 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { useAppContext } from "@/context/app-provider";
-import { asLocale, t as vertaal, type Key, type Locale } from "@/lib/i18n";
+import dayjs from "dayjs";
+import "dayjs/locale/nl";
+import { asLocale, t as vertaal, type Key, type Locale, tx as terug } from "@/lib/i18n";
 
 // Een kleine gedeelde bron, zodat elke component die useT gebruikt
 // tegelijk omschakelt. Zonder dit bleef een menu Engels terwijl de
@@ -44,9 +46,14 @@ export function useLocale(): Locale {
 
 export function useT() {
   const locale = useLocale();
+  // De datums volgen mee: "30 Sep" wordt "30 sep.". dayjs houdt zijn taal
+  // globaal bij; zetten tijdens het renderen is idempotent en gebeurt voor
+  // de kinderen hun datum opmaken, dus er is geen frame met de oude taal.
+  if (dayjs.locale() !== locale) dayjs.locale(locale);
   const t = useCallback(
     (key: Key, vars?: Record<string, string | number>) => vertaal(locale, key, vars),
     [locale],
   );
-  return { t, locale };
+  const tx = useCallback((tekst: string) => terug(locale, tekst), [locale]);
+  return { t, tx, locale };
 }

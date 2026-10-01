@@ -40,3 +40,21 @@ export function t(
       : heel,
   );
 }
+
+// ── TERUGVERTALEN ───────────────────────────────────────────────────
+//
+// Helpers in lib/ (factuurstatus, factuursoort, aanvraagstatus) geven
+// Engelse woorden terug en worden ook door de admin en de tests gelezen.
+// In plaats van elk van die helpers een taal te geven, zoekt tx() de
+// Engelse tekst op in en.ts en geeft de vertaling van die sleutel. Een
+// tekst die er niet in staat, komt ongewijzigd terug -- nooit leeg.
+let omgekeerd: Map<string, Key> | null = null;
+export function tx(locale: Locale, tekst: string): string {
+  if (locale === "en" || !tekst) return tekst;
+  if (!omgekeerd) {
+    omgekeerd = new Map();
+    for (const k of Object.keys(en) as Key[]) if (!omgekeerd.has(en[k])) omgekeerd.set(en[k], k);
+  }
+  const k = omgekeerd.get(tekst);
+  return k ? WOORDENBOEKEN[locale][k] : tekst;
+}

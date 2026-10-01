@@ -31,6 +31,29 @@ import {
   type Note,
   type Section,
 } from "@/components/admin/manual-content";
+import { useT } from "@/hooks/use-t";
+import type { Locale } from "@/lib/i18n";
+import { GUIDE_HEAD_NL, GUIDE_NL } from "./customer-guide-nl";
+
+// ── DE TAAL ───────────────────────────────────────────────────────
+//
+// Het Engels blijft de bron (iconen, tonen, volgorde). In het Nederlands
+// komt de TEKST uit customer-guide-nl.ts, per hoofdstuk-id. Een
+// hoofdstuk zonder Nederlandse versie, of met een ander aantal stappen,
+// blijft Engels in plaats van half vertaald -- en de test vangt het.
+function inTaal(s: Section, locale: Locale): Section {
+  if (locale !== "nl") return s;
+  const nl = GUIDE_NL[s.id];
+  if (!nl || nl.steps.length !== s.steps.length || (nl.notes?.length ?? 0) !== (s.notes?.length ?? 0)) return s;
+  return {
+    ...s,
+    title: nl.title,
+    path: nl.path,
+    intro: nl.intro,
+    steps: nl.steps,
+    notes: s.notes?.map((n, i) => ({ ...n, label: nl.notes![i].label, text: nl.notes![i].text })),
+  };
+}
 
 // Tinten per soort notitie. De variabelen bestaan in de adverteerder-
 // en de affiliate-shell allebei, dus dit leest in beide als thuis.
@@ -147,6 +170,7 @@ export default function CustomerGuideView({
 }: {
   audience: "advertiser" | "affiliate";
 }) {
+  const { locale } = useT();
   const guide = CUSTOMER_GUIDES[audience];
   // Eén tegelijk open. Twee uitgeklapte hoofdstukken onder elkaar zijn
   // op een telefoon weer de muur tekst die dit moest vermijden.
@@ -158,7 +182,7 @@ export default function CustomerGuideView({
       {guide.sections.map((s) => (
         <Hoofdstuk
           key={s.id}
-          s={s}
+          s={inTaal(s, locale)}
           open={open === s.id}
           onToggle={() => setOpen((cur) => (cur === s.id ? null : s.id))}
         />
@@ -169,7 +193,11 @@ export default function CustomerGuideView({
 
 /** De kop en inleiding, los, zodat elke app hem in zijn eigen kaartkop
  *  kan zetten in plaats van dat deze component hem opdringt. */
-export function customerGuideHeading(audience: "advertiser" | "affiliate") {
+export function customerGuideHeading(
+  audience: "advertiser" | "affiliate",
+  locale: Locale = "en",
+) {
+  if (locale === "nl") return GUIDE_HEAD_NL[audience];
   const g = CUSTOMER_GUIDES[audience];
   return { heading: g.heading, lead: g.lead };
 }

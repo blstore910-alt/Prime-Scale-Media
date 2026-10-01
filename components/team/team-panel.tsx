@@ -1,6 +1,6 @@
 "use client";
 
-// ── HET TEAM, IN SETTINGS ───────────────────────────────────────────
+// ── HET TEAM ────────────────────────────────────────────────────────
 //
 // Multi-user fase 3. Zie docs/TEAM_ACCOUNTS.md en actions/team-actions.ts.
 //
@@ -16,11 +16,20 @@
 // Na het uitnodigen toont het scherm de link om te kopieren, ook als de
 // mail wel ging. Een mail kan in spam belanden of bij een adres dat
 // niemand leest; de eigenaar kan hem dan zelf doorsturen.
+//
+// ── HET ONTWERP ────────────────────────────────────────────────────
+//
+// De eigenaar, 01-10: "maak team design meer pro en wow". Drie kaarten
+// in plaats van een: wat een collega WEL en NIET kan (dat is de vraag
+// die iemand stelt voor hij iemand uitnodigt), het uitnodigen zelf, en
+// wie er al bij is. De rechten staan als vinkjes en kruisjes, niet als
+// zin: een eigenaar moet in een oogopslag zien dat geld veilig is.
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useT } from "@/hooks/use-t";
+import { copyText } from "@/lib/copy-text";
 import {
   cancelTeamInvite,
   inviteTeamMember,
@@ -29,31 +38,121 @@ import {
 } from "@/actions/team-actions";
 
 const CSS = `
-.team{display:flex;flex-direction:column;gap:12px}
-.team .row{display:flex;align-items:center;gap:10px;padding:10px 0;
-  border-top:1px solid var(--line)}
-.team .row:first-child{border-top:0}
-.team .who{min-width:0;flex:1 1 auto}
-.team .who b{display:block;font-weight:700;color:var(--ink);white-space:nowrap;
+.tm{display:flex;flex-direction:column;gap:14px}
+.tm .tcard{position:relative;background:var(--panel);border:1px solid var(--line);
+  border-radius:18px;padding:18px;box-shadow:0 10px 30px -22px rgba(30,42,90,.35)}
+.tm .hero{overflow:hidden;background:
+  radial-gradient(120% 140% at 0% 0%,rgba(91,141,255,.16),transparent 55%),
+  radial-gradient(120% 140% at 100% 100%,rgba(139,92,246,.14),transparent 55%),var(--panel)}
+.tm .hero-top{display:flex;align-items:center;gap:12px}
+.tm .glyph{width:44px;height:44px;border-radius:14px;flex:0 0 auto;display:grid;place-items:center;
+  color:#fff;background:linear-gradient(135deg,#5B8DFF,#8B5CF6);
+  box-shadow:0 8px 22px -8px rgba(91,141,255,.75)}
+.tm .glyph svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.tm .hero h3{margin:0;font-size:1.02rem;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+.tm .hero p{margin:2px 0 0;font-size:.8rem;color:var(--txt-2);line-height:1.45}
+.tm .rights{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.tm .rcol{border-radius:14px;padding:10px 12px;background:var(--panel);border:1px solid var(--line)}
+.tm .rcol h4{margin:0 0 6px;font-size:.62rem;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--faint)}
+.tm .rcol ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.tm .rcol li{display:flex;align-items:center;gap:7px;font-size:.8rem;color:var(--ink);font-weight:600}
+.tm .dot{width:18px;height:18px;border-radius:99px;display:grid;place-items:center;flex:0 0 auto;
+  font-size:.66rem;font-weight:900}
+.tm .dot.yes{background:rgba(16,185,129,.14);color:#059669}
+.tm .dot.no{background:rgba(239,68,68,.12);color:#dc2626}
+.tm .lbl{font-size:.64rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--faint);margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.tm .lbl .n{font-size:.62rem;padding:1px 7px;border-radius:99px;background:var(--panel-2);color:var(--txt-2)}
+.tm .inv{display:flex;gap:8px}
+.tm .field{position:relative;flex:1 1 auto;min-width:0}
+.tm .field svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;
+  stroke:var(--faint);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tm .field input{width:100%;box-sizing:border-box;font:inherit;font-size:.9rem;padding:11px 12px 11px 34px;
+  border:1px solid var(--line-2);border-radius:12px;background:var(--panel);color:var(--ink);
+  transition:border-color .15s,box-shadow .15s}
+.tm .field input:focus{outline:0;border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-tint)}
+.tm .go{font:inherit;font-weight:800;font-size:.86rem;padding:0 16px;border-radius:12px;border:0;
+  color:#fff;cursor:pointer;background:linear-gradient(135deg,#5B8DFF,#8B5CF6);
+  box-shadow:0 8px 20px -10px rgba(91,141,255,.9);flex:0 0 auto}
+.tm .go:disabled{opacity:.45;cursor:default;box-shadow:none}
+.tm .link{display:flex;align-items:center;gap:8px;margin-top:12px;padding:8px 8px 8px 12px;
+  border-radius:12px;background:var(--panel-2);border:1px dashed var(--line-2)}
+.tm .link code{flex:1 1 auto;min-width:0;font-size:.74rem;color:var(--ink);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,monospace}
+.tm .link button{font:inherit;font-size:.76rem;font-weight:800;padding:6px 10px;border-radius:9px;
+  border:1px solid var(--line-2);background:var(--panel);color:var(--primary-600);cursor:pointer}
+.tm .hint{font-size:.74rem;color:var(--faint);margin:6px 2px 0}
+.tm .row{display:flex;align-items:center;gap:11px;padding:11px 0;border-top:1px solid var(--line)}
+.tm .row:first-of-type{border-top:0;padding-top:2px}
+.tm .av{width:38px;height:38px;border-radius:99px;flex:0 0 auto;display:grid;place-items:center;
+  font-size:.78rem;font-weight:800;color:#fff;background:linear-gradient(135deg,#5B8DFF,#8B5CF6)}
+.tm .av.alt{background:linear-gradient(135deg,#0ea5e9,#6366f1)}
+.tm .av.wait{background:var(--panel-2);color:var(--faint);border:1.5px dashed var(--line-2)}
+.tm .who{min-width:0;flex:1 1 auto}
+.tm .who b{display:block;font-weight:700;font-size:.9rem;color:var(--ink);white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
-.team .who span{display:block;font-size:.76rem;color:var(--faint);white-space:nowrap;
+.tm .who span{display:block;font-size:.75rem;color:var(--faint);white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
-.team .rol{font-size:.64rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
-  padding:3px 8px;border-radius:99px;background:var(--panel-2);color:var(--txt-2);flex:0 0 auto}
-.team .rol.owner{background:var(--primary-tint);color:var(--primary-600)}
-.team .x{font:inherit;font-size:.78rem;font-weight:700;padding:5px 10px;border-radius:9px;
+.tm .rol{font-size:.62rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+  padding:4px 9px;border-radius:99px;background:var(--panel-2);color:var(--txt-2);flex:0 0 auto}
+.tm .rol.owner{color:#fff;background:linear-gradient(135deg,#5B8DFF,#8B5CF6)}
+.tm .x{font:inherit;font-size:.76rem;font-weight:700;padding:6px 10px;border-radius:9px;
   border:1px solid var(--line-2);background:var(--panel);color:var(--danger);cursor:pointer;flex:0 0 auto}
-.team .x:disabled{opacity:.5;cursor:default}
-.team .inv{display:flex;gap:8px}
-.team .inv input{flex:1 1 auto;min-width:0;font:inherit;font-size:.9rem;padding:9px 11px;
-  border:1px solid var(--line-2);border-radius:10px;background:var(--panel);color:var(--ink)}
-.team .inv input:focus{outline:0;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-tint)}
-.team .link{font-size:.78rem;word-break:break-all;padding:9px 11px;border-radius:10px;
-  background:var(--panel-2);color:var(--ink);font-family:ui-monospace,monospace}
-.team .cap{font-size:.8rem;color:var(--txt-2);margin:0}
-.team .sub{font-size:.66rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
-  color:var(--faint);margin-top:4px}
+.tm .x:disabled{opacity:.5;cursor:default}
+.tm .empty{font-size:.8rem;color:var(--faint);margin:8px 0 0}
+.tm .err{font-size:.8rem;color:var(--danger);margin:0}
+.tm .sk{height:38px;border-radius:12px;background:var(--panel-2);margin:6px 0;
+  animation:tmPulse 1.2s ease-in-out infinite}
+@keyframes tmPulse{50%{opacity:.55}}
+@media (max-width:420px){.tm .rights{grid-template-columns:1fr}}
 `;
+
+const initials = (s: string | null | undefined) =>
+  String(s ?? "")
+    .replace(/@.*/, "")
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w.charAt(0))
+    .join("")
+    .toUpperCase() || "?";
+
+function UsersGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function Rights() {
+  const { t } = useT();
+  return (
+    <div className="rights">
+      <div className="rcol">
+        <h4>{t("label.teamCanSee")}</h4>
+        <ul>
+          <li><span className="dot yes">✓</span>{t("team.canBalances")}</li>
+          <li><span className="dot yes">✓</span>{t("team.canAccounts")}</li>
+          <li><span className="dot yes">✓</span>{t("team.canInvoices")}</li>
+        </ul>
+      </div>
+      <div className="rcol">
+        <h4>{t("label.teamCannot")}</h4>
+        <ul>
+          <li><span className="dot no">✕</span>{t("team.notMoney")}</li>
+          <li><span className="dot no">✕</span>{t("team.notRequests")}</li>
+          <li><span className="dot no">✕</span>{t("team.notTeam")}</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
 
 export default function TeamPanel({
   teamRole,
@@ -71,17 +170,26 @@ export default function TeamPanel({
   // ── EEN TEAMLID ZIET ALLEEN WAAR HIJ STAAT ─────────────────────
   if (teamRole) {
     return (
-      <div className="team">
+      <div className="tm">
         <style>{CSS}</style>
-        <p className="cap">
-          {t("team.memberIntro", {
-            account: accountCode ?? "",
-            role:
-              teamRole === "manager"
-                ? t("label.roleManager")
-                : t("label.roleViewer"),
-          })}
-        </p>
+        <div className="tcard hero">
+          <div className="hero-top">
+            <div className="glyph"><UsersGlyph /></div>
+            <div>
+              <h3>{accountCode ?? t("team.title")}</h3>
+              <p>
+                {t("team.memberIntro", {
+                  account: accountCode ?? "",
+                  role:
+                    teamRole === "manager"
+                      ? t("label.roleManager")
+                      : t("label.roleViewer"),
+                })}
+              </p>
+            </div>
+          </div>
+          <Rights />
+        </div>
       </div>
     );
   }
@@ -123,11 +231,7 @@ function EigenaarsTeam({
     onSuccess: (d) => {
       setLink(d.link);
       setEmail("");
-      toast.success(
-        d.emailSent
-          ? t("team.sent")
-          : t("team.sentNoMail"),
-      );
+      toast.success(d.emailSent ? t("team.sent") : t("team.sentNoMail"));
       vernieuw();
     },
     onError: (e) => toast.error((e as Error).message),
@@ -157,47 +261,88 @@ function EigenaarsTeam({
     onError: (e) => toast.error((e as Error).message),
   });
 
-  return (
-    <div className="team">
-      <style>{CSS}</style>
-      <p className="cap">{t("team.ownerIntro")}</p>
+  const members = team.data?.members ?? [];
+  const invites = team.data?.invites ?? [];
 
-      <div className="inv">
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="colleague@company.com"
-          aria-label="Colleague's email"
-        />
-        <button
-          className="btn"
-          disabled={nodig.isPending || !email.trim()}
-          onClick={() => nodig.mutate()}
-        >
-          {nodig.isPending ? t("btn.sending") : t("btn.invite")}
-        </button>
+  return (
+    <div className="tm">
+      <style>{CSS}</style>
+
+      <div className="tcard hero">
+        <div className="hero-top">
+          <div className="glyph"><UsersGlyph /></div>
+          <div>
+            <h3>{t("team.title")}</h3>
+            <p>{t("team.ownerIntro")}</p>
+          </div>
+        </div>
+        <Rights />
       </div>
 
-      {link ? (
-        <div>
-          <div className="sub">{t("label.invitationLink")}</div>
-          <div className="link">{link}</div>
-        </div>
-      ) : null}
+      <div className="tcard">
+        <div className="lbl">{t("label.inviteColleague")}</div>
+        <form
+          className="inv"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!nodig.isPending && email.trim()) nodig.mutate();
+          }}
+        >
+          <div className="field">
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <rect width="20" height="16" x="2" y="4" rx="2" />
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+            </svg>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={t("team.placeholder")}
+              aria-label={t("label.inviteColleague")}
+            />
+          </div>
+          <button type="submit" className="go" disabled={nodig.isPending || !email.trim()}>
+            {nodig.isPending ? t("btn.sending") : t("btn.invite")}
+          </button>
+        </form>
+        {link ? (
+          <>
+            <div className="link">
+              <code>{link}</code>
+              <button
+                type="button"
+                onClick={async () => {
+                  const ok = await copyText(link);
+                  if (ok) toast.success(t("team.linkCopied"));
+                  else toast.error(t("team.copyFailed"));
+                }}
+              >
+                {t("btn.copyLink")}
+              </button>
+            </div>
+            <p className="hint">{t("team.linkHint")}</p>
+          </>
+        ) : null}
+      </div>
 
-      {team.isPending ? (
-        <p className="cap">{t("common.loading")}</p>
-      ) : team.isError ? (
-        <p className="cap" style={{ color: "var(--danger)" }}>
-          {(team.error as Error).message} {t("team.notEmpty")}
-        </p>
-      ) : (
-        <>
-          <div className="sub">{t("label.members")}</div>
-          <div>
-            {(team.data?.members ?? []).map((m) => (
+      <div className="tcard">
+        {team.isPending ? (
+          <>
+            <div className="sk" />
+            <div className="sk" />
+          </>
+        ) : team.isError ? (
+          <p className="err">
+            {(team.error as Error).message} {t("team.notEmpty")}
+          </p>
+        ) : (
+          <>
+            <div className="lbl">
+              {t("label.members")} <span className="n">{members.length}</span>
+            </div>
+            {members.map((m, i) => (
               <div key={m.id} className="row">
+                <div className={`av${i % 2 ? " alt" : ""}`}>{initials(m.name ?? m.email)}</div>
                 <div className="who">
                   <b>
                     {m.name ?? m.email ?? "—"}
@@ -223,14 +368,18 @@ function EigenaarsTeam({
                 ) : null}
               </div>
             ))}
-          </div>
+            {members.length <= 1 && !invites.length ? (
+              <p className="empty">{t("team.onlyYou")}</p>
+            ) : null}
 
-          {(team.data?.invites ?? []).length ? (
-            <>
-              <div className="sub">{t("label.waitingToAccept")}</div>
-              <div>
-                {team.data!.invites.map((i) => (
+            {invites.length ? (
+              <>
+                <div className="lbl" style={{ marginTop: 14 }}>
+                  {t("label.waitingToAccept")} <span className="n">{invites.length}</span>
+                </div>
+                {invites.map((i) => (
                   <div key={i.id} className="row">
+                    <div className="av wait">{initials(i.email)}</div>
                     <div className="who">
                       <b>{i.email}</b>
                       <span>
@@ -247,11 +396,11 @@ function EigenaarsTeam({
                     </button>
                   </div>
                 ))}
-              </div>
-            </>
-          ) : null}
-        </>
-      )}
+              </>
+            ) : null}
+          </>
+        )}
+      </div>
     </div>
   );
 }

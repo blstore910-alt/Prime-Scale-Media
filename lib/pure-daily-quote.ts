@@ -195,6 +195,48 @@ export const BOTH_QUOTES: string[] = [
   "Two slow lines still add up to one.",
 ];
 
+// ── EN IN HET NEDERLANDS ────────────────────────────────────────────
+//
+// De eigenaar, 01-10: "quote kan ook in NL". Zelfde volgorde als de
+// Engelse lijst erboven, regel voor regel: de hash kiest een INDEX, en
+// iemand die van taal wisselt leest dus dezelfde gedachte, niet een
+// andere zin. Dezelfde grens van MAX_QUOTE_LEN geldt; de test bewaakt
+// beide lijsten en dat ze even lang zijn.
+export const ADVERTISER_QUOTES_NL: string[] = [
+  "Een trage week is data, geen oordeel.",
+  "Budget dat je niet uitgaf, is nog van jou.",
+  "Het meeste bouwwerk zie je nooit online.",
+  "Een campagne die niet werkt, mag je stoppen.",
+  "Rustig wint vaker dan slim.",
+  "Eén dag is een getal. De lijn is het verhaal.",
+  "Weten wat mislukte is wat het kostte waard.",
+  "Je hoeft niet alles vandaag te beslissen.",
+  "Klein en winstgevend is een echt bedrijf.",
+  "Het werk van vorige maand werkt vandaag nog.",
+];
+
+export const AFFILIATE_QUOTES_NL: string[] = [
+  "Eén introductie wint van honderd posts.",
+  "Je bracht iemand hier die bleef.",
+  "Een stille maand wist de vorige niet uit.",
+  "Mensen komen terug bij wie eerlijk was.",
+  "De referral die een jaar duurt, telt ook.",
+  "Beslissen doen zij. Wees makkelijk te vragen.",
+  "Vertrouwen groeit. Het omgekeerde ook.",
+  "Iemand vertrouwde vandaag op jouw woord.",
+  "De lijst groeit als je blijft komen.",
+];
+
+export const BOTH_QUOTES_NL: string[] = [
+  "Twee manieren om te verdienen, twee weken.",
+  "Je runt je eigen zaak en brengt anderen mee.",
+  "De ene dag de ads, de andere dag referrals.",
+  "Je leerde dit met je eigen geld.",
+  "De ene kant mag even stil zijn.",
+  "Ze vertrouwen je omdat je het zelf doet.",
+  "Twee trage lijnen tellen samen toch op.",
+];
+
 /**
  * One line, for this person, on this day.
  *
@@ -220,6 +262,9 @@ export function dailyQuote(
    * wisselen.
    */
   audience: "owner" | "desk" | "advertiser" | "affiliate" | "both" = "desk",
+  /** Alleen de klantsets hebben een Nederlandse versie; de balie en de
+   *  eigenaren werken in het Engels en houden dat. */
+  locale: "en" | "nl" = "en",
 ): string | null {
   const s = String(seed ?? "").trim();
   if (!s) return null;
@@ -238,5 +283,16 @@ export function dailyQuote(
   // owner reading their own desk screen -- does not get the same line
   // twice in two places on the same day.
   const n = hash(`${s}|${audience}|${dayKey(now)}`) % list.length;
+  if (locale === "nl") {
+    const nlList =
+      audience === "advertiser"
+        ? ADVERTISER_QUOTES_NL
+        : audience === "affiliate"
+          ? AFFILIATE_QUOTES_NL
+          : audience === "both"
+            ? BOTH_QUOTES_NL
+            : null;
+    if (nlList && nlList.length === list.length) return nlList[n];
+  }
   return list[n];
 }
