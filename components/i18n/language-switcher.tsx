@@ -31,6 +31,11 @@ const CSS = `
   box-shadow:0 1px 3px rgba(20,30,80,.14)}
 .lsw button:disabled{cursor:default}
 .lsw-hint{display:block;margin-top:6px;font-size:.76rem;color:var(--faint)}
+/* Compact, voor het avatarmenu: EN | NL, geen uitlegregel. Klein genoeg
+   om tussen Profile en Sign out te staan zonder er een knop van te maken
+   die net zo zwaar weegt als uitloggen. */
+.lsw.compact{padding:2px;border-radius:9px}
+.lsw.compact button{font-size:.72rem;padding:4px 9px;border-radius:7px;letter-spacing:.04em}
 `;
 
 const TALEN: { value: Locale; key: "lang.en" | "lang.nl" }[] = [
@@ -38,7 +43,12 @@ const TALEN: { value: Locale; key: "lang.en" | "lang.nl" }[] = [
   { value: "nl", key: "lang.nl" },
 ];
 
-export default function LanguageSwitcher() {
+export default function LanguageSwitcher({
+  compact = false,
+}: {
+  /** EN | NL zonder uitleg -- voor het avatarmenu. */
+  compact?: boolean;
+} = {}) {
   const { t, locale } = useT();
   const [bezig, setBezig] = useState(false);
 
@@ -66,7 +76,11 @@ export default function LanguageSwitcher() {
   return (
     <div>
       <style>{CSS}</style>
-      <div className="lsw" role="group" aria-label={t("label.language")}>
+      <div
+        className={compact ? "lsw compact" : "lsw"}
+        role="group"
+        aria-label={t("label.language")}
+      >
         {TALEN.map(({ value, key }) => (
           <button
             key={value}
@@ -76,11 +90,11 @@ export default function LanguageSwitcher() {
             onClick={() => void kies(value)}
             lang={value}
           >
-            {t(key)}
+            {compact ? value.toUpperCase() : t(key)}
           </button>
         ))}
       </div>
-      <span className="lsw-hint">{t("language.hint")}</span>
+      {compact ? null : <span className="lsw-hint">{t("language.hint")}</span>}
     </div>
   );
 }

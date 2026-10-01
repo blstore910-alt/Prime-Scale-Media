@@ -20,6 +20,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useT } from "@/hooks/use-t";
 import {
   cancelTeamInvite,
   inviteTeamMember,
@@ -62,6 +63,7 @@ export default function TeamPanel({
   teamRole?: string | null;
   accountCode?: string | null;
 }) {
+  const { t } = useT();
   const qc = useQueryClient();
   const [email, setEmail] = useState("");
   const [link, setLink] = useState<string | null>(null);
@@ -72,9 +74,13 @@ export default function TeamPanel({
       <div className="team">
         <style>{CSS}</style>
         <p className="cap">
-          You are on <b>{accountCode ?? "this"}</b>&apos;s account as a{" "}
-          <b>{teamRole}</b>. You can see balances, ad accounts and invoices;
-          only the account owner can move money or change the team.
+          {t("team.memberIntro", {
+            account: accountCode ?? "",
+            role:
+              teamRole === "manager"
+                ? t("label.roleManager")
+                : t("label.roleViewer"),
+          })}
         </p>
       </div>
     );
@@ -96,6 +102,7 @@ function EigenaarsTeam({
   link: string | null;
   setLink: (v: string | null) => void;
 }) {
+  const { t } = useT();
   const team = useQuery({
     queryKey: ["team"],
     queryFn: async () => {
@@ -118,8 +125,8 @@ function EigenaarsTeam({
       setEmail("");
       toast.success(
         d.emailSent
-          ? "Invitation sent — the link is below too."
-          : "Invitation created, but the email didn't go. Copy the link below.",
+          ? t("team.sent")
+          : t("team.sentNoMail"),
       );
       vernieuw();
     },
@@ -132,7 +139,7 @@ function EigenaarsTeam({
       if (!res.ok) throw new Error(res.error);
     },
     onSuccess: () => {
-      toast.success("Removed from the team");
+      toast.success(t("team.removed"));
       vernieuw();
     },
     onError: (e) => toast.error((e as Error).message),
@@ -144,7 +151,7 @@ function EigenaarsTeam({
       if (!res.ok) throw new Error(res.error);
     },
     onSuccess: () => {
-      toast.success("Invitation cancelled");
+      toast.success(t("team.cancelled"));
       vernieuw();
     },
     onError: (e) => toast.error((e as Error).message),
@@ -153,10 +160,7 @@ function EigenaarsTeam({
   return (
     <div className="team">
       <style>{CSS}</style>
-      <p className="cap">
-        Let a colleague see this account — balances, ad accounts and
-        invoices. They cannot move money.
-      </p>
+      <p className="cap">{t("team.ownerIntro")}</p>
 
       <div className="inv">
         <input
@@ -171,38 +175,42 @@ function EigenaarsTeam({
           disabled={nodig.isPending || !email.trim()}
           onClick={() => nodig.mutate()}
         >
-          {nodig.isPending ? "Sending…" : "Invite"}
+          {nodig.isPending ? t("btn.sending") : t("btn.invite")}
         </button>
       </div>
 
       {link ? (
         <div>
-          <div className="sub">Invitation link</div>
+          <div className="sub">{t("label.invitationLink")}</div>
           <div className="link">{link}</div>
         </div>
       ) : null}
 
       {team.isPending ? (
-        <p className="cap">Loading…</p>
+        <p className="cap">{t("common.loading")}</p>
       ) : team.isError ? (
         <p className="cap" style={{ color: "var(--danger)" }}>
-          {(team.error as Error).message} This is not an empty team.
+          {(team.error as Error).message} {t("team.notEmpty")}
         </p>
       ) : (
         <>
-          <div className="sub">Members</div>
+          <div className="sub">{t("label.members")}</div>
           <div>
             {(team.data?.members ?? []).map((m) => (
               <div key={m.id} className="row">
                 <div className="who">
                   <b>
                     {m.name ?? m.email ?? "—"}
-                    {m.isYou ? " (you)" : ""}
+                    {m.isYou ? ` ${t("team.you")}` : ""}
                   </b>
                   <span>{m.email ?? ""}</span>
                 </div>
                 <span className={`rol${m.role === "owner" ? " owner" : ""}`}>
-                  {m.role}
+                  {m.role === "owner"
+                    ? t("label.roleOwner")
+                    : m.role === "manager"
+                      ? t("label.roleManager")
+                      : t("label.roleViewer")}
                 </span>
                 {m.role !== "owner" ? (
                   <button
@@ -210,7 +218,7 @@ function EigenaarsTeam({
                     disabled={weg.isPending}
                     onClick={() => weg.mutate(m.id)}
                   >
-                    Remove
+                    {t("btn.remove")}
                   </button>
                 ) : null}
               </div>
@@ -219,14 +227,15 @@ function EigenaarsTeam({
 
           {(team.data?.invites ?? []).length ? (
             <>
-              <div className="sub">Waiting to accept</div>
+              <div className="sub">{t("label.waitingToAccept")}</div>
               <div>
                 {team.data!.invites.map((i) => (
                   <div key={i.id} className="row">
                     <div className="who">
                       <b>{i.email}</b>
                       <span>
-                        {i.role} · until {new Date(i.expiresAt).toLocaleDateString()}
+                        {i.role === "manager" ? t("label.roleManager") : t("label.roleViewer")} ·{" "}
+                        {t("team.until", { date: new Date(i.expiresAt).toLocaleDateString() })}
                       </span>
                     </div>
                     <button
@@ -234,7 +243,7 @@ function EigenaarsTeam({
                       disabled={intrekken.isPending}
                       onClick={() => intrekken.mutate(i.id)}
                     >
-                      Cancel
+                      {t("btn.cancel")}
                     </button>
                   </div>
                 ))}

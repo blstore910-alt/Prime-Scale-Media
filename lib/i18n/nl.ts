@@ -143,6 +143,38 @@ export const nl: Record<Key, string> = {
   "label.stPaidOut": "Uitbetaald",
   "label.stApplied": "Verwerkt",
 
+  // ── het avatarmenu en het team ──────────────────────────────────
+  "menu.profile": "Profiel",
+  "menu.signOut": "Uitloggen",
+  "tab.team": "Team",
+  "page.team.sub": "Wie dit account kan zien.",
+  "team.ownerIntro": "Laat een collega meekijken — saldi, ad accounts en facturen. Geld verplaatsen kan hij niet.",
+  "team.memberIntro": "Je kijkt mee op het account van {account}, als {role}. Je ziet saldi, ad accounts en facturen; alleen de eigenaar kan geld verplaatsen of het team wijzigen.",
+  // "Nodig uit" (9) past niet in de ruimte van "Invite" (6)+2. Naast een
+  // e-mailveld zegt "Verstuur" hetzelfde.
+  "btn.invite": "Verstuur",
+  "btn.sending": "Bezig…",
+  "btn.remove": "Weg",
+  "label.members": "Leden",
+  "label.waitingToAccept": "Wacht op akkoord",
+  "label.invitationLink": "Uitnodigingslink",
+  // Rolbadges blijven Engels, zoals in de meeste software: "eigenaar" (8)
+  // past niet in de badge van "owner" (5)+2, en "eigenaar" naast "kijker"
+  // in twee lengtes maakt de ledenlijst ongelijk.
+  "label.roleOwner": "owner",
+  "label.roleViewer": "viewer",
+  "label.roleManager": "manager",
+  "team.you": "(jij)",
+  "team.until": "tot {date}",
+  "team.notEmpty": "Dit is geen leeg team.",
+  "team.sent": "Uitnodiging verstuurd — de link staat er ook onder.",
+  "team.sentNoMail": "Uitnodiging gemaakt, maar de mail ging niet weg. Kopieer de link hieronder.",
+  "team.removed": "Uit het team gehaald",
+  "team.cancelled": "Uitnodiging ingetrokken",
+  "viewer.banner": "Je kijkt mee op het account van {account} — alleen lezen.",
+  "viewer.title": "Alleen lezen",
+  "viewer.body": "Je kijkt mee op dit account. Alleen de eigenaar kan dit doen.",
+
   // ── algemeen ────────────────────────────────────────────────────
   "btn.cancel": "Annuleer",
   "btn.save": "Bewaar",

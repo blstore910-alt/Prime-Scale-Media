@@ -117,6 +117,7 @@ type View =
   | "notif"
   | "settings"
   | "partners"
+  | "team"
   | "help";
 const TITLES: Record<View, string> = {
   dash: "Dashboard",
@@ -132,6 +133,9 @@ const TITLES: Record<View, string> = {
   // kaart op het dashboard: een gids is iets dat je opzoekt, niet iets
   // dat bij elke keer inloggen ruimte hoort te kosten.
   partners: "Partners",
+  // Multi-user. Een eigen scherm en niet een kaart in Settings -- de
+  // eigenaar, 01-10: "zet die team of users gewoon in het hamburgermenu."
+  team: "Team",
   help: "Get help",
 };
 
@@ -318,10 +322,7 @@ export default function AdvertiserApp() {
   const isViewer = teamRole === "viewer";
   const viewerRefusal = (): boolean => {
     if (!isViewer) return false;
-    toast.info("Read only", {
-      description:
-        "You're viewing this account. Only the account owner can do this.",
-    });
+    toast.info(t("viewer.title"), { description: t("viewer.body") });
     return true;
   };
 
@@ -3687,6 +3688,7 @@ export default function AdvertiserApp() {
   const NAV2: { v: View; icon: string; label: string }[] = [
     { v: "notif", icon: "i-bell", label: t("tab.notifications") },
     { v: "partners", icon: "i-building", label: t("tab.partners") },
+    { v: "team", icon: "i-users", label: t("tab.team") },
     { v: "settings", icon: "i-settings", label: t("tab.settings") },
     { v: "help", icon: "i-help", label: t("tab.help") },
   ];
@@ -4142,8 +4144,22 @@ export default function AdvertiserApp() {
                       go("settings");
                     }}
                   >
-                    <Ic name="i-user" /> Profile
+                    <Ic name="i-user" /> {t("menu.profile")}
                   </button>
+                  {/* ── DE TAAL, SUBTIEL ──────────────────────────────
+                      De eigenaar, 01-10: "zet die subtiele taalschakelaar
+                      als ik op mijn avatar klik." EN | NL, klein, tussen
+                      Profile en Sign out -- bereikbaar van elk scherm
+                      zonder naar Settings te hoeven. */}
+                  <div
+                    className="umenu-item"
+                    style={{ justifyContent: "space-between", cursor: "default" }}
+                  >
+                    <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                      <Ic name="i-msg" /> {t("label.language")}
+                    </span>
+                    <LanguageSwitcher compact />
+                  </div>
                   <button
                     className="umenu-item danger"
                     role="menuitem"
@@ -4152,7 +4168,7 @@ export default function AdvertiserApp() {
                       setSignOutOpen(true);
                     }}
                   >
-                    <LogoutGlyph /> Sign out
+                    <LogoutGlyph /> {t("menu.signOut")}
                   </button>
                 </div>
               )}
@@ -4197,7 +4213,7 @@ export default function AdvertiserApp() {
             >
               <Ic name="i-user" />
               <span>
-                Viewing {referralCode ?? "this"}&apos;s account — read only.
+                {t("viewer.banner", { account: referralCode ?? "" })}
               </span>
             </div>
           ) : null}
@@ -7693,16 +7709,6 @@ export default function AdvertiserApp() {
                 <LanguageSwitcher />
               </div>
             </div>
-            {/* ── HET TEAM ─────────────────────────────────────────────
-                Multi-user fase 3. De eigenaar nodigt hier een collega
-                uit om mee te kijken; een teamlid ziet hier bij wie hij
-                meekijkt. Zie components/team/team-panel.tsx. */}
-            <div className="card" style={{ marginBottom: 14 }}>
-              <h2>Team</h2>
-              <div style={{ marginTop: 10 }}>
-                <TeamPanel teamRole={teamRole} accountCode={referralCode} />
-              </div>
-            </div>
             <div className="grid2">
               {/* ── "PROFILE" IN THE AVATAR MENU LANDED HERE ──────────
                   ...and "here" was the COMPANY form. There was no
@@ -8196,6 +8202,25 @@ export default function AdvertiserApp() {
               staan in components/partners/partner-directory.tsx; de
               partners zelf beheert de eigenaar onder Partners in
               beheer, zonder deploy. */}
+          {/* ── HET TEAM ─────────────────────────────────────────────
+              Multi-user fase 3. Eigen scherm in het hamburgermenu (de
+              eigenaar, 01-10). De eigenaar nodigt hier een collega uit om
+              mee te kijken; een teamlid ziet bij wie hij meekijkt. Zie
+              components/team/team-panel.tsx. */}
+          <div className={`view${view === "team" ? " on" : ""}`}>
+            <div className="phead">
+              <div>
+                <h1>{t("tab.team")}</h1>
+                <p>{t("page.team.sub")}</p>
+              </div>
+            </div>
+            <div className="card">
+              {view === "team" ? (
+                <TeamPanel teamRole={teamRole} accountCode={referralCode} />
+              ) : null}
+            </div>
+          </div>
+
           <div className={`view${view === "partners" ? " on" : ""}`}>
             <div className="phead">
               <div>
