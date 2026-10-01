@@ -47,11 +47,21 @@ export async function copyText(text: string): Promise<boolean> {
     ta.style.position = "fixed";
     ta.style.top = "-1000px";
     ta.style.opacity = "0";
-    document.body.appendChild(ta);
+    // INSIDE the open dialog, not on <body>. A modal traps focus: a
+    // textarea outside it cannot be focused or selected, execCommand then
+    // copies nothing and still answers true -- the owner, 01-10: "copy
+    // copied de reference niet", on the top-up ticket.
+    const active = document.activeElement as HTMLElement | null;
+    const host =
+      (active?.closest?.("[role=dialog]") as HTMLElement | null) ?? document.body;
+    host.appendChild(ta);
+    ta.focus({ preventScroll: true });
     ta.select();
     ta.setSelectionRange(0, value.length);
     const ok = document.execCommand("copy");
-    document.body.removeChild(ta);
+    host.removeChild(ta);
+    // Give focus back to the button that was pressed.
+    active?.focus?.({ preventScroll: true });
     return ok;
   } catch {
     return false;
