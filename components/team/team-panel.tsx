@@ -289,6 +289,13 @@ function EigenaarsTeam({
     onError: (e) => toast.error((e as Error).message),
   });
 
+  // ── THE SWITCHES ANSWER AT ONCE ────────────────────────────────────
+  // Test 4, 01-10: switching Exchange and then Fund quickly saved only
+  // Exchange. The second press was either swallowed (the switch is off
+  // while saving) or computed from the list as it was BEFORE the first
+  // save, which then wrote over it. The screen now keeps each member's
+  // rights itself, so every press builds on the last one.
+  const [lokaal, setLokaal] = useState<Record<string, string[]>>({});
   const rechten = useMutation({
     mutationFn: async (v: { id: string; permissions: string[] }) => {
       const res = await setTeamMemberPermissions(v.id, v.permissions);
@@ -299,7 +306,13 @@ function EigenaarsTeam({
       toast.success(t("team.rightsSaved"));
       vernieuw();
     },
-    onError: (e) => toast.error((e as Error).message),
+    onError: (e) => {
+      // Back to what the server holds: a switch must not show a right
+      // that was not saved.
+      setLokaal({});
+      vernieuw();
+      toast.error((e as Error).message);
+    },
   });
 
   const intrekken = useMutation({
@@ -395,7 +408,7 @@ function EigenaarsTeam({
             </div>
             {members.map((m, i) => {
               const isOwner = m.role === "owner";
-              const perms = m.permissions ?? [];
+              const perms = lokaal[m.id] ?? m.permissions ?? [];
               const isOpen = open === m.id;
               const samenvatting = isOwner
                 ? t("label.roleOwner")
@@ -434,13 +447,11 @@ function EigenaarsTeam({
                               type="checkbox"
                               role="switch"
                               checked={aan}
-                              disabled={rechten.isPending}
-                              onChange={() =>
-                                rechten.mutate({
-                                  id: m.id,
-                                  permissions: aan ? perms.filter((x) => x !== r) : [...perms, r],
-                                })
-                              }
+                              onChange={() => {
+                                const next = aan ? perms.filter((x) => x !== r) : [...perms, r];
+                                setLokaal((o) => ({ ...o, [m.id]: next }));
+                                rechten.mutate({ id: m.id, permissions: next });
+                              }}
                             />
                             <i aria-hidden />
                           </label>
