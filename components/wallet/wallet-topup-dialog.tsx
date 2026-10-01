@@ -377,7 +377,6 @@ export default function WalletTopupDialog({
   // instead of leaving that to the browser's own "Geen bestand gekozen".
   const [slipName, setSlipName] = useState<string | null>(null);
   const [slipDrag, setSlipDrag] = useState(false);
-  const [useNewRef, setUseNewRef] = useState(false);
   const [filedReference, setFiledReference] = useState<string | null>(null);
   const [filedAmount, setFiledAmount] = useState<number | null>(null);
 
@@ -618,7 +617,6 @@ export default function WalletTopupDialog({
     setPaymentSlipError(null);
     setSlipName(null);
     setIsUploadingSlip(false);
-    setUseNewRef(false);
   }, [open, initialCurrency]);
 
   // ── AN UNCANCELLED TIMER OUTLIVES THE CLOSE THAT STARTED IT ────────
@@ -893,12 +891,7 @@ export default function WalletTopupDialog({
 
   // The one code step 2 shows: the open top-up's when there is one (use
   // it if that money has not gone yet), the wallet's next one on request.
-  const shownRef: string | null =
-    openTopup && !useNewRef
-      ? openTopup.reference_no == null
-        ? null
-        : String(openTopup.reference_no)
-      : referenceNo == null ? null : String(referenceNo);
+  const shownRef: string | null = referenceNo == null ? null : String(referenceNo);
 
   const handleSubmitForm = (values: FormValues) => {
     // Slip required for every topup, both account groups.
@@ -1088,10 +1081,11 @@ export default function WalletTopupDialog({
                       </button>
                     ))}
                   </div>
-                  {transferCurrency !== currency && <p className="tpx-hint">
-                    {tr("wtop.receives", { v: String(bankBeneficiary(bankGroup)), v2: String(availableTransferCurrencies.join(" / ")), v3: String(transferCurrency !== currency
-                      ? ` You'll pay in ${transferCurrency}; your ${currency} wallet is credited from the slip.`
-                      : "") })}</p>}
+                  {transferCurrency !== currency && (
+                    <p className="tpx-hint">
+                      {tr("wtop.crossNote", { t: transferCurrency, c: currency })}
+                    </p>
+                  )}
                 </div>
 
                 {/* ── SAY THE MINIMUM BEFORE THEY SEND THE MONEY ────────
@@ -1173,7 +1167,19 @@ export default function WalletTopupDialog({
                         (openTopup.currency ?? "EUR").toUpperCase() === "USD"
                           ? "USD"
                           : "EUR",
-                      )), v2: String(new Date(openTopup.created_at).toLocaleDateString()) })}</span>
+                      )), v2: String(new Date(openTopup.created_at).toLocaleDateString()) })}</span>{" "}
+                      {openTopup.reference_no != null ? (
+                        <button
+                          type="button"
+                          className="tpx-mono"
+                          onClick={() => copyReference(String(openTopup.reference_no))}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 5, border: 0, cursor: "pointer", background: "#fff", borderRadius: 8, padding: "2px 8px", fontWeight: 700, fontSize: 12.5, color: "var(--tpx-ink)", verticalAlign: "middle" }}
+                          aria-label={tr("wtop.copyReference", { v: String(formatPaymentReference(clientCode, String(openTopup.reference_no))) })}
+                        >
+                          {formatPaymentReference(clientCode, String(openTopup.reference_no))}
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      ) : null}
                     </span>
                   </div>
                 ) : null}
@@ -1201,7 +1207,7 @@ export default function WalletTopupDialog({
                     </span>
                     <div className="tpx-ticket-foot">
                       <p>
-                        {openTopup && useNewRef
+                        {openTopup
                           ? tr("wtop.forANewTransferUse")
                           : tr("wtop.putThisReferenceInThe")}
                       </p>
@@ -1221,17 +1227,6 @@ export default function WalletTopupDialog({
                   <p className="tpx-note" data-tone="warn">
                     {tr("wtop.weCouldNotProduceA")}</p>
                 )}
-
-                {openTopup ? (
-                  <button
-                    type="button"
-                    className="tpx-link"
-                    style={{ alignSelf: "center", marginTop: -6 }}
-                    onClick={() => setUseNewRef((v) => !v)}
-                  >
-                    {useNewRef ? tr("wtop.useOpenRef") : tr("wtop.separateNewTransfer")}
-                  </button>
-                ) : null}
 
                 {/* ── THE FLOOR, IN THE MONEY THEY ARE ABOUT TO SEND ──
                     One figure, in the transfer currency, rounded UP: a
