@@ -1246,7 +1246,10 @@ export default function WalletTopupDialog({
                         </div>
                       ) : null}
                       {cross ? (
-                        <RateStamp at={(exchangeRates?.[0] as { updated_at?: string } | undefined)?.updated_at} />
+                        <RateStamp
+                          at={(exchangeRates?.[0] as { updated_at?: string } | undefined)?.updated_at}
+                          source={(exchangeRates?.[0] as { source?: string | null } | undefined)?.source}
+                        />
                       ) : null}
                       {cross && crossQuote ? (
                         <>
@@ -1259,12 +1262,7 @@ export default function WalletTopupDialog({
                             <span>− {formatCurrency(crossQuote.fee, currency)}</span>
                           </div>
                         </>
-                      ) : (
-                        <div className="tpx-receipt-row">
-                          <span>{tr("wtop.fee")}</span>
-                          <span>{formatCurrency(0, currency)}</span>
-                        </div>
-                      )}
+                      ) : null}
                       <hr />
                       <div className="tpx-receipt-row" data-tone="strong">
                         <span>{tr("wtop.weCreditShort")}</span>

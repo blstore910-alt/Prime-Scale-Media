@@ -89,6 +89,7 @@ export default function WalletExchangeDialog({
   const {
     rate: advEurRate,
     updatedAt: rateUpdatedAt,
+    source: rateSource,
     isLoading: ratesLoading,
     isError: ratesError,
   } = useUsdToEur();
@@ -512,7 +513,7 @@ export default function WalletExchangeDialog({
                     : `1 ${fromCurrency} = ${rate.toFixed(6)} ${toCurrency}`}
               </span>
             </div>
-            <RateStamp at={rateUpdatedAt} />
+            <RateStamp at={rateUpdatedAt} source={rateSource} />
             <div className="tpx-receipt-row">
               <span>{tr("exch.converted")}</span>
               <span>{rate ? formatCurrency(quote.gross, toCurrency) : "-"}</span>

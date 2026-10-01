@@ -961,6 +961,7 @@ export const nl: Record<Key, string> = {
   "label.wtop.selectCurrency": "Kies valuta",
   "wtop.usdUsDollarWallet": "USD - Dollarwallet",
   "wtop.stepWallet": "Wallet",
+  "rate.stampWise": "Koers bijgewerkt {t} · Wise-middenkoers",
   "rate.stamp": "Koers bijgewerkt {t} · middenkoers",
   "wtop.retry": "Opnieuw",
   "wtop.readingRate": "Dagkoers ophalen…",

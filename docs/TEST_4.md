@@ -92,7 +92,7 @@ die elke klant kon lezen.
 
 **Stand 01-10 avond — Blok 0 DICHT:**
 
-- L1: plak 192 sloot hem, maar zes serverpaden lazen de tabel nog als klant (fee-offerte brak) -> plak 197 zette de regels terug. Code 95287ad2 leest nu via de view of met de service-sleutel na een eigendomscheck; **plak 198 sluit hem weer — open tot hij geplakt en gecontroleerd is.**
+- L1 DICHT (01-10 avond): plak 192 -> 197 (terug: zes serverpaden lazen nog als klant) -> code 95287ad2 (view, of service-sleutel na eigendomscheck) -> plak 198 (klantregels weg; gecontroleerd: alleen 'Enable ALL for admins') -> plak 199 (view alleen lezen; gecontroleerd).
 - L2 dicht: een bundel per rol (components/role-split), typelijsten, MUXUE en
   het eigenaarshandboek naar beheerbestanden.
 - L3 bewust geaccepteerd: de leveranciersvelden bij terugboekingen zijn leeg en
@@ -527,15 +527,15 @@ eigenaar nodig is).
 
 | reis | account | taal | uitkomst | scherm | database | fix / open |
 |---|---|---|---|---|---|---|
-| R1 | T4-A | EN | | | | |
-| R1 | T4-B | EN | | | | |
-| R1 | T4-C | EN | | | | |
-| R1 | T4-N | EN | | | | |
-| R1 | T4-F | EN | | | | |
+| R1 | T4-A | EN | werkt | uitnodiging -> aanmelden -> bedrijf -> dashboard | PSM0030, plan + bedrijf | mislukte aanmelding ruimt login op (42bf5fad); grens alleen zonder geldige uitnodiging (8a88d3a2) |
+| R1 | T4-B | EN | half | aangemeld; bedrijfsgegevens nog niet | PSM0024, plan, bedrijf 0 | open: onboarding in het paneel |
+| R1 | T4-C | EN | half | aangemeld; bedrijfsgegevens nog niet | PSM0025, plan, bedrijf 0 | open: onboarding |
+| R1 | T4-N | EN | half | aangemeld; bedrijfsgegevens nog niet | PSM0026, NSA-plan, bedrijf 0 | open: onboarding |
+| R1 | T4-F | EN | half | aangemeld als affiliate | PSM0028 | open: dashboard lopen (R9) |
 | R1 | T4-R | EN | | | | |
 | R1 | T4-V | EN | | | | |
-| R1 | T4-U | EN | | | | |
-| R1 | T4-0 | EN | | | | |
+| R1 | T4-U | EN | half | aangemeld als affiliate | PSM0027 | open: R10 |
+| R1 | T4-0 | EN | werkt | zonder plan: Billing zegt het een keer; aanvragen geblokkeerd | PSM0029, geen plan, bedrijf 1 | geen plan != gratis plan (6921ffca, plak 196) |
 | R1 | T4-W | EN | | | | |
 | R2 | T4-B (snelle check) | NL | | | | |
 | R3 | T4-A EUR | EN | werkt | alle dialoogtakken (EUR/USD wallet x EUR/USD/GBP/HKD), herontwerp in 4 rondes; Verify door Lasse | wallet_topups 500 EUR completed; wallet EUR 0.00 -> 500.00; ledger 1 regel +500.00 (0.00 -> 500.00, actor); melding wallet_topup_completed | herontwerp topup (263db364 .. 14a7d9fa); kopieerknop in dialoog (7022c035); Other amount/Precharge naar Details (66d36cee). Open: reject-met-reden en Other amount (twee admins) nog te lopen |

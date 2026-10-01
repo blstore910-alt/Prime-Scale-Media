@@ -289,9 +289,11 @@ export function ChoiceCard({
  */
 export function RateStamp({
   at,
+  source,
   align = "right",
 }: {
   at: string | null | undefined;
+  source?: string | null;
   align?: "left" | "right";
 }) {
   const { t: tr, locale } = useT();
@@ -311,7 +313,7 @@ export function RateStamp({
       className="tpx-stamp"
       style={{ display: "block", fontSize: 10.5, color: "#9AA2B4", textAlign: align, lineHeight: 1.35 }}
     >
-      {tr("rate.stamp", { t: when })}
+      {source === "wise" ? tr("rate.stampWise", { t: when }) : tr("rate.stamp", { t: when })}
     </span>
   );
 }

@@ -51,20 +51,25 @@ export function useUsdToEur() {
     staleTime: 5 * 60_000,
     queryFn: async () => {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from("exchange_rates")
-        // updated_at as well, so the reader can tell a rate from a
-        // MEMORY of a rate. See the effect below.
-        .select("eur, updated_at")
-        .eq("tenant_id", tenantId)
-        .eq("is_active", true)
-        .maybeSingle();
+      const ask = (cols: string) =>
+        supabase
+          .from("exchange_rates")
+          .select(cols)
+          .eq("tenant_id", tenantId)
+          .eq("is_active", true)
+          .maybeSingle();
+      // `source` arrives with plak 200; without it, ask again without.
+      let { data, error } = await ask("eur, updated_at, source");
+      if (error && /source/i.test(String(error.message ?? ""))) {
+        ({ data, error } = await ask("eur, updated_at"));
+      }
       if (error) throw error;
-      const row = data as { eur?: number; updated_at?: string } | null;
+      const row = data as { eur?: number; updated_at?: string; source?: string | null } | null;
       const eur = Number(row?.eur);
       return {
         eur: Number.isFinite(eur) && eur > 0 ? eur : null,
         updatedAt: row?.updated_at ?? null,
+        source: row?.source ?? null,
       };
     },
   });
@@ -118,6 +123,8 @@ export function useUsdToEur() {
     rate: data?.eur ?? null,
     /** When the stored row was last written, or null. */
     updatedAt: data?.updatedAt ?? null,
+    /** "wise" | "open-feed" once plak 200 has run, else null. */
+    source: data?.source ?? null,
     isLoading,
     /** No answer yet -- including a query that never ran (no tenant id).
      *  Without it the caller states "there is no rate set today", which

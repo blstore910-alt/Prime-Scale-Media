@@ -180,15 +180,24 @@ export async function refreshExchangeRates(
     // "when did the number last change" -- an unchanged rate confirmed a
     // minute ago is FRESH. So the stamp moves on every confirmation,
     // whether or not the figure did.
-    const { error: writeErr } = await supabase
+    const values = {
+      eur: fresh.eur,
+      gbp: fresh.gbp,
+      hkd: fresh.hkd,
+      updated_at: new Date().toISOString(),
+    };
+    // Where it came from, so the screen can say "Wise" (de eigenaar,
+    // 01-10). Plak 200 adds the column; until then, write without it.
+    let { error: writeErr } = await supabase
       .from("exchange_rates")
-      .update({
-        eur: fresh.eur,
-        gbp: fresh.gbp,
-        hkd: fresh.hkd,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ ...values, source })
       .eq("id", row.id);
+    if (writeErr && /source/i.test(String(writeErr.message ?? ""))) {
+      ({ error: writeErr } = await supabase
+        .from("exchange_rates")
+        .update(values)
+        .eq("id", row.id));
+    }
     if (writeErr) {
       console.error("exchange-rates: write", safeErrorMessage(writeErr));
       refused.push({ tenant: row.tenant_id, reason: "write failed" });

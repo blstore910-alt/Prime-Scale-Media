@@ -216,7 +216,7 @@ export default function PayoutCard({
   });
   const MIN_PER_CURRENCY = payoutMinimumFor(minOverride);
   const payouts = useAffiliatePayouts(enabled, scope);
-  const { rate, updatedAt: rateUpdatedAt } = useUsdToEur();
+  const { rate, updatedAt: rateUpdatedAt, source: rateSource } = useUsdToEur();
 
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -869,7 +869,7 @@ export default function PayoutCard({
                     {legs.some((l) => l.rate) ? (
                       <p className="note">
                         {tr("payout.liveRate1UsdEur", { v: String(Number(legs.find((l) => l.rate)?.rate ?? 0).toFixed(4)) })}
-                        <RateStamp at={rateUpdatedAt} align="left" /></p>
+                        <RateStamp at={rateUpdatedAt} source={rateSource} align="left" /></p>
                     ) : null}
                   </div>
                 ) : null}
