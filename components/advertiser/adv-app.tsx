@@ -7573,7 +7573,7 @@ export default function AdvertiserApp() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {notifs.length ? (
                 notifs.map((n) => {
-                  const copy = getNotificationCopy(n);
+                  const copy = getNotificationCopy(n, locale);
                   return (
                     <div
                       key={n.id}
@@ -8199,7 +8199,7 @@ export default function AdvertiserApp() {
               <div className="card">
                 <h2>
                   <Ic name="i-mail" /> {" "}{tr("label.adv.talkToUs")}</h2>
-                <p className="cap">{talkToUsLine(referralCode)}</p>
+                <p className="cap">{talkToUsLine(referralCode, locale)}</p>
               </div>
             </div>
           </div>

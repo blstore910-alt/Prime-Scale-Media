@@ -33,7 +33,7 @@ import type { NotificationType } from "@/lib/types/notification";
  * said in words instead.
  */
 export function GroupToggle({ group }: { group: NotificationGroupForRole }) {
-  const { t: tr } = useT();
+  const { t: tr, tx } = useT();
   const { isEnabled, setPreference, setGroup, isError, isLoading } =
     useNotificationPreferences();
   const [open, setOpen] = useState(false);
@@ -48,13 +48,13 @@ export function GroupToggle({ group }: { group: NotificationGroupForRole }) {
     <div style={{ borderBottom: "1px solid var(--line)" }}>
       <div className="toggle-row">
         <div>
-          <div className="t">{group.label}</div>
+          <div className="t">{tx(group.label)}</div>
           <div className="d">
             {isError
               ? tr("notif.weCouldnTReadYour")
               : isLoading
                 ? tr("notif.readingYourSettings")
-                : group.description}
+                : tx(group.description)}
           </div>
           {!isError && !isLoading ? (
             <button
@@ -98,7 +98,7 @@ export function GroupToggle({ group }: { group: NotificationGroupForRole }) {
             if (todo.length === 0) return;
             setGroup.mutate({ types: todo, enabled: next });
           }}
-          aria-label={group.label}
+          aria-label={tx(group.label)}
         />
       </div>
       {open ? (
@@ -106,8 +106,8 @@ export function GroupToggle({ group }: { group: NotificationGroupForRole }) {
           {group.entries.map((entry) => (
             <Toggle
               key={entry.type}
-              label={entry.label}
-              desc={entry.description}
+              label={tx(entry.label)}
+              desc={tx(entry.description)}
               notifType={entry.type}
             />
           ))}

@@ -83,16 +83,19 @@ export function shortDate(iso: string): string {
 }
 
 /** "1 – 19 Sep 2026", and the shortest true form of it. */
-export function describeRange(from: string, to: string): string {
-  if (!from && !to) return "All time";
+const MAANDEN = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+
+export function describeRange(from: string, to: string, locale: "en" | "nl" = "en"): string {
+  const nl = locale === "nl";
+  if (!from && !to) return nl ? "Altijd" : "All time";
   const fmt = (v: string, withYear: boolean) => {
     const [y, m, d] = v.split("-").map(Number);
     if (!y || !m || !d) return v;
-    const month = MONTHS[m - 1] ?? "";
+    const month = (nl ? MAANDEN : MONTHS)[m - 1] ?? "";
     return withYear ? `${d} ${month} ${y}` : `${d} ${month}`;
   };
-  if (from && !to) return `From ${fmt(from, true)}`;
-  if (!from && to) return `Up to ${fmt(to, true)}`;
+  if (from && !to) return `${nl ? "Vanaf" : "From"} ${fmt(from, true)}`;
+  if (!from && to) return `${nl ? "Tot" : "Up to"} ${fmt(to, true)}`;
   const sameYear = from.slice(0, 4) === to.slice(0, 4);
   const sameMonth = sameYear && from.slice(5, 7) === to.slice(5, 7);
   if (from === to) return fmt(from, true);

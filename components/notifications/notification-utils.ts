@@ -96,10 +96,18 @@ export function getWalletTopupIdFromNotification(
   );
 }
 
-export function getNotificationCopy(notification: Notification): {
+export function getNotificationCopy(
+  notification: Notification,
+  /** Alleen de klantmeldingen hebben een Nederlandse versie (kopieNL). */
+  locale: "en" | "nl" = "en",
+): {
   title: string;
   description: string;
 } {
+  if (locale === "nl") {
+    const nl = kopieNL(notification);
+    if (nl) return nl;
+  }
   const type = notification.type as NotificationType;
 
   switch (type) {
@@ -676,6 +684,239 @@ export function getNotificationCopy(notification: Notification): {
         title: "New Notification",
         description: "You have a new notification.",
       };
+  }
+}
+
+
+// ── DE KLANTMELDINGEN IN HET NEDERLANDS ─────────────────────────────
+//
+// De eigenaar, 01-10: zoveel mogelijk Nederlands voor wie NL kiest. Alleen
+// de soorten die een KLANT krijgt (adverteerder of affiliate); de
+// beheermeldingen hierboven blijven Engels, want de beheerkant is Engels.
+// Een soort die hier niet staat, valt terug op het Engels -- nooit leeg.
+//
+// Zelfde payload, zelfde bedragen, zelfde terugval als de Engelse case:
+// alleen de woorden verschillen. Vaktermen blijven Engels (wallet,
+// top-up, ad account, referral).
+function kopieNL(notification: Notification): { title: string; description: string } | null {
+  const type = notification.type as NotificationType;
+  const p = parseNotificationPayload(notification) as Record<string, unknown>;
+  const cur = String(asString(p.currency) ?? "EUR").toUpperCase();
+  const sym = cur === "USD" ? "$" : "€";
+  const amt = asNumber(p.amount);
+  const som = amt === null ? null : `${sym}${amt.toFixed(2)}`;
+  const reden = String(asString(p.reason) ?? "").trim();
+  const waar = String(asString(p.account_name) ?? "").trim();
+  const code = asString(p.client_code);
+
+  switch (type) {
+    case "topup_completed":
+      if (som === null)
+        return { title: "Top-up gelukt", description: "Je top-up is gecontroleerd en goedgekeurd." };
+      return {
+        title: "Geld staat op je ad account",
+        description: waar ? `${som} is aangekomen op ${waar}.` : `${som} is aangekomen op je ad account.`,
+      };
+    case "wallet_topup_completed":
+      return {
+        title: "Geld staat in je wallet",
+        description:
+          som !== null
+            ? `We hebben je overboeking bevestigd en ${som} bijgeschreven op je ${cur} wallet.`
+            : "We hebben je overboeking bevestigd en bijgeschreven op je wallet.",
+      };
+    case "wallet_topup_rejected":
+      return {
+        title: "Wallet top-up geweigerd",
+        description:
+          reden ||
+          "We konden deze overboeking niet bevestigen. Er is niets bijgeschreven — controleer het kenmerk dat je gebruikte en dien hem opnieuw in.",
+      };
+    case "topup_rejected": {
+      const s = som ?? "dit geld";
+      return {
+        title: "Ad-account top-up geweigerd",
+        description: reden
+          ? `We konden ${s} niet op je ad account zetten. ${reden}`
+          : `We konden ${s} niet op je ad account zetten. Je wallet is ongewijzigd.`,
+      };
+    }
+    case "withdrawal_rejected":
+      return {
+        title: "Die terugboeking konden we niet doen",
+        description: [
+          waar
+            ? `Wat je terugvroeg van ${waar} is niet teruggezet.`
+            : "Wat je terugvroeg van je ad account is niet teruggezet.",
+          reden || "Stuur ons een bericht, dan leggen we het uit.",
+        ].join(" "),
+      };
+    case "wallet_adjusted": {
+      const d = Number(p.delta ?? 0);
+      const figuur = `${sym}${Math.abs(d).toFixed(2)}`;
+      const kop = d < 0 ? `We hebben je wallet met ${figuur} naar beneden gecorrigeerd.` : `We hebben je wallet met ${figuur} naar boven gecorrigeerd.`;
+      return {
+        title: d < 0 ? "Je wallet is naar beneden gecorrigeerd" : "Je wallet is naar boven gecorrigeerd",
+        description: reden ? `${kop} ${reden}` : kop,
+      };
+    }
+    case "wallet_refunded":
+      return {
+        title: "Je saldo is onderweg naar je bank",
+        description: `${sym}${Number(p.amount ?? 0).toFixed(2)} is van je wallet af en wordt overgemaakt. Een bankoverschrijving duurt een paar werkdagen.`,
+      };
+    case "withdrawal_approved":
+      return {
+        title: "Geld staat weer in je wallet",
+        description: som
+          ? waar
+            ? `${som} van ${waar} is in je wallet aangekomen.`
+            : `${som} van je ad account is in je wallet aangekomen.`
+          : waar
+            ? `Wat je terugvroeg van ${waar} is in je wallet aangekomen.`
+            : "Wat je terugvroeg van je ad account is in je wallet aangekomen.",
+      };
+    case "ad_account_request_approved":
+      return {
+        title: "Je ad account is klaar",
+        description: waar
+          ? `${waar} staat klaar en je kunt het funden vanuit je wallet.`
+          : "Het ad account dat je aanvroeg staat klaar en je kunt het funden vanuit je wallet.",
+      };
+    case "request_fee_refunded": {
+      const terug = (amt ?? 0) > 0;
+      const kop = terug
+        ? `We konden dit account niet opzetten, dus ${som ?? "de fee"} staat weer in je wallet.`
+        : "We konden dit account niet opzetten. Er is niets voor afgeschreven.";
+      return {
+        title: terug ? "Je aanvraagfee is terug" : "Je accountaanvraag is geweigerd",
+        description: reden ? `${kop} ${reden}` : kop,
+      };
+    }
+    case "subscription_invoice":
+      return {
+        title: "Nieuwe factuur voor je plan",
+        description:
+          "Je maandfactuur staat klaar. Betaal hem uit je wallet wanneer het je uitkomt — staat hij op de vervaldatum nog open, dan schrijven we hem automatisch af van je wallet.",
+      };
+    case "subscription_invoice_paid": {
+      const nr = asLabel(p.number);
+      const wat = nr ? ` voor factuur ${nr}` : "";
+      return {
+        title: "Factuur betaald uit je wallet",
+        description:
+          som !== null
+            ? `We hebben ${som} van je ${cur} wallet afgeschreven${wat}.`
+            : `Je factuur is betaald uit je wallet${wat}.`,
+      };
+    }
+    case "subscription_invoice_due_soon": {
+      const due = asString(p.due_date);
+      return {
+        title: "Je factuur vervalt binnenkort",
+        description: `${som ?? "Je factuur"} wordt afgeschreven van je ${cur} wallet${
+          due ? ` op ${String(due).slice(0, 10)}` : " op de vervaldatum"
+        }. Zorg dat er genoeg in staat — of betaal hem nu onder Facturen.`,
+      };
+    }
+    case "subscription_past_due":
+      return {
+        title: "Plan niet betaald",
+        description: "We konden je plan niet van je wallet afschrijven. Doe een top-up, dan wordt het automatisch afgeschreven.",
+      };
+    case "subscription_changed":
+      return {
+        title: "Plan gewijzigd",
+        description: "Het bedrag van je plan is veranderd. Open Facturen om te zien wat er openstaat.",
+      };
+    case "referral_commission_earned": {
+      const n = Number(p.amount);
+      const figuur = Number.isFinite(n) ? `${sym}${n.toFixed(2)}` : "Een commissie";
+      const wat =
+        p.source === "subscription"
+          ? "een planbetaling"
+          : p.source === "onetime"
+            ? "je welkomstbonus voor een nieuwe klant"
+            : "een top-up";
+      return {
+        title: "Je hebt commissie verdiend",
+        description: `${figuur} uit ${wat}${code ? ` van ${code}` : ""}.`,
+      };
+    }
+    case "referral_joined":
+      return {
+        title: "Iemand meldde zich aan via je link",
+        description: `${code || "Een nieuwe klant"} meldde zich aan via je link.${
+          p.pending ? " We controleren elke nieuwe referral — wat diegene intussen doet, telt mee zodra hij is goedgekeurd." : ""
+        }`,
+      };
+    case "referral_approved": {
+      const eur = Number(p.booked_eur);
+      const usd = Number(p.booked_usd);
+      const delen = [
+        Number.isFinite(eur) && eur > 0 ? `€${eur.toFixed(2)}` : null,
+        Number.isFinite(usd) && usd > 0 ? `$${usd.toFixed(2)}` : null,
+      ].filter(Boolean);
+      return {
+        title: "Je referral is goedgekeurd",
+        description: `${code || "Je referral"} telt nu voor jou.${
+          delen.length ? ` ${delen.join(" + ")} is geboekt voor wat diegene al deed.` : ""
+        }`,
+      };
+    }
+    case "referral_rejected":
+      return {
+        title: "Over een referral",
+        description: `We konden ${code || "een recente aanmelding"} niet als jouw referral tellen. Stuur ons een bericht als je denkt dat dit niet klopt.`,
+      };
+    case "affiliate_upgrade_approved":
+      return {
+        title: "Je kunt nu adverteren",
+        description:
+          "Adverteren staat aan voor je account. Herlaad de app om je adverteerdersdashboard te openen — je referrals en verdiensten staan er allemaal nog.",
+      };
+    case "affiliate_upgrade_refused":
+      return {
+        title: "Over adverteren bij ons",
+        description: reden
+          ? `Nog niet: ${reden} Je kunt het opnieuw vragen wanneer je wilt.`
+          : "We konden adverteren nog niet aanzetten. Je kunt het opnieuw vragen wanneer je wilt.",
+      };
+    case "affiliate_payout_paid":
+      return {
+        title: "Je uitbetaling is onderweg",
+        description: `${money2(p.amount, p.currency)} overgemaakt${
+          asString(p.reference) ? ` · kenmerk ${asString(p.reference)}` : ""
+        }. Het kan een dag of twee duren voor het binnen is.`,
+      };
+    case "affiliate_payout_rejected":
+      return {
+        title: "Over je uitbetalingsverzoek",
+        description: `${money2(p.amount, p.currency)} is niet uitbetaald: ${
+          reden || "we hebben eerst iets van je nodig"
+        } Wat je verdiende blijft van jou — vraag het opnieuw als het geregeld is.`,
+      };
+    case "affiliate_approved":
+      return {
+        title: "Je bent affiliate",
+        description: "Je referral-link staat aan. Deel hem vanuit Referrals — iedereen die zich via die link aanmeldt, is van jou.",
+      };
+    case "affiliate_refused":
+      return {
+        title: "Over je affiliate-aanvraag",
+        description: reden
+          ? `Deze keer niet: ${reden} Je kunt opnieuw aanvragen wanneer je wilt.`
+          : "We konden je aanvraag deze keer niet accepteren. Je kunt opnieuw aanvragen wanneer je wilt.",
+      };
+    case "account_deletion_declined":
+      return {
+        title: "Over je verwijderverzoek",
+        description: reden
+          ? `We hebben je account nog niet verwijderd: ${reden}`
+          : "We hebben je account nog niet verwijderd. Stuur ons een bericht, dan leggen we het uit.",
+      };
+    default:
+      return null;
   }
 }
 

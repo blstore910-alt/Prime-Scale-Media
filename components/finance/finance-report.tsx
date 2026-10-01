@@ -50,7 +50,7 @@ export default function FinanceReport({
 }: {
   audience?: "advertiser" | "affiliate";
 }) {
-  const { t: tr } = useT();
+  const { t: tr, tx, locale } = useT();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["finance-report", audience],
     staleTime: 60_000,
@@ -209,7 +209,7 @@ export default function FinanceReport({
             <rect x="3" y="5" width="18" height="16" rx="2.5" />
             <path d="M3 10h18M8 3v4M16 3v4" />
           </svg>
-          <span className="fr-period-val">{describeRange(from, to)}</span>
+          <span className="fr-period-val">{describeRange(from, to, locale)}</span>
           <svg viewBox="0 0 24 24" aria-hidden className="fr-caret">
             <path d="m6 9 6 6 6-6" />
           </svg>
@@ -232,7 +232,7 @@ export default function FinanceReport({
                     setPeriodOpen(false);
                   }}
                 >
-                  <span>{RANGE_LABELS[k]}</span>
+                  <span>{tx(RANGE_LABELS[k])}</span>
                   {range === k && (
                     <svg viewBox="0 0 24 24" aria-hidden>
                       <path d="M20 6 9 17l-5-5" />
@@ -293,7 +293,7 @@ export default function FinanceReport({
             all.some((l) => l.kind === k),
           ).map((k) => (
             <option key={k} value={k}>
-              {KIND_LABELS[k]}
+              {tx(KIND_LABELS[k])}
             </option>
           ))}
         </select>
@@ -400,6 +400,22 @@ export default function FinanceReport({
   );
 }
 
+// Een label met een naam of valuta erin staat niet letterlijk in het
+// woordenboek. Het vaste stuk wordt vertaald, de rest blijft staan.
+function regel(label: string, tx: (s: string) => string): string {
+  const heel = tx(label);
+  if (heel !== label) return heel;
+  const m =
+    /^(Funded ad account) — (.+)$/.exec(label) ??
+    /^(Exchanged) (to|from) ([A-Z]{3})$/.exec(label);
+  if (!m) return label;
+  if (m[1] === "Exchanged") {
+    const nl = tx("Funded ad account") !== "Funded ad account";
+    return nl ? `Exchanged ${m[2] === "to" ? "naar" : "van"} ${m[3]}` : label;
+  }
+  return `${tx(m[1])} — ${m[2]}`;
+}
+
 function Line({
   l,
   money,
@@ -407,6 +423,7 @@ function Line({
   l: FinanceLine;
   money: (n: number, c: string) => string;
 }) {
+  const { tx } = useT();
   const zero = l.amount === 0;
   return (
     <div className="fr-row">
@@ -416,9 +433,9 @@ function Line({
           rest — and which you get depends on the browser version. */}
       <div className="fr-when">{shortDate(l.at)}</div>
       <div className="fr-what">
-        <b>{l.label}</b>
+        <b>{regel(l.label, tx)}</b>
         <small>
-          {[KIND_LABELS[l.kind], l.account, l.counterparty, l.reference]
+          {[tx(KIND_LABELS[l.kind]), l.account, l.counterparty, l.reference]
             .filter(Boolean)
             .join(" · ")}
         </small>
@@ -432,7 +449,7 @@ function Line({
             has not settled, so it is shown as its status rather than as
             "0.00", which would read as a free transaction. */}
         {zero ? (
-          <span className="fr-pending">{l.status ?? "pending"}</span>
+          <span className="fr-pending">{tx(l.status ?? "pending")}</span>
         ) : (
           <>
             {l.amount > 0 ? "+" : "−"}

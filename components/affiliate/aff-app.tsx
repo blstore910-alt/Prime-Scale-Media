@@ -1762,7 +1762,7 @@ export default function AffiliateApp() {
             >
               {notifs.length ? (
                 notifs.map((n) => {
-                  const copy = getNotificationCopy(n);
+                  const copy = getNotificationCopy(n, affLocale);
                   return (
                     <div
                       key={n.id}

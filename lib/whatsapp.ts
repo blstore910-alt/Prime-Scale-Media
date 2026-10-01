@@ -74,8 +74,15 @@ export function groupName(clientCode?: string | null): string | null {
  * "je PSM-groep" wordt gestuurd terwijl hij er geen heeft, staat
  * stil.
  */
-export function talkToUsLine(clientCode?: string | null): string {
+export function talkToUsLine(
+  clientCode?: string | null,
+  locale: "en" | "nl" = "en",
+): string {
   const g = groupName(clientCode);
+  if (locale === "nl")
+    return g
+      ? `Stuur ons een bericht in je ${g}-groep op WhatsApp — daar regelen we je account.`
+      : "Stuur ons een bericht in je WhatsApp-groep — daar regelen we je account.";
   return g
     ? `Message us in your ${g} group on WhatsApp — that is where your account is handled.`
     : "Message us in your WhatsApp group — that is where your account is handled.";
