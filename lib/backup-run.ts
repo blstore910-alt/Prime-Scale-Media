@@ -92,8 +92,19 @@ export async function ownerEmails(db: SupabaseClient): Promise<string[]> {
   const { data: owners } = await db.from("tenant_owners").select("user_id");
   const ids = (owners ?? []).map((o: { user_id: string }) => o.user_id);
   if (!ids.length) return [];
-  const { data: prof } = await db.from("user_profiles").select("email").in("id", ids);
-  return Array.from(new Set((prof ?? []).map((p: { email: string | null }) => p.email).filter(Boolean) as string[]));
+  // tenant_owners.user_id is het LOGIN-id (auth), niet het profiel-id. De
+  // eerste versie zocht op user_profiles.id, vond niemand, en de mail ging
+  // nergens heen (01-10, het alarm "geen ontvanger").
+  const { data: prof } = await db.from("user_profiles").select("email").in("user_id", ids);
+  // Testaccounts (e2e-super@...test) hebben geen mailbox: een mail
+  // daarheen faalt, en mag de echte eigenaren niet tegenhouden.
+  return Array.from(
+    new Set(
+      ((prof ?? []).map((p: { email: string | null }) => p.email).filter(Boolean) as string[]).filter(
+        (e) => !/\.(test|local|example|invalid)$/i.test(e),
+      ),
+    ),
+  );
 }
 
 export async function alarm(db: SupabaseClient, detail: string) {
@@ -269,14 +280,23 @@ export async function runSystemBackup(
       "",
       "Herstellen: zie docs/RESTORE_DRILL.md.",
     ];
+    // Per ontvanger: een adres dat weigert, houdt de anderen niet tegen.
+    const mislukt: string[] = [];
     for (const to of aan) {
-      await sendEmail({
-        to,
-        subject: `PSM backup ${file.slice(11, 21)} -- ${ok ? "gelukt" : "LET OP"}`,
-        text: regels.join("\n"),
-        attachments: bijlage ? [{ filename: file, content: Buffer.from(bytes), contentType: "application/zip" }] : undefined,
-      });
+      try {
+        await sendEmail({
+          to,
+          subject: `PSM backup ${file.slice(11, 21)} -- ${ok ? "gelukt" : "LET OP"}`,
+          text: regels.join("\n"),
+          attachments: bijlage ? [{ filename: file, content: Buffer.from(bytes), contentType: "application/zip" }] : undefined,
+        });
+      } catch (e) {
+        mislukt.push(`${to}: ${safeErrorMessage(e)}`);
+      }
     }
+    if (mislukt.length === aan.length) throw new Error(mislukt.join("; "));
+    if (mislukt.length) mail.error = `niet bezorgd bij: ${mislukt.join("; ")}`;
+    mail.to = aan.length - mislukt.length;
     mail.ok = true;
     mail.attached = bijlage;
   } catch (e) {

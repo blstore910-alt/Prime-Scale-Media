@@ -16,7 +16,10 @@ self.addEventListener("push", (event) => {
   const options = {
     body: payload.body || "",
     icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    // Android gebruikt de badge alleen als VORM (het alfakanaal) in de
+    // statusbalk. Het volle app-icoon werd daar een wit vierkant (01-10);
+    // dit is de witte raket op transparant.
+    badge: "/badge-96.png",
     data: { url: payload.url || "/" },
   };
 
