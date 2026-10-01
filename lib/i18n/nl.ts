@@ -1072,7 +1072,7 @@ export const nl: Record<Key, string> = {
   "team.title": "Je team",
   "label.teamCanSee": "Ziet",
   "label.teamCannot": "Kan niet",
-  "team.canBalances": "Saldi en wallet-activiteit",
+  "team.canBalances": "Saldo en wallet-activiteit",
   "team.canAccounts": "Ad accounts en aanvragen",
   "team.canInvoices": "Facturen en rapporten",
   "team.notMoney": "Geld verplaatsen of top-uppen",
@@ -1357,4 +1357,7 @@ export const nl: Record<Key, string> = {
   "team.perm.withdraw": "Terugboeken",
   "team.perm.pay": "Facturen betalen",
   "team.perm.company": "Bedrijf bewerken",
+  "team.rightsCount": "{n} rechten",
+  "team.whatMayTheyDo": "Wat mag deze collega",
+  "team.removeFromTeam": "Uit het team halen",
 };

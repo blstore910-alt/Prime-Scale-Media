@@ -70,7 +70,7 @@ const CSS = `
 .tm .lbl{font-size:.64rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
   color:var(--faint);margin:0 0 8px;display:flex;align-items:center;gap:8px}
 .tm .lbl .n{font-size:.62rem;padding:1px 7px;border-radius:99px;background:var(--panel-2);color:var(--txt-2)}
-.tm .inv{display:flex;gap:8px}
+.tm .inv{display:flex;gap:8px;align-items:center}
 .tm .field{position:relative;flex:1 1 auto;min-width:0}
 .tm .field svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;
   stroke:var(--faint);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -78,7 +78,7 @@ const CSS = `
   border:1px solid var(--line-2);border-radius:12px;background:var(--panel);color:var(--ink);
   transition:border-color .15s,box-shadow .15s}
 .tm .field input:focus{outline:0;border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-tint)}
-.tm .go{font:inherit;font-weight:800;font-size:.86rem;padding:0 16px;border-radius:12px;border:0;
+.tm .go{font:inherit;font-weight:800;font-size:.86rem;height:42px;padding:0 16px;border-radius:12px;border:0;
   color:#fff;cursor:pointer;background:linear-gradient(135deg,#5B8DFF,#8B5CF6);
   box-shadow:0 8px 20px -10px rgba(91,141,255,.9);flex:0 0 auto}
 .tm .go:disabled{opacity:.45;cursor:default;box-shadow:none}
@@ -111,6 +111,28 @@ const CSS = `
 .tm .sk{height:38px;border-radius:12px;background:var(--panel-2);margin:6px 0;
   animation:tmPulse 1.2s ease-in-out infinite}
 @keyframes tmPulse{50%{opacity:.55}}
+.tm .mem{border-top:1px solid var(--line)}
+.tm .mem:first-of-type{border-top:0}
+.tm .memhead{width:100%;border:0;border-top:0!important;background:none;font:inherit;color:inherit;text-align:left;
+  cursor:pointer;padding:11px 0}
+.tm .memhead:disabled{cursor:default;opacity:1}
+.tm .chev{flex:0 0 auto;font-size:1.3rem;line-height:1;color:var(--faint);transition:transform .2s}
+.tm .mem.open .chev{transform:rotate(90deg)}
+.tm .rol.act{background:var(--primary-tint);color:var(--primary-600)}
+.tm .memset{margin:0 0 12px 49px;padding:12px 14px;border-radius:14px;background:var(--panel-2);
+  display:flex;flex-direction:column;gap:2px}
+.tm .sw{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;
+  font-size:.86rem;font-weight:600;color:var(--ink);cursor:pointer;border-bottom:1px solid var(--line)}
+.tm .sw:last-of-type{border-bottom:0}
+.tm .sw input{position:absolute;opacity:0;width:1px;height:1px}
+.tm .sw i{flex:0 0 auto;width:40px;height:23px;border-radius:99px;background:var(--line-2);position:relative;transition:background .2s}
+.tm .sw i::after{content:"";position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.tm .sw input:checked + i{background:linear-gradient(135deg,#5B8DFF,#8B5CF6)}
+.tm .sw input:checked + i::after{transform:translateX(17px)}
+.tm .sw input:focus-visible + i{box-shadow:0 0 0 3px var(--primary-tint)}
+.tm .sw input:disabled + i{opacity:.6}
+.tm .x.wide{margin-top:10px;align-self:flex-start}
 .tm .perms{display:flex;flex-wrap:wrap;gap:6px;margin:-2px 0 10px 49px}
 .tm .perm{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:.74rem;font-weight:700;
   padding:6px 10px;border-radius:99px;cursor:pointer;border:1px solid var(--line-2);
@@ -120,8 +142,8 @@ const CSS = `
 .tm .perm.on{background:var(--primary-tint);border-color:var(--primary);color:var(--primary-600)}
 .tm .perm.on .box{background:linear-gradient(135deg,#5B8DFF,#8B5CF6);border-color:transparent}
 .tm .perm:disabled{opacity:.6;cursor:default}
-.tm .permhint{margin:-4px 0 10px 49px;font-size:.72rem;color:var(--faint)}
-@media (max-width:420px){.tm .rights{grid-template-columns:1fr}.tm .perms,.tm .permhint{margin-left:0}}
+.tm .permhint{margin:6px 0 0;font-size:.74rem;color:var(--faint)}
+@media (max-width:420px){.tm .rights{grid-template-columns:1fr}.tm .perms,.tm .permhint,.tm .memset{margin-left:0}}
 `;
 
 const initials = (s: string | null | undefined) =>
@@ -226,6 +248,9 @@ function EigenaarsTeam({
   setLink: (v: string | null) => void;
 }) {
   const { t } = useT();
+  // Welke collega is opengeklapt. De eigenaar, 01-10: eerst op een
+  // gebruiker klikken, dan pas al zijn instellingen.
+  const [open, setOpen] = useState<string | null>(null);
   const team = useQuery({
     queryKey: ["team"],
     queryFn: async () => {
@@ -368,68 +393,68 @@ function EigenaarsTeam({
             <div className="lbl">
               {t("label.members")} <span className="n">{members.length}</span>
             </div>
-            {members.map((m, i) => (
-              <div key={m.id}>
-              <div className="row">
-                <div className={`av${i % 2 ? " alt" : ""}`}>{initials(m.name ?? m.email)}</div>
-                <div className="who">
-                  <b>
-                    {m.name ?? m.email ?? "—"}
-                    {m.isYou ? ` ${t("team.you")}` : ""}
-                  </b>
-                  <span>{m.email ?? ""}</span>
-                </div>
-                <span className={`rol${m.role === "owner" ? " owner" : ""}`}>
-                  {m.role === "owner"
-                    ? t("label.roleOwner")
-                    : (m.permissions ?? []).length
-                      ? t("label.roleMember")
-                      : t("label.roleViewer")}
-                </span>
-                {m.role !== "owner" ? (
+            {members.map((m, i) => {
+              const isOwner = m.role === "owner";
+              const perms = m.permissions ?? [];
+              const isOpen = open === m.id;
+              const samenvatting = isOwner
+                ? t("label.roleOwner")
+                : perms.length
+                  ? t("team.rightsCount", { n: perms.length })
+                  : t("label.roleViewer");
+              return (
+                <div key={m.id} className={`mem${isOpen ? " open" : ""}`}>
                   <button
-                    className="x"
-                    disabled={weg.isPending}
-                    onClick={() => weg.mutate(m.id)}
+                    type="button"
+                    className="row memhead"
+                    disabled={isOwner}
+                    aria-expanded={isOwner ? undefined : isOpen}
+                    onClick={() => setOpen(isOpen ? null : m.id)}
                   >
-                    {t("btn.remove")}
+                    <div className={`av${i % 2 ? " alt" : ""}`}>{initials(m.name ?? m.email)}</div>
+                    <div className="who">
+                      <b>
+                        {m.name ?? m.email ?? "—"}
+                        {m.isYou ? ` ${t("team.you")}` : ""}
+                      </b>
+                      <span>{m.email ?? ""}</span>
+                    </div>
+                    <span className={`rol${isOwner ? " owner" : perms.length ? " act" : ""}`}>{samenvatting}</span>
+                    {!isOwner ? <span className="chev" aria-hidden>›</span> : null}
                   </button>
-                ) : null}
-              </div>
-              {m.role !== "owner" ? (
-                <>
-                  <div className="perms">
-                    {RECHTEN.map((r) => {
-                      const aan = (m.permissions ?? []).includes(r);
-                      return (
-                        <button
-                          key={r}
-                          type="button"
-                          className={`perm${aan ? " on" : ""}`}
-                          aria-pressed={aan}
-                          disabled={rechten.isPending}
-                          onClick={() =>
-                            rechten.mutate({
-                              id: m.id,
-                              permissions: aan
-                                ? (m.permissions ?? []).filter((x) => x !== r)
-                                : [...(m.permissions ?? []), r],
-                            })
-                          }
-                        >
-                          <span className="box">{aan ? "✓" : ""}</span>
-                          {t(`team.perm.${r}` as Parameters<typeof t>[0])}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {!(m.permissions ?? []).length ? (
-                    <p className="permhint">{t("team.onlyViewing")}</p>
+                  {!isOwner && isOpen ? (
+                    <div className="memset">
+                      <div className="lbl">{t("team.whatMayTheyDo")}</div>
+                      {RECHTEN.map((r) => {
+                        const aan = perms.includes(r);
+                        return (
+                          <label key={r} className="sw">
+                            <span>{t(`team.perm.${r}` as Parameters<typeof t>[0])}</span>
+                            <input
+                              type="checkbox"
+                              role="switch"
+                              checked={aan}
+                              disabled={rechten.isPending}
+                              onChange={() =>
+                                rechten.mutate({
+                                  id: m.id,
+                                  permissions: aan ? perms.filter((x) => x !== r) : [...perms, r],
+                                })
+                              }
+                            />
+                            <i aria-hidden />
+                          </label>
+                        );
+                      })}
+                      {!perms.length ? <p className="permhint">{t("team.onlyViewing")}</p> : null}
+                      <button className="x wide" disabled={weg.isPending} onClick={() => weg.mutate(m.id)}>
+                        {t("team.removeFromTeam")}
+                      </button>
+                    </div>
                   ) : null}
-                </>
-              ) : null}
-              </div>
-            ))}
+                </div>
+              );
+            })}
             {members.length <= 1 && !invites.length ? (
               <p className="empty">{t("team.onlyYou")}</p>
             ) : null}

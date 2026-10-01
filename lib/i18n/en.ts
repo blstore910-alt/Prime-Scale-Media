@@ -1349,6 +1349,9 @@ export const en = {
   "team.perm.withdraw": "Withdraw from ad accounts",
   "team.perm.pay": "Pay invoices",
   "team.perm.company": "Edit company",
+  "team.rightsCount": "{n} rights",
+  "team.whatMayTheyDo": "What may they do",
+  "team.removeFromTeam": "Remove from team",
 } as const;
 
 export type Key = keyof typeof en;
