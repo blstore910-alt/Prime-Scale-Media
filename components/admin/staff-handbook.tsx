@@ -263,7 +263,10 @@ export default function StaffHandbook() {
           <p className="max-w-2xl text-sm text-white/85">{tt(head.lead)}</p>
           {stand === "busy" ? (
             <p className="flex items-center gap-2 text-xs font-semibold text-white/80">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Translating to {taalLabel} in your browser… {voortgang}%
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
+              {voortgang === 0
+                ? `Downloading the ${taalLabel} language pack — only the first time, up to a minute…`
+                : `Translating to ${taalLabel} in your browser… ${voortgang}%`}
             </p>
           ) : null}
           {stand === "needsClick" ? (
