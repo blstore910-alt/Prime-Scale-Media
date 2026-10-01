@@ -97,8 +97,14 @@ function schrijfCache(key: string, code: string, m: Record<string, string>) {
  * @param handmatig talen die de pagina zelf heeft (bv. "en", "nl") -- die
  *                  worden niet door de browser vertaald
  */
-export function useBrowserTranslate(texts: string[], storageKey: string, handmatig: string[] = ["en"]) {
-  const [lang, setLang] = useState("en");
+export function useBrowserTranslate(
+  texts: string[],
+  storageKey: string,
+  handmatig: string[] = ["en"],
+  /** De taal van de app ("en"/"nl"): wint van een oude keuze. */
+  standaard = "en",
+) {
+  const [lang, setLang] = useState(standaard);
   const [vertaald, setVertaald] = useState<Record<string, string>>({});
   const [stand, setStand] = useState<TranslateState>("idle");
   const [voortgang, setVoortgang] = useState(0);
@@ -109,14 +115,19 @@ export function useBrowserTranslate(texts: string[], storageKey: string, handmat
   const tekstenRef = useRef(texts);
   tekstenRef.current = texts;
 
+  // Een eigen keuze geldt alleen zolang de app-taal dezelfde is als toen
+  // hij werd gemaakt ("keuze|app-taal"); verandert de app-taal, dan volgt
+  // het handboek die.
   useEffect(() => {
+    let k = standaard;
     try {
-      const s = window.localStorage.getItem(storageKey);
-      if (s && LANGUAGES.some((t) => t.code === s)) setLang(s);
+      const [code, bij] = (window.localStorage.getItem(storageKey) ?? "").split("|");
+      if (code && bij === standaard && LANGUAGES.some((t) => t.code === code)) k = code;
     } catch {
-      /* geen opslag: Engels */
+      /* geen opslag */
     }
-  }, [storageKey]);
+    setLang(k);
+  }, [storageKey, standaard]);
 
   const vertaal = async (ik: number, code: string) => {
     const teksten = Array.from(new Set(tekstenRef.current.filter(Boolean)));
@@ -225,7 +236,7 @@ export function useBrowserTranslate(texts: string[], storageKey: string, handmat
   const kies = (code: string) => {
     setLang(code);
     try {
-      window.localStorage.setItem(storageKey, code);
+      window.localStorage.setItem(storageKey, `${code}|${standaard}`);
     } catch {
       /* niet onthouden is ook goed */
     }

@@ -223,20 +223,27 @@ export default function CustomerGuideView({
   // de vier vooraf vertaalde talen (lib/guide-translations.ts). Direct,
   // op elk apparaat, ook in de app op de telefoon. NL volgt de taal van
   // de app tot iemand zelf kiest.
+  // De eigenaar, 01-10: "als ik de taal NL kies moet de manual ook op NL
+  // springen". De taal van de app wint: een eigen keuze hier geldt alleen
+  // zolang de app-taal dezelfde is als toen die keuze werd gemaakt
+  // (opgeslagen als "keuze|app-taal").
+  const appTaal = locale === "nl" ? "nl" : "en";
   const [gekozen, setGekozen] = useState<string | null>(null);
   useEffect(() => {
+    let k: string | null = null;
     try {
-      const s0 = window.localStorage.getItem(OPSLAG);
-      if (s0 && HELP_TALEN.some((t) => t.code === s0)) setGekozen(s0);
+      const [code, bij] = (window.localStorage.getItem(OPSLAG) ?? "").split("|");
+      if (code && bij === appTaal && HELP_TALEN.some((t) => t.code === code)) k = code;
     } catch {
       /* geen opslag */
     }
-  }, []);
-  const keuze = gekozen ?? (locale === "nl" ? "nl" : "en");
+    setGekozen(k);
+  }, [appTaal]);
+  const keuze = gekozen ?? appTaal;
   const kies = (code: string) => {
     setGekozen(code);
     try {
-      window.localStorage.setItem(OPSLAG, code);
+      window.localStorage.setItem(OPSLAG, `${code}|${appTaal}`);
     } catch {
       /* niet onthouden is ook goed */
     }

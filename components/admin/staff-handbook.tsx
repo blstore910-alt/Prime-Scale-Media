@@ -39,6 +39,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useAppContext } from "@/context/app-provider";
+import { useT } from "@/hooks/use-t";
 import { HB_CHAPTERS, HB_GLOSSARY, HB_HEAD, chapterText, type HbChapter, type HbLang } from "@/lib/staff-handbook";
 import { LANGUAGES, RTL_LANGUAGES, useBrowserTranslate } from "@/hooks/use-browser-translate";
 
@@ -80,7 +81,8 @@ export default function StaffHandbook() {
     ],
     [hoofdstukken],
   );
-  const vt = useBrowserTranslate(teksten, "psm.handbook.lang", ["en", "nl"]);
+  const { locale } = useT();
+  const vt = useBrowserTranslate(teksten, "psm.handbook.lang", ["en", "nl"], locale === "nl" ? "nl" : "en");
   const lang = vt.lang;
   const stand = vt.stand;
   const voortgang = vt.voortgang;
