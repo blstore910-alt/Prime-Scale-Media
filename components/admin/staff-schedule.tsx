@@ -363,7 +363,8 @@ export default function StaffSchedule() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <MijnVoorkeuren d={d} onDone={vernieuw} />
+        {/* Eigenaars staan niet op het rooster, dus geen voorkeuren. */}
+        {d.isOwner ? null : <MijnVoorkeuren d={d} onDone={vernieuw} />}
         <Instellingen d={d} onDone={vernieuw} />
       </div>
 

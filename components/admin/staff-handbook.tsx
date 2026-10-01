@@ -120,7 +120,7 @@ export default function StaffHandbook() {
   const [lang, setLang] = useState("en");
   const [zoek, setZoek] = useState("");
   const [vertaald, setVertaald] = useState<Record<string, string>>({});
-  const [stand, setStand] = useState<"idle" | "busy" | "done" | "unsupported">("idle");
+  const [stand, setStand] = useState<"idle" | "busy" | "done" | "unsupported" | "needsClick">("idle");
   const [voortgang, setVoortgang] = useState(0);
   const loop = useRef(0);
 
@@ -139,29 +139,18 @@ export default function StaffHandbook() {
   }, []);
 
   // ── VERTALEN IN DE BROWSER ───────────────────────────────────────
-  useEffect(() => {
-    const ik = ++loop.current;
-    setVertaald({});
-    if (lang === "en" || lang === "nl") {
-      setStand("idle");
-      return;
-    }
-    const api = (globalThis as unknown as { Translator?: TranslatorApi }).Translator;
-    if (!api) {
-      setStand("unsupported");
-      return;
-    }
-    (async () => {
-      try {
-        const opt = { sourceLanguage: "en", targetLanguage: lang };
-        const kan = await api.availability(opt);
-        if (kan === "unavailable") {
-          if (ik === loop.current) setStand("unsupported");
-          return;
-        }
-        setStand("busy");
-        setVoortgang(0);
-        const v = await api.create(opt);
+  // Chrome downloadt een taal pas na een echte klik ("Requires a user
+  // gesture when availability is downloadable") -- dan een knop. Staat de
+  // taal er al, dan begint het meteen.
+  const api = () => (globalThis as unknown as { Translator?: TranslatorApi }).Translator;
+  const vertaal = async (ik: number) => {
+    const t = api();
+    if (!t) return;
+    try {
+      const opt = { sourceLanguage: "en", targetLanguage: lang };
+      setStand("busy");
+      setVoortgang(0);
+      const v = await t.create(opt);
         const teksten = Array.from(
           new Set([
             ...Object.values(HB_HEAD.en),
@@ -182,10 +171,36 @@ export default function StaffHandbook() {
           setVertaald(uit);
           setStand("done");
         }
+    } catch {
+      if (ik === loop.current) setStand("unsupported");
+    }
+  };
+
+  useEffect(() => {
+    const ik = ++loop.current;
+    setVertaald({});
+    if (lang === "en" || lang === "nl") {
+      setStand("idle");
+      return;
+    }
+    const t = api();
+    if (!t) {
+      setStand("unsupported");
+      return;
+    }
+    (async () => {
+      try {
+        const kan = await t.availability({ sourceLanguage: "en", targetLanguage: lang });
+        if (ik !== loop.current) return;
+        if (kan === "unavailable") setStand("unsupported");
+        else if (kan === "available") void vertaal(ik);
+        else setStand("needsClick");
       } catch {
         if (ik === loop.current) setStand("unsupported");
       }
     })();
+    // vertaal hangt alleen van lang en hoofdstukken af
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang, hoofdstukken]);
 
   const tt = (s: string) => (bron === "en" ? (vertaald[s] ?? s) : s);
@@ -235,6 +250,15 @@ export default function StaffHandbook() {
             <p className="flex items-center gap-2 text-xs font-semibold text-white/80">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Translating to {taalLabel} in your browser… {voortgang}%
             </p>
+          ) : null}
+          {stand === "needsClick" ? (
+            <button
+              type="button"
+              onClick={() => void vertaal(loop.current)}
+              className="w-fit rounded-xl bg-white px-4 py-2 text-sm font-extrabold text-[#0a0f2e] shadow"
+            >
+              <Languages className="mr-1.5 inline h-4 w-4" /> Translate into {taalLabel}
+            </button>
           ) : null}
           {stand === "unsupported" ? (
             <p className="rounded-lg bg-amber-300/20 px-3 py-2 text-xs font-semibold text-amber-50 ring-1 ring-amber-200/40">
