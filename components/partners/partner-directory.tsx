@@ -89,48 +89,48 @@ export const PARTNER_CSS = `
     linear-gradient(135deg,var(--acc),#8B5CF6) border-box;
   box-shadow:0 1px 2px rgba(15,23,60,.05),0 26px 50px -26px color-mix(in srgb,var(--acc) 75%,rgba(15,23,60,.45))}
 
-.pt-top{display:flex;align-items:flex-start;gap:12px;min-width:0}
-.pt-ic{width:48px;height:48px;border-radius:15px;flex:0 0 auto;display:grid;place-items:center;
+.ptile .pt-top{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.ptile .pt-ic{width:48px;height:48px;border-radius:15px;flex:0 0 auto;display:grid;place-items:center;
   overflow:hidden;color:#fff;background:linear-gradient(135deg,var(--acc),#8B5CF6);
   box-shadow:0 10px 22px -10px color-mix(in srgb,var(--acc) 90%,transparent),inset 0 1px 0 rgba(255,255,255,.35);
   transition:transform .25s cubic-bezier(.2,.8,.2,1)}
 .ptile:hover .pt-ic{transform:rotate(-5deg) scale(1.04)}
-.pt-ic svg{width:23px;height:23px}
-.pt-ic.logo{background:#fff;box-shadow:inset 0 0 0 1px var(--line),0 8px 18px -12px rgba(15,23,60,.4)}
-.pt-ic img{width:100%;height:100%;object-fit:contain;padding:7px}
-.pt-head{min-width:0;flex:1 1 auto}
-.pt-name{font-family:var(--hd);font-weight:800;font-size:1.06rem;line-height:1.2;
+.ptile .pt-ic svg{width:23px;height:23px}
+.ptile .pt-ic.logo{background:#fff;box-shadow:inset 0 0 0 1px var(--line),0 8px 18px -12px rgba(15,23,60,.4)}
+.ptile .pt-ic img{width:100%;height:100%;object-fit:contain;padding:7px}
+.ptile .pt-head{min-width:0;flex:1 1 auto}
+.ptile .pt-name{font-family:var(--hd);font-weight:800;font-size:1.06rem;line-height:1.2;
   letter-spacing:-.02em;color:var(--ink);overflow-wrap:anywhere}
-.pt-meta{margin-top:3px;font-size:.72rem;font-weight:600;color:var(--faint);
+.ptile .pt-meta{margin-top:3px;font-size:.72rem;font-weight:600;color:var(--faint);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pt-meta b{font-weight:800;letter-spacing:.06em;text-transform:uppercase;font-size:.62rem;
+.ptile .pt-meta b{font-weight:800;letter-spacing:.06em;text-transform:uppercase;font-size:.62rem;
   color:color-mix(in srgb,var(--acc) 70%,var(--ink))}
-.pt-badge{flex:0 0 auto;align-self:flex-start;font-size:.64rem;font-weight:800;letter-spacing:.02em;
+.ptile .pt-badge{flex:0 0 auto;align-self:flex-start;font-size:.64rem;font-weight:800;letter-spacing:.02em;
   padding:5px 9px;border-radius:99px;color:#fff;white-space:nowrap;
   background:linear-gradient(135deg,var(--acc),#8B5CF6);
   box-shadow:0 6px 14px -8px color-mix(in srgb,var(--acc) 90%,transparent)}
 
-.pt-tag{margin-top:11px;font-size:.86rem;line-height:1.5;color:var(--txt-2);white-space:pre-line}
+.ptile .pt-tag{margin-top:11px;font-size:.86rem;line-height:1.5;color:var(--txt-2);white-space:pre-line}
 
-.pt-hl{margin-top:11px;display:flex;flex-wrap:wrap;gap:6px}
-.pt-hl span{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:700;
+.ptile .pt-hl{margin-top:11px;display:flex;flex-wrap:wrap;gap:6px}
+.ptile .pt-hl span{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:700;
   padding:5px 9px 5px 6px;border-radius:99px;color:var(--ink);
   background:color-mix(in srgb,var(--acc) 9%,var(--panel));
   box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc) 18%,transparent)}
-.pt-hl svg{width:13px;height:13px;padding:2px;border-radius:99px;color:#fff;
+.ptile .pt-hl svg{width:13px;height:13px;padding:2px;border-radius:99px;color:#fff;
   background:color-mix(in srgb,var(--acc) 85%,#8B5CF6)}
 
-.pt-cta{margin-top:auto;padding-top:14px;display:flex;gap:8px}
-.pt-btn{flex:1 1 0;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+.ptile .pt-cta{margin-top:auto;padding-top:14px;display:flex;gap:8px}
+.ptile .pt-btn{flex:1 1 0;min-width:0;display:inline-flex;flex-direction:row;align-items:center;justify-content:center;gap:6px;
   padding:10px 12px;border-radius:12px;font-size:.84rem;font-weight:800;text-decoration:none;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:transform .2s,box-shadow .2s,background .2s}
-.pt-btn svg{width:15px;height:15px;flex:0 0 auto}
-.pt-btn.main{color:#fff;background:linear-gradient(135deg,var(--acc),#8B5CF6);
+.ptile .pt-btn svg{width:15px;height:15px;flex:0 0 auto;display:inline-block}
+.ptile .pt-btn.main{color:#fff;background:linear-gradient(135deg,var(--acc),#8B5CF6);
   box-shadow:0 10px 20px -12px color-mix(in srgb,var(--acc) 95%,transparent)}
-.pt-btn.main:hover{transform:translateY(-1px);box-shadow:0 14px 26px -12px color-mix(in srgb,var(--acc) 100%,transparent)}
-.pt-btn.alt{color:var(--ink);background:var(--panel);box-shadow:inset 0 0 0 1px var(--line-2)}
-.pt-btn.alt:hover{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc) 60%,var(--line-2))}
-.pt-btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.ptile .pt-btn.main:hover{transform:translateY(-1px);box-shadow:0 14px 26px -12px color-mix(in srgb,var(--acc) 100%,transparent)}
+.ptile .pt-btn.alt{color:var(--ink);background:var(--panel);box-shadow:inset 0 0 0 1px var(--line-2)}
+.ptile .pt-btn.alt:hover{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc) 60%,var(--line-2))}
+.ptile .pt-btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 
 .pdir .skel{border-radius:20px;height:230px;background:var(--panel-2)}
 .pdir-note{display:flex;gap:10px;align-items:flex-start;padding:14px;
@@ -140,8 +140,8 @@ export const PARTNER_CSS = `
 .pdir-note b{display:block;color:var(--ink);font-family:var(--hd);margin-bottom:2px}
 
 @media (prefers-reduced-motion:reduce){
-  .ptile,.pt-ic,.pt-btn{transition:none}
-  .ptile:hover,.ptile:hover .pt-ic,.pt-btn.main:hover{transform:none}
+  .ptile,.ptile .pt-ic,.ptile .pt-btn{transition:none}
+  .ptile:hover,.ptile:hover .pt-ic,.ptile .pt-btn.main:hover{transform:none}
 }
 `;
 
