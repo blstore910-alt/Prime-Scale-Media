@@ -186,7 +186,7 @@ export async function financeReportForMe(): Promise<
   const accountName = new Map<string, string>();
   const accounts = await source("ad accounts", (from, to) =>
     supabase
-      .from("ad_accounts")
+      .from("my_ad_accounts") // L1: de view, niet de tabel
       .select("id, name")
       .eq("advertiser_id", advertiserId)
       // .range() with NO order at all. Postgres is free to return rows in

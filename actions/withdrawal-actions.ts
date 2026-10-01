@@ -292,8 +292,10 @@ export async function requestAdAccountWithdrawal(input: {
   // The currency is not the customer's to choose. It is a property of the
   // account the money is on, so it is read from there and the caller's
   // value is only used to catch a mismatch and say so.
+  // L1: de view, niet de tabel -- zelfde rijen (eigen + team), zonder
+  // het interne type.
   const { data: acct, error: acctErr } = await supabase
-    .from("ad_accounts")
+    .from("my_ad_accounts")
     .select("id, name, currency, status")
     .eq("id", input.ad_account_id)
     .maybeSingle();
@@ -1096,7 +1098,7 @@ export async function readOwnAdAccountLiveBalance(adAccountId: string): Promise<
   if (!adv?.id) return { ok: false, error: "Forbidden" };
 
   const { data: acctRows, error: acctError } = await supabase
-    .from("ad_accounts")
+    .from("my_ad_accounts") // L1: de view, niet de tabel
     .select("id, advertiser_id, currency")
     .eq("id", id)
     .limit(1);

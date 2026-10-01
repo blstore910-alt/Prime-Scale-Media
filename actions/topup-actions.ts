@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import {
   maintenanceGuard,
@@ -109,10 +109,18 @@ async function resolveEffectiveFeePct(
     // handed and cannot read is not a reason to price the top-up from
     // something else -- the quote path already refuses in that case
     // (see quoteTopupFeePct), and now so does this.
-    const { data: acct, error: acctError } = await supabase
+    // ── L1: KLANTEN LEZEN ad_accounts NIET RECHTSTREEKS ──────────────────
+    // `platform` op die tabel IS het interne type (lekcontrole 01-10). De
+    // klant leest de view my_ad_accounts; waar de server een kolom nodig
+    // heeft die de view niet geeft (fee, platform), leest hij met de
+    // service-sleutel -- pas NA de eigendomscontrole, en altijd gefilterd
+    // op het account EN de klant.
+    const acctDb = await createAdminClient();
+    const { data: acct, error: acctError } = await acctDb
       .from("ad_accounts")
       .select("fee, platform")
       .eq("id", adAccountId)
+      .eq("advertiser_id", advertiserId)
       .maybeSingle();
     if (acctError) {
       throw new Error(
@@ -1597,7 +1605,10 @@ export async function quoteTopupFeePct(
   // ownership test still applies to a customer asking about their own.
   const isAdmin = profile.role === "admin";
 
-  const { data: acct } = await supabase
+  // L1: met de service-sleutel, vastgepind op de tenant; de
+  // eigendomstoets hieronder weigert een account van een ander.
+  const acctDb = await createAdminClient();
+  const { data: acct } = await acctDb
     .from("ad_accounts")
     .select("id, fee, advertiser_id, tenant_id")
     .eq("id", accountId)

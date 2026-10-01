@@ -129,8 +129,10 @@ export async function exportOwnData(): Promise<
       "id, code, advertiser_user_id, status, created_at, updated_at",
     ad_account_requests:
       "id, advertiser_id, platform, currency, timezone, website_url, notes, status, created_at, updated_at",
-    ad_accounts:
-      "id, advertiser_id, name, bm_id, platform, currency, fee, status, timezone, website_url, min_topup, start_date, created_at, updated_at",
+    // L1: de view, niet de tabel. `network` komt binnen als platform,
+    // zodat metNetwerk hem zoals altijd tot een klantnaam maakt.
+    my_ad_accounts:
+      "id, advertiser_id, name, bm_id, platform:network, currency, fee, status, timezone, website_url, min_topup, start_date, created_at, updated_at",
     notifications:
       "id, recipient_user_id, type, payload, is_read, created_at",
     invitations:
@@ -217,7 +219,7 @@ export async function exportOwnData(): Promise<
       advertiserIds,
     );
     adAccounts = await ownedBy(
-      "ad_accounts",
+      "my_ad_accounts",
       "advertiser_id",
       advertiserIds,
     );
