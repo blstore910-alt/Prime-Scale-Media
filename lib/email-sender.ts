@@ -16,8 +16,10 @@ type Payload = {
   subject: string;
   html?: string;
   text: string;
+  /** Voor de dagelijkse backup: de zip zelf, als hij in een mail past. */
+  attachments?: { filename: string; content: Buffer; contentType?: string }[];
 };
-export async function sendEmail({ to, subject, html, text }: Payload) {
+export async function sendEmail({ to, subject, html, text, attachments }: Payload) {
   try {
     const transporter = nodemailer.createTransport({
       host: "smtp-relay.brevo.com",
@@ -37,6 +39,7 @@ export async function sendEmail({ to, subject, html, text }: Payload) {
       subject,
       text,
       html,
+      ...(attachments?.length ? { attachments } : {}),
     });
 
     return info;
