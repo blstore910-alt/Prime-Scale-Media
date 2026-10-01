@@ -99,7 +99,7 @@ const CSS = `
 .tpx-amount>label{display:block;font-size:12.5px;font-weight:600;color:var(--tpx-mut);margin-bottom:4px}
 .tpx-amount-in{display:flex;align-items:baseline;gap:8px}
 .tpx-amount-in span{font-size:34px;font-weight:800;line-height:1.1;background:var(--tpx-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.tpx-amount-in input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:34px;line-height:1.1;height:40px;font-weight:800;color:var(--tpx-ink);font-variant-numeric:tabular-nums;padding:0;letter-spacing:-.01em}
+.tpx-amount-in input{flex:1 1 0;width:0;min-width:0;border:0;outline:0;background:transparent;font-size:34px;line-height:1.1;height:40px;font-weight:800;color:var(--tpx-ink);font-variant-numeric:tabular-nums;padding:0;letter-spacing:-.01em}
 .tpx-amount-in input::placeholder{color:#C9CFDC}
 .tpx-amount-in input:disabled{opacity:.5}
 .tpx-amount-in input::-webkit-outer-spin-button,.tpx-amount-in input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
@@ -179,18 +179,18 @@ const CSS = `
 @keyframes tpxUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes tpxBlink{50%{opacity:.35}}
 @media (prefers-reduced-motion:reduce){.tpx *{animation:none!important}.tpx-burst-core path{stroke-dashoffset:0}}
-.tpx-x-pay,.tpx-x-get{border-radius:20px;padding:14px 16px}
+.tpx-x-pay,.tpx-x-get{border-radius:20px;padding:14px 16px;min-width:0}
 .tpx-x-pay{border:1.5px solid var(--tpx-line);background:#fff;transition:border-color .15s,box-shadow .15s}
 .tpx-x-pay:focus-within{border-color:var(--tpx-a);box-shadow:0 0 0 4px rgba(91,141,255,.13)}
 .tpx-x-get{color:#fff;margin-top:-4px;background:radial-gradient(120% 140% at 100% 0%,rgba(139,92,246,.6),transparent 55%),radial-gradient(110% 130% at 0% 100%,rgba(91,141,255,.5),transparent 55%),#0B1020;box-shadow:0 20px 40px -24px rgba(11,16,32,.9)}
 .tpx-x-get .tpx-lbl{color:rgba(255,255,255,.6)}
 .tpx-x-top{display:flex;align-items:center;justify-content:space-between}
 .tpx-x-row{display:flex;align-items:center;gap:12px;margin-top:8px}
-.tpx-x-row input{flex:1;min-width:0;text-align:right;border:0;outline:0;background:transparent;font-size:32px;line-height:1.1;font-weight:800;color:var(--tpx-ink);font-variant-numeric:tabular-nums;padding:0}
+.tpx-x-row input{flex:1 1 0;width:0;min-width:0;text-align:right;border:0;outline:0;background:transparent;font-size:32px;line-height:1.1;font-weight:800;color:var(--tpx-ink);font-variant-numeric:tabular-nums;padding:0}
 .tpx-x-row input::placeholder{color:#C9CFDC}
 .tpx-x-row input::-webkit-outer-spin-button,.tpx-x-row input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .tpx-x-row input[type=number]{-moz-appearance:textfield}
-.tpx-x-row b{flex:1;text-align:right;font-size:32px;line-height:1.1;font-weight:800;font-variant-numeric:tabular-nums}
+.tpx-x-row b{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;font-size:32px;line-height:1.1;font-weight:800;font-variant-numeric:tabular-nums}
 .tpx-x-chip{flex:none;display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:99px;background:var(--tpx-soft);font-weight:800;font-size:14px;color:var(--tpx-ink)}
 .tpx-x-get .tpx-x-chip{background:rgba(255,255,255,.12);color:#fff}
 .tpx-x-chip i{font-style:normal;width:28px;height:28px;border-radius:99px;display:grid;place-items:center;background:var(--tpx-grad);color:#fff;font-size:14px}

@@ -214,7 +214,7 @@ export default function WalletExchangeDialog({
     // meaning EUR 106.11 -> USD, in the wrong direction, with nothing
     // on screen tying it to the invoice any more.
     if (!needIsTarget || needFrom <= 0) {
-      setValue("from_amount", 0, { shouldDirty: false });
+      setValue("from_amount", undefined as unknown as number, { shouldDirty: false }); // empty, not "0"
       return;
     }
     setValue("from_amount", needFrom, { shouldDirty: true });
@@ -327,7 +327,7 @@ export default function WalletExchangeDialog({
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
       queryClient.invalidateQueries({ queryKey: ["adv-wallet-activity"] });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
-      setValue("from_amount", 0, { shouldDirty: false });
+      setValue("from_amount", undefined as unknown as number, { shouldDirty: false }); // empty, not "0"
       setConfirming(null);
     },
   });
@@ -413,7 +413,7 @@ export default function WalletExchangeDialog({
             button, what lands underneath on the dark card -- and the
             rate and fee as a small receipt. Same form, same figures,
             same confirmation; only the look changed. */}
-        <form className="flex flex-col gap-3" onSubmit={handleSubmit(onSubmit)}>
+        <form className="flex min-w-0 flex-col gap-3" onSubmit={handleSubmit(onSubmit)}>
           <input type="hidden" {...register("from_currency")} />
           <div className="tpx-x-pay">
             <div className="tpx-x-top">
