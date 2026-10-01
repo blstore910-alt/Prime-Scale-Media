@@ -26,7 +26,8 @@ import { BANK_ROUTES } from "@/lib/bank-routes-admin";
 import { copyText } from "@/lib/copy-text";
 import { createClient } from "@/lib/supabase/client";
 
-const GROEPEN: BankGroup[] = ["turlit", "zanel", "muxue"];
+// MUXUE niet: er gaat niets meer heen (de eigenaar, 01-10: "muxue mag hier weg").
+const GROEPEN: BankGroup[] = ["turlit", "zanel"];
 const VALUTA: TransferCurrency[] = ["EUR", "USD", "GBP", "HKD"];
 
 export function BankDetailsButton() {
@@ -111,7 +112,7 @@ function BankDetails() {
       </DialogHeader>
 
       <div className="grid gap-3">
-        <div className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1">
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
           {GROEPEN.map((g) => (
             <button
               key={g}

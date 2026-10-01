@@ -12,7 +12,7 @@
 //      "Vertaal deze pagina" aanbiedt.
 // De gekozen taal onthoudt de browser (localStorage, mag mislukken).
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   BookOpen,
   Calendar,
@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { useAppContext } from "@/context/app-provider";
 import { HB_CHAPTERS, HB_GLOSSARY, HB_HEAD, chapterText, type HbChapter, type HbLang } from "@/lib/staff-handbook";
+import { LANGUAGES, RTL_LANGUAGES, useBrowserTranslate } from "@/hooks/use-browser-translate";
 
 const ICONS: Record<string, LucideIcon> = {
   rocket: Rocket,
@@ -62,185 +63,41 @@ const ICONS: Record<string, LucideIcon> = {
   key: KeyRound,
 };
 
-// De talen. en en nl staan erin; de rest vertaalt de browser.
-const TALEN: { code: string; label: string }[] = [
-  { code: "en", label: "English" },
-  { code: "nl", label: "Nederlands" },
-  { code: "de", label: "Deutsch" },
-  { code: "fr", label: "Français" },
-  { code: "es", label: "Español" },
-  { code: "pt", label: "Português" },
-  { code: "it", label: "Italiano" },
-  { code: "pl", label: "Polski" },
-  { code: "ro", label: "Română" },
-  { code: "tr", label: "Türkçe" },
-  { code: "uk", label: "Українська" },
-  { code: "ru", label: "Русский" },
-  { code: "ar", label: "العربية" },
-  { code: "fa", label: "فارسی" },
-  { code: "he", label: "עברית" },
-  { code: "hi", label: "हिन्दी" },
-  { code: "ur", label: "اردو" },
-  { code: "bn", label: "বাংলা" },
-  { code: "id", label: "Bahasa Indonesia" },
-  { code: "ms", label: "Bahasa Melayu" },
-  { code: "vi", label: "Tiếng Việt" },
-  { code: "th", label: "ไทย" },
-  { code: "fil", label: "Filipino" },
-  { code: "zh", label: "中文" },
-  { code: "ja", label: "日本語" },
-  { code: "ko", label: "한국어" },
-  { code: "sv", label: "Svenska" },
-  { code: "da", label: "Dansk" },
-  { code: "no", label: "Norsk" },
-  { code: "fi", label: "Suomi" },
-  { code: "cs", label: "Čeština" },
-  { code: "sk", label: "Slovenčina" },
-  { code: "hu", label: "Magyar" },
-  { code: "el", label: "Ελληνικά" },
-  { code: "bg", label: "Български" },
-  { code: "hr", label: "Hrvatski" },
-  { code: "sr", label: "Srpski" },
-  { code: "lt", label: "Lietuvių" },
-  { code: "sw", label: "Kiswahili" },
-  { code: "so", label: "Soomaali" },
-  { code: "am", label: "አማርኛ" },
-];
-const RTL = new Set(["ar", "fa", "he", "ur"]);
-const OPSLAG = "psm.handbook.lang";
-
-type Vertaler = { translate: (s: string) => Promise<string> };
-type TranslatorApi = {
-  availability: (o: { sourceLanguage: string; targetLanguage: string }) => Promise<string>;
-  create: (o: { sourceLanguage: string; targetLanguage: string }) => Promise<Vertaler>;
-};
-
 export default function StaffHandbook() {
   const { isSuperAdmin } = useAppContext();
-  const [lang, setLang] = useState("en");
   const [zoek, setZoek] = useState("");
-  const [vertaald, setVertaald] = useState<Record<string, string>>({});
-  const [stand, setStand] = useState<"idle" | "busy" | "done" | "unsupported" | "needsClick">("idle");
-  const [voortgang, setVoortgang] = useState(0);
-  const loop = useRef(0);
+  const hoofdstukken = useMemo(() => HB_CHAPTERS.filter((c) => !c.owner || isSuperAdmin), [isSuperAdmin]);
 
+  // ── VERTALEN: dezelfde hook als de klanthulp ──────────────────────
+  // (hooks/use-browser-translate.ts): zes tegelijk, titels eerst, per taal
+  // onthouden, en het downloadpercentage van een nieuw taalpakket.
+  const teksten = useMemo(
+    () => [
+      ...Object.values(HB_HEAD.en),
+      ...hoofdstukken.map((c) => c.title.en),
+      ...hoofdstukken.flatMap((c) => chapterText(c, "en")),
+      ...HB_GLOSSARY.map((g) => g.def.en),
+    ],
+    [hoofdstukken],
+  );
+  const vt = useBrowserTranslate(teksten, "psm.handbook.lang", ["en", "nl"]);
+  const lang = vt.lang;
+  const stand = vt.stand;
+  const voortgang = vt.voortgang;
+  const kies = vt.kies;
   // De bron: Nederlands als dat gekozen is, anders Engels.
   const bron: HbLang = lang === "nl" ? "nl" : "en";
   const head = HB_HEAD[bron];
-  const hoofdstukken = useMemo(() => HB_CHAPTERS.filter((c) => !c.owner || isSuperAdmin), [isSuperAdmin]);
-
-  useEffect(() => {
-    try {
-      const s = window.localStorage.getItem(OPSLAG);
-      if (s && TALEN.some((t) => t.code === s)) setLang(s);
-    } catch {
-      /* geen opslag: Engels */
-    }
-  }, []);
-
-  // ── VERTALEN IN DE BROWSER ───────────────────────────────────────
-  // Chrome downloadt een taal pas na een echte klik ("Requires a user
-  // gesture when availability is downloadable") -- dan een knop. Staat de
-  // taal er al, dan begint het meteen.
-  const api = () => (globalThis as unknown as { Translator?: TranslatorApi }).Translator;
-  // Gestart vanuit de keuze zelf (een echte klik): het effect hieronder
-  // moet die run dan niet overdoen of wissen.
-  const gestart = useRef<string | null>(null);
-  const vertaal = async (ik: number, code: string = lang) => {
-    const t = api();
-    if (!t) return;
-    try {
-      const opt = { sourceLanguage: "en", targetLanguage: code };
-      setStand("busy");
-      setVoortgang(0);
-      const v = await t.create(opt);
-        const teksten = Array.from(
-          new Set([
-            ...Object.values(HB_HEAD.en),
-            ...hoofdstukken.flatMap((c) => chapterText(c, "en")),
-            ...HB_GLOSSARY.map((g) => g.def.en),
-          ]),
-        );
-        const uit: Record<string, string> = {};
-        for (let i = 0; i < teksten.length; i++) {
-          if (ik !== loop.current) return;
-          uit[teksten[i]] = await v.translate(teksten[i]);
-          if (i % 8 === 0) {
-            setVoortgang(Math.round(((i + 1) / teksten.length) * 100));
-            setVertaald({ ...uit });
-          }
-        }
-        if (ik === loop.current) {
-          setVertaald(uit);
-          setStand("done");
-        }
-    } catch {
-      if (ik === loop.current) setStand("unsupported");
-    }
-  };
-
-  useEffect(() => {
-    if (gestart.current === lang) return;
-    const ik = ++loop.current;
-    setVertaald({});
-    if (lang === "en" || lang === "nl") {
-      setStand("idle");
-      return;
-    }
-    const t = api();
-    if (!t) {
-      setStand("unsupported");
-      return;
-    }
-    (async () => {
-      try {
-        // Sommige browsers antwoorden nooit (gezien in een ingebouwde browser):
-        // na 4 seconden zonder antwoord is het "kan niet", niet eeuwig wachten.
-        const kan = await Promise.race([
-          t.availability({ sourceLanguage: "en", targetLanguage: lang }),
-          new Promise<string>((ok) => setTimeout(() => ok("unavailable"), 4000)),
-        ]);
-        if (ik !== loop.current) return;
-        if (kan === "unavailable") setStand("unsupported");
-        else if (kan === "available") void vertaal(ik);
-        else setStand("needsClick");
-      } catch {
-        if (ik === loop.current) setStand("unsupported");
-      }
-    })();
-    // vertaal hangt alleen van lang en hoofdstukken af
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lang, hoofdstukken]);
-
-  const tt = (s: string) => (bron === "en" ? (vertaald[s] ?? s) : s);
-  const kies = (code: string) => {
-    setLang(code);
-    // De eigenaar, 01-10: "andere taal vertaald niet eens" -- er moest
-    // nog op een tweede knop gedrukt worden. Chrome wil de download van
-    // een taal laten beginnen IN een klik; de keuze in de lijst IS die
-    // klik. Dus meteen hier, zonder tussenstap.
-    if (code !== "en" && code !== "nl" && api()) {
-      gestart.current = code;
-      setVertaald({});
-      void vertaal(++loop.current, code);
-    } else {
-      gestart.current = null;
-    }
-    try {
-      window.localStorage.setItem(OPSLAG, code);
-    } catch {
-      /* niet onthouden is ook goed */
-    }
-  };
+  const tt = (x: string) => (bron === "en" ? vt.tt(x) : x);
 
   const z = zoek.trim().toLowerCase();
   const zichtbaar = hoofdstukken.filter((c) => !z || chapterText(c, bron).some((s) => tt(s).toLowerCase().includes(z)));
-  const taalLabel = TALEN.find((t) => t.code === lang)?.label ?? lang;
+  const taalLabel = vt.label;
   const googleLink = (c: HbChapter) =>
     `https://translate.google.com/?sl=en&tl=${lang === "fil" ? "tl" : lang}&op=translate&text=${encodeURIComponent(chapterText(c, "en").join("\n\n").slice(0, 4500))}`;
 
   return (
-    <div lang={lang} dir={RTL.has(lang) ? "rtl" : "ltr"} className="mx-auto grid w-full max-w-4xl gap-4 p-4 md:p-6">
+    <div lang={lang} dir={RTL_LANGUAGES.has(lang) ? "rtl" : "ltr"} className="mx-auto grid w-full max-w-4xl gap-4 p-4 md:p-6">
       {/* ── KOP MET TAALKIEZER ──────────────────────────────────── */}
       <div className="relative overflow-hidden rounded-2xl p-5 text-white shadow-lg" style={{ background: "linear-gradient(120deg,#0a0f2e,#1b2160)" }}>
         <div className="pointer-events-none absolute inset-0 opacity-60" style={{ background: "radial-gradient(60% 120% at 0% 0%,rgba(91,141,255,.55),transparent 60%),radial-gradient(50% 120% at 100% 0%,rgba(139,92,246,.5),transparent 60%)" }} />
@@ -257,7 +114,7 @@ export default function StaffHandbook() {
                 className="bg-transparent text-sm font-bold text-white outline-none [&>option]:text-black"
                 aria-label="Language"
               >
-                {TALEN.map((t) => (
+                {LANGUAGES.map((t) => (
                   <option key={t.code} value={t.code}>
                     {t.label}
                   </option>
@@ -270,17 +127,14 @@ export default function StaffHandbook() {
             <p className="flex items-center gap-2 text-xs font-semibold text-white/80">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />{" "}
               {voortgang === 0
-                ? `Downloading the ${taalLabel} language pack — only the first time, up to a minute…`
+                ? `Downloading ${taalLabel} (only the first time)… ${vt.download}%`
                 : `Translating to ${taalLabel} in your browser… ${voortgang}%`}
             </p>
           ) : null}
           {stand === "needsClick" ? (
             <button
               type="button"
-              onClick={() => {
-                gestart.current = lang;
-                void vertaal(++loop.current, lang);
-              }}
+              onClick={vt.opnieuw}
               className="w-fit rounded-xl bg-white px-4 py-2 text-sm font-extrabold text-[#0a0f2e] shadow"
             >
               <Languages className="mr-1.5 inline h-4 w-4" /> Translate into {taalLabel}
