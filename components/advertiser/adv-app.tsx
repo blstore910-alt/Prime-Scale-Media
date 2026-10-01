@@ -2964,10 +2964,14 @@ export default function AdvertiserApp() {
   // Either row means they have a plan. `planLoaded` so a read still in
   // flight is not mistaken for an absence -- the same care `subLoaded`
   // already takes.
+  // Test 4, 01-10 (T4-0): een uitnodiging zonder plan en met EUR 0 laat
+  // een advertiser_plans-rij achter zonder plan. Dat las als een gratis
+  // community ("Plan — Active"). Zonder naam en zonder bedrag = geen plan.
+  const naamloosGratis = !!plan && !plan.name && plan.monthlyFee <= 0;
   const noPlan =
-    subLoaded && !subscription && !stoppedSub && planLoaded && !plan;
+    subLoaded && !subscription && !stoppedSub && planLoaded && (!plan || naamloosGratis);
   /** Their plan costs nothing HERE. */
-  const freePlan = planLoaded && !!plan && plan.monthlyFee <= 0;
+  const freePlan = planLoaded && !!plan && !naamloosGratis && plan.monthlyFee <= 0;
   // ── "NO MONTHLY CHARGE" IS NOT WHAT HAPPENS ──────────────────────
   //
   // The owner, 28-09: "voor NSA moet echt een speciale regeling -- zij
