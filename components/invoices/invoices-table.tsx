@@ -9,6 +9,7 @@ import CustomerName from "@/components/psm/customer-name";
 import TablePagination from "@/components/ui/table-pagination";
 import { useAppContext } from "@/context/app-provider";
 import InvoiceDocButtons from "@/components/invoices/invoice-doc-buttons";
+import EmailInvoiceButton from "@/components/invoices/email-invoice-button";
 import { emptyRow } from "@/components/ui/empty-row";
 import { DATE_FORMAT } from "@/lib/constants";
 import { InvoiceWithRelations } from "@/lib/types/invoice-extended";
@@ -620,6 +621,9 @@ export default function InvoicesTable() {
                                     <Ban />
                                     <span className="alab">Cancel</span>
                                   </button>
+                                )}
+                                {isAdmin && !isVoid && (
+                                  <EmailInvoiceButton invoiceId={invoice.id} label={invoiceNumber(invoice)} />
                                 )}
                                 <InvoiceDocButtons
                                   invoiceId={invoice.id}

@@ -53,3 +53,7 @@ export default async function Page() {
     </div>
   );
 }
+
+// "Email" op een factuur maakt de pdf met een headless Chrome: dat duurt
+// een paar seconden, meer dan de standaardlimiet van een server action.
+export const maxDuration = 60;
