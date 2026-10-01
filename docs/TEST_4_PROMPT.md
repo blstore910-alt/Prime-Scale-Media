@@ -5,8 +5,8 @@ uitkomst heeft. Zeg in een zin waar je begint, en begin dan.
 WAT TEST 4 IS: dezelfde reizen als test 3, maar over elke soort
 account (API en handmatig, EUR en USD, elk plan, NSA, geen plan), elke
 rol (adverteerder, affiliate, teamlid, eigenaar). Alles in het
-Engels -- test 4 is NIET in twee talen; de vertaling is een later
-rondje. Elke TAK minstens een keer, op het account waar hij van nature
+Engels. Nederlands alleen als SUPERSNELLE check aan het eind (R2, max
+tien minuten, alleen kijken) -- geen tijd aan besteden. Elke TAK minstens een keer, op het account waar hij van nature
 voorkomt. Een reis is binair: werkt of werkt niet.
 
 DOORWERKEN TOT DE REIS DICHT IS. Niet rapporteren tussendoor. Een reis

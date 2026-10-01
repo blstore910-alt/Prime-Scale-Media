@@ -125,29 +125,32 @@ const CSS = `
 
 /* De kop: een kleurwolk, een fijn stippenraster, en een glans die bij
    hover een keer overheen trekt. */
-.pdir .pt-hero{position:relative;height:104px;overflow:hidden;
+/* Donker, in de huisstijl van het logo: navy met een gloed in de kleur
+   van de partner en paars. Een bleke kop las als een lege tegel. */
+.pdir .pt-hero{position:relative;height:112px;overflow:hidden;
   background:
-    radial-gradient(120% 140% at 0% 0%,color-mix(in srgb,var(--acc) 38%,transparent),transparent 60%),
-    radial-gradient(120% 140% at 100% 0%,color-mix(in srgb,#8B5CF6 30%,transparent),transparent 60%),
-    linear-gradient(180deg,color-mix(in srgb,var(--acc) 10%,var(--panel)),var(--panel))}
-.pdir .pt-hero::before{content:"";position:absolute;inset:0;opacity:.35;
-  background-image:radial-gradient(color-mix(in srgb,var(--acc) 55%,transparent) 1px,transparent 1.2px);
+    radial-gradient(90% 130% at 12% 0%,color-mix(in srgb,var(--acc) 80%,transparent),transparent 62%),
+    radial-gradient(90% 130% at 100% 20%,rgba(139,92,246,.75),transparent 60%),
+    linear-gradient(135deg,#070a1f,#141a46)}
+.pdir .pt-hero::before{content:"";position:absolute;inset:0;opacity:.5;
+  background-image:radial-gradient(rgba(255,255,255,.35) 1px,transparent 1.3px);
   background-size:14px 14px;
-  -webkit-mask-image:linear-gradient(180deg,#000,transparent 85%);mask-image:linear-gradient(180deg,#000,transparent 85%)}
+  -webkit-mask-image:radial-gradient(120% 100% at 80% 0%,#000,transparent 75%);
+  mask-image:radial-gradient(120% 100% at 80% 0%,#000,transparent 75%)}
 .pdir .pt-hero::after{content:"";position:absolute;top:0;bottom:0;width:45%;left:-60%;
-  background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.28),transparent);
   transform:skewX(-18deg);transition:left .7s cubic-bezier(.2,.8,.2,1)}
 .pdir a.pt:hover .pt-hero::after{left:120%}
 .pdir .pt-cat{position:absolute;top:14px;left:16px;max-width:calc(100% - 32px);
   font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
-  padding:5px 10px;border-radius:99px;color:var(--ink);
-  background:color-mix(in srgb,var(--panel) 72%,transparent);
+  padding:5px 10px;border-radius:99px;color:#fff;
+  background:rgba(255,255,255,.12);
   -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
-  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc) 25%,transparent);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Het icoon zweeft op de rand tussen kop en tekst. */
-.pdir .pt-ic{position:absolute;left:16px;top:76px;z-index:1;width:56px;height:56px;border-radius:18px;
+.pdir .pt-ic{position:absolute;left:16px;top:84px;z-index:1;width:56px;height:56px;border-radius:18px;
   display:grid;place-items:center;overflow:hidden;color:#fff;
   background:linear-gradient(135deg,var(--acc),#8B5CF6);
   box-shadow:0 0 0 4px var(--panel),0 12px 26px -10px color-mix(in srgb,var(--acc) 85%,transparent);

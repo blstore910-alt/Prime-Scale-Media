@@ -24,9 +24,11 @@ dat ze werken voor **elke** soort:
 Test 4 is daarom geen nieuwe soort test maar een **matrix**: dezelfde
 reizen, maar over elke soort account, elke valuta en elke rol.
 
-**Niet in twee talen** (de eigenaar, 01-10: "test 4 hoeft niet in 2
-talen"). Alles loopt in het Engels. De Nederlandse vertaling is een
-apart, later rondje; R2 hieronder is daarom optioneel. "Slim" betekent hier: niet alles met alles vermenigvuldigen
+**Eén taal, plus een supersnelle NL-check** (de eigenaar, 01-10: "test
+4 hoeft niet in 2 talen ... tweetalig kan wel maar gewoon echt een super
+snelle check, geen tijd aan besteden"). De reizen lopen in het Engels.
+R2 is één snelle ronde in het Nederlands, maximaal tien minuten, aan het
+eind. "Slim" betekent hier: niet alles met alles vermenigvuldigen
 (dat zijn honderden runs), maar elke **tak** minstens één keer laten
 lopen, op het account waar hij van nature voorkomt.
 
@@ -100,22 +102,20 @@ verandert), ook als je er maar één echt uitvoert.
   bedrag, status), `advertiser_plans`, `wallets` (2 rijen per klant),
   `user_profiles.locale`.
 
-### R2 — Taal (OPTIONEEL, niet nodig om test 4 af te maken)
+### R2 — Taal: supersnelle check (max 10 minuten, aan het eind)
 
-- Avatar → EN | NL. Na herladen blijft de keuze (staat in
-  `user_profiles.locale`).
-- **Elk scherm** in NL openen: dashboard, wallet, accounts, aanvragen,
-  facturen, rapport, meldingen, opties, team, partners, hulp. En elke
-  dialoog: top-up, exchange, ad-account aanvragen, funden, terugboeken,
-  uitbetaling.
-- **Moet Engels blijven:** top-up, exchange, wallet, ad account, fee,
-  referral, Pay now — de woordenlijst in `docs/NL_EN.md`.
-- **Zoek actief naar:** Engelse zinnen in NL; knoppen die afbreken of
-  over twee regels gaan; datums ("30 sep." en niet "30 Sep"); de
-  dagquote; meldingen; statuslabels; kolomkoppen op mobiel.
-- **Weet wat nog Engels is** (geen fout, staat op de lijst): de pdf
-  van een factuur, de e-mails, partnerbeschrijvingen (komen uit de
-  database), de beheerkant.
+Eén account (T4-B), avatar → NL, en dan alleen kijken -- niets
+uitvoeren:
+
+- elk tabblad één keer open; elke dialoog één keer open en dicht;
+- staat er een Engelse ZIN, een afgebroken knop of een "Sep" in plaats
+  van "sep."? Noteer het in één regel; fixen hoort bij een later rondje,
+  tenzij het een knop onleesbaar maakt;
+- terug naar EN, herladen: blijft het EN?
+
+Bewust Engels (geen fout): top-up, exchange, wallet, ad account, fee,
+referral, Pay now; de factuur-pdf, de e-mails, partnerbeschrijvingen,
+de beheerkant.
 
 ### R3 — Wallet top-up (T4-A EUR, T4-B USD, T4-N HK-route)
 
@@ -295,15 +295,16 @@ Bij elk klantscherm (alle T4-accounts behalve beheer):
 
 1. Laag 0.
 2. R1 voor alle T4-accounts (de eigenaar typt, Claude bereidt voor).
-3. Per account de reizen in deze volgorde: R2 (taal zetten) → R3 → R4
+3. Per account de reizen in deze volgorde: R3 → R4
    → R5 → R6 → R7 → R8 → R12 → R13. Eerst T4-A (de API-tak, het
-   grootste risico), dan T4-B (USD + NL), dan T4-N, T4-C, T4-0.
+   grootste risico), dan T4-B (USD), dan T4-N, T4-C, T4-0.
 4. Affiliate-blok: R9 (T4-F + T4-R), R10 (T4-U).
 5. R11 (team).
 6. R14, R15 (beheer) — grotendeels al gelopen als tweede tab bij de
    reizen hierboven; hier de rest.
 7. R16 (backups), en de volgende ochtend R17.
-8. R18 loopt de hele tijd mee.
+8. R2: de supersnelle NL-check (max 10 minuten).
+9. R18 loopt de hele tijd mee.
 
 ## Wat test 4 klaar maakt
 
@@ -327,7 +328,7 @@ eigenaar nodig is).
 | R1 | T4-V | EN | | | | |
 | R1 | T4-U | EN | | | | |
 | R1 | T4-0 | EN | | | | |
-| R2 | (optioneel) | NL | | | | |
+| R2 | T4-B (snelle check) | NL | | | | |
 | R3 | T4-A EUR | EN | | | | |
 | R3 | T4-B USD | EN | | | | |
 | R3 | T4-N HK | EN | | | | |
