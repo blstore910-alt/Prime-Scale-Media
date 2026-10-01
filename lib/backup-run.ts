@@ -29,6 +29,7 @@ import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Drive, driveConfig } from "@/lib/google-drive";
 import { sendEmail } from "@/lib/email-sender";
+import { backupMail } from "@/lib/pure-backup-email";
 import { safeErrorMessage } from "@/lib/pure-error";
 import {
   backupFileName,
@@ -281,13 +282,31 @@ export async function runSystemBackup(
       "Herstellen: zie docs/RESTORE_DRILL.md.",
     ];
     // Per ontvanger: een adres dat weigert, houdt de anderen niet tegen.
+    // De opgemaakte mail (lib/pure-backup-email.ts). `regels` blijft als
+    // platte samenvatting voor het alarm hieronder niet meer nodig.
+    void regels;
+    const opgemaakt = backupMail({
+      ok,
+      file,
+      bytes: bytes.length,
+      tables: sam.tables,
+      rows: sam.rows,
+      storageFiles: entries.filter((e) => e.file.startsWith("storage/") && !e.error).length,
+      failed: sam.failed,
+      driveOk: drive.ok,
+      driveLink: drive.link,
+      driveError: drive.error,
+      attached: bijlage,
+      when: nu,
+    });
     const mislukt: string[] = [];
     for (const to of aan) {
       try {
         await sendEmail({
           to,
-          subject: `PSM backup ${file.slice(11, 21)} -- ${ok ? "gelukt" : "LET OP"}`,
-          text: regels.join("\n"),
+          subject: opgemaakt.subject,
+          text: opgemaakt.text,
+          html: opgemaakt.html,
           attachments: bijlage ? [{ filename: file, content: Buffer.from(bytes), contentType: "application/zip" }] : undefined,
         });
       } catch (e) {

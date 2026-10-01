@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { isChunkLoadFailure } from "@/lib/pure-chunk-error";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { callerIp, LIMITS, rateLimitCheck } from "@/lib/rate-limit";
 
@@ -85,6 +86,27 @@ export async function POST(req: Request) {
     componentStack,
     extra,
   });
+
+  // ── EEN BUG IS OOK EEN ALARM ──────────────────────────────────────
+  //
+  // De eigenaar, 01-10: "+ als er een bug in het systeem is" -- een mail
+  // en een melding. raise_integration_failure houdt herhalingen tegen
+  // (een melding per uur per bron zolang hij ongelezen is), en de webhook
+  // maakt er een mail van (lib/alert-emails.ts). Een "nieuwe versie"-
+  // fout na een deploy is geen bug en gaat er niet in. Alleen voor een
+  // ingelogde gebruiker: zonder tenant weten we niet wie te waarschuwen.
+  if (tenantId && !isChunkLoadFailure({ message }, url)) {
+    try {
+      const admin = await createAdminClient();
+      await admin.rpc("raise_integration_failure", {
+        p_tenant_id: tenantId,
+        p_source: "app",
+        p_detail: `${safeErrorMessage({ message }).slice(0, 300)}${url ? ` -- op ${url.slice(0, 150)}` : ""}`,
+      });
+    } catch {
+      // Een alarm dat niet lukt, mag het foutrapport niet laten mislukken.
+    }
+  }
 
   return NextResponse.json(
     { ok: true },

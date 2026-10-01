@@ -4,6 +4,7 @@ import { timingSafeEqual } from "node:crypto";
 import webpush from "web-push";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { sendBillingEmail } from "@/lib/billing-emails";
+import { ALERT_EMAIL_TYPES, sendAlertEmail } from "@/lib/alert-emails";
 import { BILLING_EMAIL_TYPES } from "@/lib/pure-billing-email";
 
 export const runtime = "nodejs";
@@ -555,6 +556,26 @@ export async function POST(req: Request) {
         if (outcome !== "sent") console.info("[billing-email]", record.id, outcome);
       } catch (e) {
         console.warn("[billing-email] failed", record.id, safeErrorMessage(e));
+      }
+    }
+
+    // 3a-quater) ── EEN ALARM IS OOK EEN MAIL ────────────────────────
+    // Backup mislukt, billing-run stuk, koppeling faalt, leverancier
+    // bijna leeg: de eigenaar wil het in zijn inbox, niet alleen op zijn
+    // telefoon (01-10). Hooguit een keer per melding (lib/alert-emails.ts),
+    // en nooit de reden dat deze webhook faalt.
+    if (record.type && ALERT_EMAIL_TYPES.has(record.type)) {
+      try {
+        const outcome = await sendAlertEmail(supabase, {
+          id: record.id,
+          recipient_user_id: record.recipient_user_id,
+          tenant_id: record.tenant_id,
+          type: record.type,
+          payload: record.payload,
+        });
+        if (outcome !== "sent") console.info("[alert-email]", record.id, outcome);
+      } catch (e) {
+        console.warn("[alert-email] failed", record.id, safeErrorMessage(e));
       }
     }
 
