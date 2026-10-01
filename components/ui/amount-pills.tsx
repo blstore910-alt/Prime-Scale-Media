@@ -33,7 +33,8 @@ export default function AmountPills({
   disabled?: boolean;
 }) {
   const { t: tr } = useT();
-  const sym = String(currency ?? "EUR").toUpperCase() === "USD" ? "$" : "€";
+  const cur = String(currency ?? "EUR").toUpperCase();
+  const sym = cur === "USD" ? "$" : cur === "GBP" ? "£" : cur === "HKD" ? "HK$" : "€";
   const ceiling =
     typeof max === "number" && Number.isFinite(max) && max > 0 ? max : null;
 

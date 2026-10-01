@@ -122,6 +122,34 @@ function convertWalletToTransfer(
   }
 }
 
+// ── AND BACK: WHAT THEY SEND -> WHAT THE WALLET GETS ────────────────
+// De eigenaar, 01-10: "bij usd moet toch usd zijn ipv euro ... het moet
+// direct converten". A customer paying in USD types the dollars they
+// send; the wallet credit is worked out here at today's rate and that is
+// the figure filed (p_amount is always in the wallet currency). The admin
+// still checks it against the slip and the deposit at Verify.
+// Null when a rate is missing: then nothing is guessed and nothing filed.
+export function convertTransferToWallet(
+  amount: number,
+  transferCurrency: TransferCurrency,
+  walletCurrency: CurrencyCode,
+  rate: { eur?: number | null; gbp?: number | null; hkd?: number | null } | undefined,
+): number | null {
+  if (!amount || amount <= 0) return null;
+  if (walletCurrency === transferCurrency) return amount;
+  const per: Record<string, number> = {
+    USD: 1,
+    EUR: Number(rate?.eur ?? 0),
+    GBP: Number(rate?.gbp ?? 0),
+    HKD: Number(rate?.hkd ?? 0),
+  };
+  const inPerUsd = per[transferCurrency];
+  const outPerUsd = per[walletCurrency];
+  if (!(inPerUsd > 0) || !(outPerUsd > 0)) return null;
+  // Rounded DOWN to the cent: never promise a cent more than arrives.
+  return Math.floor(((amount / inPerUsd) * outPerUsd) * 100) / 100;
+}
+
 // The 2-way "meta_eu" | "others" mapper that stale drafts needed is gone
 // with the draft restoring the bank group at all. A draft brings back the
 // amount; which bank the money goes to is decided by the routing for the
@@ -449,7 +477,7 @@ export default function WalletTopupDialog({
   // Live FX rates (per 1 USD) to show a "you'll transfer ≈ X" hint when the
   // advertiser pays in a currency other than their wallet currency. Rates
   // are read-only here; advertisers already read these elsewhere.
-  const { exchangeRates, isError: ratesError } = useExchangeRates({
+  const { exchangeRates } = useExchangeRates({
     activeOnly: true,
   });
   const rate = exchangeRates?.[0] as
@@ -474,6 +502,17 @@ export default function WalletTopupDialog({
       );
     }
   }, [bankGroup, currency, transferCurrency, availableTransferCurrencies]);
+  // When they pay in another currency the box is in THAT currency, so
+  // the floor is too -- converted and rounded up, as step 1 states it.
+  const cross = transferCurrency !== currency;
+  const minInBox = !cross
+    ? minTopupAmount
+    : minTopupAmount > 0
+      ? Math.ceil(
+          convertWalletToTransfer(minTopupAmount, currency, transferCurrency, rate) ?? 0,
+        )
+      : 0;
+  const boxCurrency: string = cross ? transferCurrency : currency;
   const formSchema = z.object({
     // The field starts EMPTY, not on 0. A money box holding "0" turns a
     // typed 300 into 0300 -- the owner hit it on the walk, and it is the
@@ -481,7 +520,7 @@ export default function WalletTopupDialog({
     amount: z
       .number({ error: tr("wtop.fillInTheAmountYou") })
       .positive("Fill in the amount you sent.")
-      .min(minTopupAmount, `Transfer at least ${currency} ${minTopupAmount}.`),
+      .min(minInBox, `Transfer at least ${boxCurrency} ${minInBox.toLocaleString("en-US")}.`),
   });
 
   const {
@@ -767,7 +806,7 @@ export default function WalletTopupDialog({
       const { data, error } = await supabase.rpc(
         "wallet_topup_advertiser_create",
         {
-          p_amount: values.amount,
+          p_amount: walletCreditFor(values.amount),
           p_currency: currency,
           // Slip is required for BOTH groups now — always send it.
           p_payment_slip: paymentSlipUrl,
@@ -808,7 +847,13 @@ export default function WalletTopupDialog({
       return row;
     },
     onSuccess: async (row, values) => {
-      setFiledAmount(Number(values.amount) || null);
+      setFiledAmount((() => {
+        try {
+          return walletCreditFor(Number(values.amount)) || null;
+        } catch {
+          return null;
+        }
+      })());
       // ── THE REFERENCE THE CLAIM WAS FILED WITH ──────────────────
       //
       // wallet_topup_advertiser_create stamps the wallet's current
@@ -892,6 +937,18 @@ export default function WalletTopupDialog({
   // The one code step 2 shows: the open top-up's when there is one (use
   // it if that money has not gone yet), the wallet's next one on request.
   const shownRef: string | null = referenceNo == null ? null : String(referenceNo);
+
+  // What the wallet is credited for a typed amount: the amount itself, or
+  // its conversion at today's rate when they pay in another currency.
+  const walletCreditFor = (typed: number): number => {
+    if (!cross) return typed;
+    const c = convertTransferToWallet(typed, transferCurrency, currency, rate);
+    if (c === null) throw new Error(tr("wtop.noRateNoFile"));
+    return c;
+  };
+  const crossCredit = cross
+    ? convertTransferToWallet(Number(currentAmount) || 0, transferCurrency, currency, rate)
+    : null;
 
   const handleSubmitForm = (values: FormValues) => {
     // Slip required for every topup, both account groups.
@@ -1315,9 +1372,11 @@ export default function WalletTopupDialog({
                     underneath, which converts. */}
                 <div className="tpx-amount">
                   <label htmlFor="amount">
-                    {tr("wtop.howMuchShouldWeCredit", { currency: String(currency) })}</label>
+                    {cross
+                      ? tr("wtop.howMuchDidYouSend", { c: transferCurrency })
+                      : tr("wtop.howMuchShouldWeCredit", { currency: String(currency) })}</label>
                   <div className="tpx-amount-in">
-                    <span>{currency === "USD" ? "$" : "€"}</span>
+                    <span>{currencySymbol(boxCurrency)}</span>
                     <input
                       id="amount"
                       type="number"
@@ -1332,7 +1391,7 @@ export default function WalletTopupDialog({
                   </div>
                   <div className="tpx-pills">
                     <AmountPills
-                      currency={currency}
+                      currency={boxCurrency}
                       onPick={(v) =>
                         setValue("amount", v, {
                           shouldValidate: true,
@@ -1344,48 +1403,28 @@ export default function WalletTopupDialog({
                   {errors.amount && (
                     <p className="tpx-err">{errors.amount.message}</p>
                   )}
-                  <p className="tpx-hint">
-                    {transferCurrency === currency
-                      ? tr("wtop.thisIsWhatWeCredit")
-                      : tr("wtop.thisIsWhatWeCredit2", { transferCurrency: String(transferCurrency) })}
-                  </p>
+                  {!cross ? (
+                    <p className="tpx-hint">{tr("wtop.thisIsWhatWeCredit")}</p>
+                  ) : null}
                 </div>
 
-                {transferCurrency !== currency &&
-                  (() => {
-                    const converted = convertWalletToTransfer(
-                      currentAmount,
-                      currency,
-                      transferCurrency,
-                      rate,
-                    );
-                    // ── A MISSING FIGURE IS NOT NO FIGURE ─────
-                    // Without a rate there is no transfer amount to show,
-                    // and saying so beats two numbers in the wrong currency.
-                    if (converted === null) {
-                      return (
-                        <div className="tpx-note" data-tone="warn">
-                          <AlertTriangle />
-                          <span>
-                            {tr("wtop.weCanTWorkOut", { transferCurrency: String(transferCurrency), v: String(ratesError
-                              ? " — we couldn't read today's rate"
-                              : " — there is no rate published for it"), currency: String(currency), v2: String(formatCurrency(currentAmount || 0, currency)) })}</span>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div className="tpx-note">
-                        <Info />
-                        <span>
-                          {tr("wtop.transfer")}{" "}
-                          <strong>{formatCurrency(converted, transferCurrency)}</strong>{" "}
-                          to {bankBeneficiary(bankGroup)} (
-                          {transferCurrency}{tr("wtop.your")}{" "}{currency} {" "}{tr("wtop.walletIsCredited")}{" "}{formatCurrency(currentAmount || 0, currency)}{" "}
-                          {tr("wtop.fromTheSlip")}
-                        </span>
-                      </div>
-                    );
-                  })()}
+                {cross ? (
+                  crossCredit === null && (Number(currentAmount) || 0) > 0 ? (
+                    <div className="tpx-note" data-tone="warn">
+                      <AlertTriangle />
+                      <span>{tr("wtop.noRateNoFile")}</span>
+                    </div>
+                  ) : (
+                    <div className="tpx-note">
+                      <Info />
+                      <span>
+                        {tr("wtop.weCreditApprox")}{" "}
+                        <strong>{crossCredit === null ? "—" : formatCurrency(crossCredit, currency)}</strong>{" "}
+                        {tr("wtop.toYourWalletAtRate", { c: currency })}
+                      </span>
+                    </div>
+                  )
+                ) : null}
 
                 {/* ── YOU HAVE ALREADY TOLD US ABOUT ONE ─────────────
                     Beside the amount, because that is where somebody is
