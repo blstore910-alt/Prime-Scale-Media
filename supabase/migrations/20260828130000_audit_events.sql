@@ -169,7 +169,10 @@ declare
     'bank_accounts',
     'integration_jobs',
     'bank_ledger_entries',
-    'plans'
+    'plans',
+    -- plak 185 (01-10): het dagsaldo bij een handmatige leverancier
+    'supplier_ledger_lines',
+    'supplier_day_balances'
   ];
 begin
   foreach t in array audited loop

@@ -268,6 +268,9 @@ export default function AdminShell({
         // Naast de ledger, want het is dezelfde soort vraag: wat is er
         // met het geld van een klant gebeurd.
         { title: "Exchanges", href: "/exchanges", icon: Repeat },
+        // De eigenaar, 01-10: Bestads als saldo, dag voor dag tegen hun
+        // dashboard -- zijn spreadsheet, maar uitgerekend. Plak 185.
+        { title: "Supplier balance", href: "/supplier-ledger", icon: Coins },
         // Every money decision a machine did not settle, with a written
         // checklist on each one. Owner plus the one designated admin;
         // the page itself has no button that moves a cent, because

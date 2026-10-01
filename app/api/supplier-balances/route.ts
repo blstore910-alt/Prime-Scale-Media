@@ -20,6 +20,8 @@
 // takes the Falkyn figure down with it, and the screen would say nothing
 // is known when half of it is.
 
+import { getSupplierLedger } from "@/actions/supplier-ledger-actions";
+import { buildLedgerDays, latestBalance } from "@/lib/pure-supplier-ledger";
 import { apiRequireAdmin } from "@/lib/auth/api-require-admin";
 import { NextResponse } from "next/server";
 import { fetchRockadsWallets } from "@/lib/integrations/rockads-api";
@@ -197,6 +199,31 @@ async function wise(): Promise<SupplierHolding> {
   }
 }
 
+// ── DE HANDMATIGE LEVERANCIERS (Bestads/Muxue) ─────────────────────
+//
+// Geen API: het saldo komt uit /supplier-ledger (plak 185) -- het laatste
+// eindsaldo dat iemand uit hun dashboard overnam, of anders wat er
+// volgens de regels verwacht wordt. De eigenaar, 01-10: "bij home
+// dashboard moeten we ook Bestads hebben als balance".
+async function handmatig(): Promise<SupplierHolding[]> {
+  const r = await getSupplierLedger(null);
+  if (!r.ok || !r.data.suppliers.length) return [];
+  const uit: SupplierHolding[] = [];
+  for (const naam of r.data.suppliers) {
+    const d = naam === r.data.supplier ? r.data : await getSupplierLedger(naam).then((x) => (x.ok ? x.data : null));
+    if (!d) continue;
+    const laatste = latestBalance(buildLedgerDays(d.lines, d.balances));
+    uit.push({
+      supplier: naam === "Muxue" ? "Bestads" : naam,
+      status: laatste ? "ok" : "off",
+      error: laatste && !laatste.actual ? "expected -- no end balance entered for " + laatste.day : null,
+      readAt: laatste ? `${laatste.day}T00:00:00Z` : null,
+      lines: laatste ? [{ currency: "USD", total: laatste.amount, available: null, heldBack: null, parts: [] }] : [],
+    } as SupplierHolding);
+  }
+  return uit;
+}
+
 // ── SLASH, DE BANK ACHTER ZANEL ───────────────────────────────────
 //
 // Tweede bank naast Wise, en op dezelfde voet: ons eigen geld, dus
@@ -286,6 +313,7 @@ export async function GET() {
   // one slow supplier into a 500 for both.
   const names = ["RockAds", "Falkyn", "Wise", "Slash"];
   const settled = await Promise.allSettled([rockads(), seamx(), wise(), slash()]);
+  const handmatige = await handmatig().catch(() => [] as SupplierHolding[]);
   const suppliers: SupplierHolding[] = settled.map((s, i) =>
     s.status === "fulfilled"
       ? s.value
@@ -296,6 +324,9 @@ export async function GET() {
           lines: [],
         },
   );
+
+  // Bestads (handmatig) na RockAds en Falkyn, voor de banken.
+  suppliers.splice(2, 0, ...handmatige);
 
   // Het totaal gaat over het LEVERANCIERSKREDIET. Wise erbij optellen
   // zou twee verschillende soorten geld tot een getal maken: krediet
