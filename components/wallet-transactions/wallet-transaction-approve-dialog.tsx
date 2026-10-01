@@ -7,6 +7,56 @@ import { useMatchedDeposits } from "@/hooks/use-matched-deposits";
 import { useOutstandingPrecharges } from "@/hooks/use-outstanding-precharges";
 import { formatPaymentReference } from "@/lib/payment-reference";
 import { currencySymbol } from "@/lib/pure-invoice-currency";
+import { getSignedPaymentSlipUrl } from "@/actions/payment-slip-actions";
+import { useEffect, useState } from "react";
+
+// ── THE SLIP ON THE SCREEN THAT CREDITS ─────────────────────────────
+// De eigenaar, 01-10: "bij verify moet je ook de slip zien". The modal
+// said "check the slip first" and the slip was behind another button on
+// the card behind it. Now it is here, small, tap to open full size.
+function SlipThumb({ path }: { path: string | null | undefined }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setUrl(null);
+    setFailed(false);
+    if (!path) return;
+    getSignedPaymentSlipUrl(path)
+      .then((res) => {
+        if (!cancelled) {
+          if (res.ok) setUrl(res.data.url);
+          else setFailed(true);
+        }
+      })
+      .catch(() => !cancelled && setFailed(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [path]);
+  if (!path) {
+    return <p className="mb-3 text-sm font-medium text-destructive">No slip uploaded.</p>;
+  }
+  const isPdf = path.toLowerCase().split("?")[0].endsWith(".pdf");
+  return (
+    <div className="mb-3 overflow-hidden rounded-xl border bg-muted/30">
+      {failed ? (
+        <p className="p-3 text-sm text-muted-foreground">Could not load the slip.</p>
+      ) : !url ? (
+        <p className="p-3 text-sm text-muted-foreground">Loading the slip…</p>
+      ) : isPdf ? (
+        <a href={url} target="_blank" rel="noreferrer" className="block p-3 text-sm font-semibold underline">
+          Open the slip (PDF)
+        </a>
+      ) : (
+        <a href={url} target="_blank" rel="noreferrer" title="Open full size">
+          {/* eslint-disable-next-line @next/next/no-img-element -- signed URL of a user upload */}
+          <img src={url} alt="Payment slip" className="block max-h-56 w-full object-contain" />
+        </a>
+      )}
+    </div>
+  );
+}
 
 interface WalletTransactionApproveDialogProps {
   open: boolean;
@@ -153,6 +203,7 @@ export default function WalletTransactionApproveDialog({
       }
       onConfirm={onConfirm}
     >
+      <SlipThumb path={topup.payment_slip} />
       <ConfirmFact
         label="Customer"
         value={

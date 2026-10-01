@@ -515,7 +515,8 @@ ${s} .custbtn:focus-visible{outline:0;box-shadow:0 0 0 3px var(--primary-tint)}
 
    A two-up grid cannot overflow. Verify spans both columns at the top,
    because it is the action this screen exists for; the rest pair off. */
-${s} .tupacts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+${s} .tupacts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+${s} .tupacts>:not(.btn){grid-column:1 / -1}
 ${s} .tupacts .btn{width:100%;justify-content:center;min-width:0}
 ${s} .tupacts .tupmain{grid-column:1 / -1;order:-1}
 

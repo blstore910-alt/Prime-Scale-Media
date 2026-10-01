@@ -953,7 +953,7 @@ export const en = {
   "label.wtop.selectCurrency": "Select currency",
   "wtop.usdUsDollarWallet": "USD - US Dollar wallet",
   "wtop.stepWallet": "Wallet",
-  "rate.stamp": "Rate updated {t} · open market rates",
+  "rate.stamp": "Rate updated {t} · mid-market rate",
   "wtop.retry": "Try again",
   "wtop.readingRate": "Reading today's rate…",
   "wtop.conversionFee": "Conversion fee (0.6%)",

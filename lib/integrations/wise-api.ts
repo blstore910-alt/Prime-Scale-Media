@@ -321,6 +321,35 @@ export async function fetchWiseTxnDetail(args: {
  * Returns [] on any problem, so a caller falls back to "we could not ask"
  * rather than to a wrong id.
  */
+/**
+ * Today's mid-market rate from Wise, as "N per 1 USD" for EUR, GBP, HKD --
+ * the same shape exchange_rates stores. Wise publishes it continuously
+ * (de eigenaar, 01-10: "it should update every 15min"); the open feed it
+ * replaces publishes once a day. Null on any problem: the caller falls
+ * back to that feed rather than storing a guess.
+ */
+export async function fetchWiseUsdRates(): Promise<{ eur: number; gbp: number; hkd: number } | null> {
+  const token = process.env.WISE_API_TOKEN;
+  if (!token) return null;
+  try {
+    const one = async (target: string): Promise<number | null> => {
+      const { res } = await wiseFetch(
+        `${wiseApiBase()}/v1/rates?source=USD&target=${target}`,
+        token,
+      );
+      if (!res.ok) return null;
+      const json = (await res.json()) as Array<{ rate?: number }>;
+      const n = Number(Array.isArray(json) ? json[0]?.rate : NaN);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    };
+    const [eur, gbp, hkd] = await Promise.all([one("EUR"), one("GBP"), one("HKD")]);
+    if (eur === null || gbp === null || hkd === null) return null;
+    return { eur, gbp, hkd };
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchWiseProfileIds(): Promise<Array<string | number>> {
   const token = process.env.WISE_API_TOKEN;
   if (!token) return [];

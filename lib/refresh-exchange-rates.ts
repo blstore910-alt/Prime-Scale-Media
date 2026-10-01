@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getExchangeRate } from "@/lib/get-exchange-rates";
+import { fetchWiseUsdRates } from "@/lib/integrations/wise-api";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { rateMoveVerdict } from "@/lib/pure-rate-guard";
 
@@ -32,6 +33,8 @@ export type RefreshOutcome = {
   /** Set when nothing was attempted. */
   skipped?: string;
   fetched?: { eur: number; gbp: number; hkd: number };
+  /** Where the figures came from: "wise" first, the open feed if not. */
+  source?: "wise" | "open-feed";
   updated: number;
   refused: { tenant: string; reason: string }[];
   error?: string;
@@ -61,13 +64,21 @@ export async function refreshExchangeRates(
   //
   // One fetch, not one per tenant: it is the same market.
   let fresh: { eur: number; gbp: number; hkd: number };
+  let source: "wise" | "open-feed" = "wise";
   try {
-    const all = (await getExchangeRate("usd")) as Record<
-      string,
-      Record<string, number>
-    >;
-    const usd = all?.usd ?? {};
-    fresh = { eur: Number(usd.eur), gbp: Number(usd.gbp), hkd: Number(usd.hkd) };
+    // Wise first: it moves through the day, the open feed once a day.
+    const wise = await fetchWiseUsdRates();
+    if (wise) {
+      fresh = wise;
+    } else {
+      source = "open-feed";
+      const all = (await getExchangeRate("usd")) as Record<
+        string,
+        Record<string, number>
+      >;
+      const usd = all?.usd ?? {};
+      fresh = { eur: Number(usd.eur), gbp: Number(usd.gbp), hkd: Number(usd.hkd) };
+    }
   } catch (e) {
     // ── A REFRESH THAT STOPS MUST NOT BE INVISIBLE ─────────────────
     //
@@ -186,5 +197,5 @@ export async function refreshExchangeRates(
     updated.push(row.tenant_id);
   }
 
-  return { ok: true, fetched: fresh, updated: updated.length, refused };
+  return { ok: true, fetched: fresh, source, updated: updated.length, refused };
 }
