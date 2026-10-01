@@ -530,6 +530,7 @@ export default function WalletTopupDialog({
     reset,
     setValue,
     watch,
+    trigger,
   } = useForm<FormValues>({
     // Empty, so the placeholder shows and nothing has to be deleted first.
     defaultValues: {},
@@ -946,6 +947,9 @@ export default function WalletTopupDialog({
     if (c === null) throw new Error(tr("wtop.noRateNoFile"));
     return c;
   };
+  const walletCreditPreview: number | null = cross
+    ? convertTransferToWallet(Number(currentAmount) || 0, transferCurrency, currency, rate)
+    : Number(currentAmount) || 0;
   const crossCredit = cross
     ? convertTransferToWallet(Number(currentAmount) || 0, transferCurrency, currency, rate)
     : null;
@@ -1145,52 +1149,96 @@ export default function WalletTopupDialog({
                   )}
                 </div>
 
-                {/* ── SAY THE MINIMUM BEFORE THEY SEND THE MONEY ────────
-                    In the TRANSFER currency, rounded up -- send GBP 300
-                    against a EUR 300 floor and you are a fifth short -- and
-                    when that differs from the wallet, the wallet figure too,
-                    because that is the number the box on step 3 asks for. */}
-                {minTopupAmount > 0 &&
-                  (() => {
-                    const inTransfer =
-                      transferCurrency === currency
-                        ? minTopupAmount
-                        : convertWalletToTransfer(
-                            minTopupAmount,
-                            currency,
-                            transferCurrency,
-                            rate,
-                          );
-                    const shown = inTransfer
-                      ? Math.ceil(inTransfer)
-                      : minTopupAmount;
-                    const cur = inTransfer ? transferCurrency : currency;
-                    return (
-                      <div className="tpx-note">
-                        <Info />
-                        <span>
-                          {tr("label.wtop.transferAtLeast")}{" "}
-                          <strong>
-                            {cur} {shown.toLocaleString("en-US")}
-                          </strong>
-                          {tr("wtop.aSmallerAmountCannotBe")}
-                          {cur !== currency && (
-                            <>
-                              {" "}
-                              {tr("label.wtop.thatIs")}{" "}
-                              <strong>
-                                {currency}{" "}
-                                {minTopupAmount.toLocaleString("en-US")}
-                              </strong>{" "}
-                              {tr("wtop.creditedTheFigureWeAsk")}</>
-                          )}
-                        </span>
+                {/* ── THE AMOUNT FIRST ─────────────────────────────────────
+                    De eigenaar, 01-10: ask the amount up front and show what
+                    it becomes, THEN the bank details. The customer types
+                    what they will SEND, in the currency they send it in;
+                    the wallet credit is worked out here, at today's rate,
+                    and that is the figure filed (p_amount is always in the
+                    wallet currency). The floor is in the same currency,
+                    rounded up. */}
+                <div className="tpx-amount">
+                  <label htmlFor="amount">
+                    {tr("wtop.howMuchDidYouSend", { c: boxCurrency })}</label>
+                  <div className="tpx-amount-in">
+                    <span>{currencySymbol(boxCurrency)}</span>
+                    <input
+                      id="amount"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      // Typing replaces what is there, never appends.
+                      onFocus={(e) => e.currentTarget.select()}
+                      {...register("amount", { valueAsNumber: true })}
+                    />
+                  </div>
+                  <div className="tpx-pills">
+                    <AmountPills
+                      currency={boxCurrency}
+                      onPick={(v) =>
+                        setValue("amount", v, {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        })
+                      }
+                    />
+                  </div>
+                  {errors.amount ? (
+                    <p className="tpx-err">{errors.amount.message}</p>
+                  ) : minInBox > 0 ? (
+                    <p className="tpx-hint">
+                      {tr("wtop.minimumIs", { v: formatCurrency(minInBox, boxCurrency) })}
+                    </p>
+                  ) : null}
+                </div>
+
+                {/* What it becomes, every figure shown: no surprise later. */}
+                {(Number(currentAmount) || 0) > 0 ? (
+                  cross && crossCredit === null ? (
+                    <div className="tpx-note" data-tone="warn">
+                      <AlertTriangle />
+                      <span>{tr("wtop.noRateNoFile")}</span>
+                    </div>
+                  ) : (
+                    <div className="tpx-receipt">
+                      <div className="tpx-receipt-row">
+                        <span>{tr("wtop.youSend2")}</span>
+                        <span>{formatCurrency(Number(currentAmount) || 0, transferCurrency)}</span>
                       </div>
-                    );
-                  })()}
+                      {cross ? (
+                        <div className="tpx-receipt-row">
+                          <span>{tr("wtop.todaysRate")}</span>
+                          <span>
+                            1 {transferCurrency} ={" "}
+                            {((convertTransferToWallet(1000000, transferCurrency, currency, rate) ?? 0) / 1000000).toFixed(4)}{" "}
+                            {currency}
+                          </span>
+                        </div>
+                      ) : null}
+                      <div className="tpx-receipt-row">
+                        <span>{tr("wtop.fee")}</span>
+                        <span>{formatCurrency(0, currency)}</span>
+                      </div>
+                      <hr />
+                      <div className="tpx-receipt-row" data-tone="strong">
+                        <span>{cross ? tr("wtop.weCreditApproxShort") : tr("wtop.weCreditShort")}</span>
+                        <span>{formatCurrency(walletCreditPreview ?? 0, currency)}</span>
+                      </div>
+                    </div>
+                  )
+                ) : null}
 
                 <div className="tpx-actions">
-                  <button type="button" className="tpx-cta" onClick={handleNextStep}>
+                  <button
+                    type="button"
+                    className="tpx-cta"
+                    disabled={cross && (Number(currentAmount) || 0) > 0 && crossCredit === null}
+                    onClick={async () => {
+                      if (await trigger("amount")) handleNextStep();
+                    }}
+                  >
                     {tr("label.wtop.continue")}
                     <ArrowRight className="h-4 w-4" />
                   </button>
@@ -1241,6 +1289,15 @@ export default function WalletTopupDialog({
                   </div>
                 ) : null}
 
+                <div className="tpx-sendbox">
+                  <span className="tpx-lbl">{tr("wtop.sendExactly")}</span>
+                  <b>{formatCurrency(Number(currentAmount) || 0, transferCurrency)}</b>
+                  <small>
+                    {tr("wtop.weCreditShort")} {cross ? "≈ " : ""}
+                    {formatCurrency(walletCreditPreview ?? 0, currency)}
+                  </small>
+                </div>
+
                 <BankTransferInstructions
                   group={bankGroup}
                   transferCurrency={transferCurrency}
@@ -1285,32 +1342,6 @@ export default function WalletTopupDialog({
                     {tr("wtop.weCouldNotProduceA")}</p>
                 )}
 
-                {/* ── THE FLOOR, IN THE MONEY THEY ARE ABOUT TO SEND ──
-                    One figure, in the transfer currency, rounded UP: a
-                    floor rounded down arrives a cent under the minimum. */}
-                {minTopupAmount > 0 &&
-                  (() => {
-                    const inTransfer =
-                      transferCurrency === currency
-                        ? minTopupAmount
-                        : convertWalletToTransfer(
-                            minTopupAmount,
-                            currency,
-                            transferCurrency,
-                            rate,
-                          );
-                    const shown = inTransfer
-                      ? Math.ceil(inTransfer)
-                      : minTopupAmount;
-                    const cur = inTransfer ? transferCurrency : currency;
-                    return (
-                      <div className="tpx-note">
-                        <Info />
-                        <span>{tr("wtop.atLeastAnythingLessCannot", { cur: String(cur), v: String(shown.toLocaleString("en-US")) })}</span>
-                      </div>
-                    );
-                  })()}
-
                 {/* ── AND THE GATE, NOT ONLY THE WARNING ──────────
                     No reference, no "I have made the transfer": a claim
                     filed without one is exactly the unmatchable deposit
@@ -1342,89 +1373,25 @@ export default function WalletTopupDialog({
                 style={{ gap: 14 }}
                 onSubmit={handleSubmit(handleSubmitForm)}
               >
-                <div className="tpx-route">
-                  <div className="tpx-route-head">
-                    <span className="tpx-lbl">{tr("label.wtop.transferringTo")}</span>
-                    <button
-                      type="button"
-                      className="tpx-link"
-                      onClick={() => setStep(STEPS.SELECTION)}
-                    >
+                <div className="tpx-receipt">
+                  <div className="tpx-receipt-row">
+                    <span>{tr("wtop.youSent")}</span>
+                    <span>{formatCurrency(Number(currentAmount) || 0, transferCurrency)}</span>
+                  </div>
+                  <div className="tpx-receipt-row">
+                    <span>{tr("wtop.to")}</span>
+                    <span>{bankBeneficiary(bankGroup)}</span>
+                  </div>
+                  <hr />
+                  <div className="tpx-receipt-row" data-tone="strong">
+                    <span>{cross ? tr("wtop.weCreditApproxShort") : tr("wtop.weCreditShort")}</span>
+                    <span>{formatCurrency(walletCreditPreview ?? 0, currency)}</span>
+                  </div>
+                  <div style={{ padding: "0 14px 10px", textAlign: "right" }}>
+                    <button type="button" className="tpx-link" onClick={() => setStep(STEPS.SELECTION)}>
                       {tr("label.wtop.change")}</button>
                   </div>
-                  <div className="tpx-route-row">
-                    <div className="tpx-route-box">
-                      <small>{tr("wtop.youSend", { c: transferCurrency })}</small>
-                      <b>{bankBeneficiary(bankGroup)}</b>
-                    </div>
-                    <span className="tpx-route-arrow"><ArrowRight className="h-4 w-4" /></span>
-                    <div className="tpx-route-box">
-                      <small>{tr("wtop.weCredit")}</small>
-                      <b>{currency === "EUR" ? tr("wtop.walletEur") : tr("wtop.walletUsd")}</b>
-                    </div>
-                  </div>
                 </div>
-
-                {/* ── ASK FOR THE FIGURE THAT IS ACTUALLY WRITTEN ──
-                    The RPC takes (p_amount, p_currency) where p_currency IS
-                    the wallet currency, so the number in this box is, and
-                    can only be, the wallet credit. What to SEND is the line
-                    underneath, which converts. */}
-                <div className="tpx-amount">
-                  <label htmlFor="amount">
-                    {cross
-                      ? tr("wtop.howMuchDidYouSend", { c: transferCurrency })
-                      : tr("wtop.howMuchShouldWeCredit", { currency: String(currency) })}</label>
-                  <div className="tpx-amount-in">
-                    <span>{currencySymbol(boxCurrency)}</span>
-                    <input
-                      id="amount"
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      // Typing replaces what is there, never appends.
-                      onFocus={(e) => e.currentTarget.select()}
-                      {...register("amount", { valueAsNumber: true })}
-                    />
-                  </div>
-                  <div className="tpx-pills">
-                    <AmountPills
-                      currency={boxCurrency}
-                      onPick={(v) =>
-                        setValue("amount", v, {
-                          shouldValidate: true,
-                          shouldDirty: true,
-                        })
-                      }
-                    />
-                  </div>
-                  {errors.amount && (
-                    <p className="tpx-err">{errors.amount.message}</p>
-                  )}
-                  {!cross ? (
-                    <p className="tpx-hint">{tr("wtop.thisIsWhatWeCredit")}</p>
-                  ) : null}
-                </div>
-
-                {cross ? (
-                  crossCredit === null && (Number(currentAmount) || 0) > 0 ? (
-                    <div className="tpx-note" data-tone="warn">
-                      <AlertTriangle />
-                      <span>{tr("wtop.noRateNoFile")}</span>
-                    </div>
-                  ) : (
-                    <div className="tpx-note">
-                      <Info />
-                      <span>
-                        {tr("wtop.weCreditApprox")}{" "}
-                        <strong>{crossCredit === null ? "—" : formatCurrency(crossCredit, currency)}</strong>{" "}
-                        {tr("wtop.toYourWalletAtRate", { c: currency })}
-                      </span>
-                    </div>
-                  )
-                ) : null}
 
                 {/* ── YOU HAVE ALREADY TOLD US ABOUT ONE ─────────────
                     Beside the amount, because that is where somebody is

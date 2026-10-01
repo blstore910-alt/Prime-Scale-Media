@@ -47,6 +47,7 @@ export type {
 export { bankInstructions } from "@/lib/bank-beneficiaries";
 
 import type { BankOverride } from "@/lib/pure-bank-override";
+import { splitAddress } from "@/lib/pure-address-split";
 
 
 // Canonical display order for currency chips.
@@ -128,11 +129,19 @@ export function BankTransferInstructions({
     : detail.sections.flatMap((s, i) =>
         s.items.map((it) => ({ ...it, group: i === 0 ? undefined : s.title })),
       );
+  // An address becomes its parts, each with its own copy button -- the
+  // way a banking app asks for it (de eigenaar, 01-10).
+  const expanded: Item[] = all.flatMap((it) => {
+    if (!/address/i.test(it.label)) return [it];
+    const parts = splitAddress(it.value);
+    if (!parts) return [it];
+    return parts.map((p) => ({ label: p.label, value: p.value, copyable: true, group: it.label }));
+  });
 
   const isHero = (it: Item) =>
     !it.group && it.copyable && /holder|beneficiary name|account number|iban/i.test(it.label);
-  const hero = all.filter(isHero).slice(0, 3);
-  const rest = all.filter((it) => !hero.includes(it));
+  const hero = expanded.filter(isHero).slice(0, 3);
+  const rest = expanded.filter((it) => !hero.includes(it));
 
   // Keep the section headings that carry meaning ("US transfers" vs
   // "International") as one small line above their tiles; drop the rest.
@@ -142,7 +151,7 @@ export function BankTransferInstructions({
     if (last && last.title === it.group) last.items.push(it);
     else groups.push({ title: it.group, items: [it] });
   }
-  const meaningful = (t?: string) => !!t && /transfer|international|us /i.test(t);
+  const meaningful = (t?: string) => !!t && /transfer|international|us |address/i.test(t);
 
   return (
     <div className="flex flex-col gap-3">

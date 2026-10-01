@@ -11,6 +11,7 @@ import {
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { createClient } from "@/lib/supabase/client";
 import { userFacingErrorMessage } from "@/lib/pure-error";
+import { formatCurrency } from "@/lib/utils-pure";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
 import {
   exchangeQuote,
@@ -146,6 +147,8 @@ export default function WalletExchangeDialog({
   const hasUsd = usdBalance > 0;
   const hasEur = eurBalance > 0;
   const hasSingleBalance = (hasUsd && !hasEur) || (!hasUsd && hasEur);
+  const fromBal = fromCurrency === "USD" ? usdBalance : eurBalance;
+  const toBal = fromCurrency === "USD" ? eurBalance : usdBalance;
 
   const feeAmount = quote.fee;
   const exchangeableAmount = quote.lands;
@@ -451,6 +454,13 @@ export default function WalletExchangeDialog({
             {errors.from_amount && (
               <p className="tpx-err">{errors.from_amount.message}</p>
             )}
+            {/* Before and after, quietly (de eigenaar, 01-10). */}
+            <p className="tpx-hint" style={{ margin: "6px 0 0", textAlign: "right" }}>
+              {fromCurrency} wallet {formatCurrency(fromBal, fromCurrency)} →{" "}
+              <strong style={{ color: fromAmount > fromBal ? "#D93B3B" : "var(--tpx-ink)" }}>
+                {formatCurrency(fromBal - fromAmount, fromCurrency)}
+              </strong>
+            </p>
           </div>
 
           <button
@@ -474,6 +484,12 @@ export default function WalletExchangeDialog({
               </span>
               <b>{rate ? exchangeableAmount.toFixed(2) : "—"}</b>
             </div>
+            <p className="tpx-hint" style={{ margin: "6px 0 0", textAlign: "right", color: "rgba(255,255,255,.65)" }}>
+              {toCurrency} wallet {formatCurrency(toBal, toCurrency)} →{" "}
+              <strong style={{ color: "#fff" }}>
+                {formatCurrency(toBal + (rate ? exchangeableAmount : 0), toCurrency)}
+              </strong>
+            </p>
           </div>
 
           <div className="tpx-receipt">
@@ -488,8 +504,17 @@ export default function WalletExchangeDialog({
               </span>
             </div>
             <div className="tpx-receipt-row">
+              <span>{tr("exch.converted")}</span>
+              <span>{rate ? formatCurrency(quote.gross, toCurrency) : "-"}</span>
+            </div>
+            <div className="tpx-receipt-row">
               <span>{tr("exch.exchangeFee06")}</span>
-              <span>{rate ? `${feeAmount.toFixed(2)} ${toCurrency}` : "-"}</span>
+              <span>{rate ? `− ${formatCurrency(feeAmount, toCurrency)}` : "-"}</span>
+            </div>
+            <hr />
+            <div className="tpx-receipt-row" data-tone="strong">
+              <span>{tr("label.exch.youLlReceive")}</span>
+              <span>{rate ? formatCurrency(exchangeableAmount, toCurrency) : "-"}</span>
             </div>
             {/* Does this actually close the gap they came to close? A
                 figure that is internally consistent and 3 cents short
