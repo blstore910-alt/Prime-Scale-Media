@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -45,6 +46,7 @@ function webmailFor(email: string | null): { label: string; href: string } | nul
 }
 
 export default function CheckInbox() {
+  const { t: tr } = useT();
   const [email, setEmail] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [wait, setWait] = useState(0);
@@ -85,9 +87,9 @@ export default function CheckInbox() {
       });
       if (error) throw error;
       setWait(RESEND_WAIT_S);
-      toast.success("Sent again", { description: "Give it a minute, and check your spam folder too." });
+      toast.success(tr("inbox.sentAgain"), { description: tr("inbox.giveItAMinuteAnd") });
     } catch (e) {
-      toast.error("We couldn't send it again just now", { description: safeErrorMessage(e) });
+      toast.error(tr("inbox.weCouldnTSendIt"), { description: safeErrorMessage(e) });
     } finally {
       setSending(false);
     }
@@ -99,14 +101,14 @@ export default function CheckInbox() {
         <MailIcon />
         <span className="ping" />
       </div>
-      <h2>Check your inbox</h2>
-      <p className="lede">One click in the email and your account is ready.</p>
+      <h2>{tr("label.forgot.checkYourInbox")}</h2>
+      <p className="lede">{tr("inbox.oneClickInTheEmail")}</p>
 
       {email ? (
         <div className="whoami">
           <MailIcon />
           <span className="t">
-            <small>We sent a confirmation link to</small>
+            <small>{tr("inbox.weSentAConfirmationLink")}</small>
             <b title={email}>{email}</b>
           </span>
         </div>
@@ -114,14 +116,11 @@ export default function CheckInbox() {
 
       <ol className="steps3">
         <li>
-          <span className="n">1</span> Open the email from Prime Scale Media
-        </li>
+          <span className="n">1</span> {" "}{tr("inbox.openTheEmailFromPrime")}</li>
         <li>
-          <span className="n">2</span> Press the confirmation link in it
-        </li>
+          <span className="n">2</span> {" "}{tr("inbox.pressTheConfirmationLinkIn")}</li>
         <li>
-          <span className="n">3</span> You land straight in your account
-        </li>
+          <span className="n">3</span> {" "}{tr("inbox.youLandStraightInYour")}</li>
       </ol>
 
       {webmail ? (
@@ -136,27 +135,25 @@ export default function CheckInbox() {
           onClick={resend}
           disabled={sending || wait > 0}
         >
-          {sending ? "Sending…" : wait > 0 ? `Sent — you can resend in ${wait}s` : "Send the email again"}
+          {sending ? tr("btn.sending") : wait > 0 ? tr("inbox.sentYouCanResendIn", { wait: String(wait) }) : tr("inbox.sendTheEmailAgain")}
         </button>
       ) : null}
 
       <p className="meta">
-        Nothing after a few minutes? Check your spam folder, or{" "}
+        {tr("forgot.nothingAfterAFewMinutes")}{" "}
         <a
           className="lnk"
           href={whatsappUrl("Hi PSM, I signed up but did not get the confirmation email.")}
           target="_blank"
           rel="noopener noreferrer"
         >
-          message us on WhatsApp
-        </a>
+          {tr("forgot.messageUsOnWhatsapp")}</a>
         .
       </p>
       <p className="meta" style={{ marginTop: 4 }}>
-        Already confirmed?{" "}
+        {tr("inbox.alreadyConfirmed")}{" "}
         <Link className="lnk" href="/auth/login">
-          Log in
-        </Link>
+          {tr("label.forgot.logIn")}</Link>
       </p>
     </section>
   );

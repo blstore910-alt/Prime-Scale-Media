@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -98,6 +99,7 @@ export default function CompanyOnboardingForm({
   /** What is already stored, so the form does not start blank. */
   company?: Record<string, unknown> | null;
 }) {
+  const { t: tr } = useT();
   // billings comes back as an array from the embed.
   const billing = (() => {
     const b = (company as { billings?: unknown } | null | undefined)?.billings;
@@ -210,7 +212,7 @@ export default function CompanyOnboardingForm({
 
   const onSubmit = async (data: FormValues) => {
     if (!profile.id || !advertiserId) {
-      toast.error("Profile or Advertiser ID missing");
+      toast.error(tr("conb.profileOrAdvertiserIdMissing"));
       return;
     }
 
@@ -260,7 +262,7 @@ export default function CompanyOnboardingForm({
       // stand down. Then clear.
       reset(data);
       await draft.clear();
-      toast.success("Company information saved!");
+      toast.success(tr("conb.companyInformationSaved"));
       router.refresh();
       setTimeout(() => {
         router.push("/");
@@ -275,7 +277,7 @@ export default function CompanyOnboardingForm({
       // company card was fixed for exactly this and carries a comment
       // about it; this form was missed. CLAUDE.md names it as a
       // non-negotiable.
-      toast.error("Couldn't save your company details", {
+      toast.error(tr("conb.couldnTSaveYourCompany"), {
         description: userFacingErrorMessage(
           error,
           "Something went wrong on our side. Nothing was lost — try again in a moment.",
@@ -307,7 +309,7 @@ export default function CompanyOnboardingForm({
           </span>
         </div>
         <CardHeader>
-          <CardTitle>Complete Your Company Profile</CardTitle>
+          <CardTitle>{tr("conb.completeYourCompanyProfile")}</CardTitle>
           <CardDescription>
             {/* NOT "to access the platform". The (app) layout computes
                 that completeness rule and then deliberately DISCARDS it
@@ -317,22 +319,16 @@ export default function CompanyOnboardingForm({
                 somebody who wanted a look round that they must finish
                 twelve fields or sign out is both untrue and a dead
                 end. */}
-            We need these to put your company on your invoices. You can look
-            round without them — but topping up, requesting an ad account and
-            being invoiced all wait until they are filled in.
-          </CardDescription>
+            {tr("conb.weNeedTheseToPut")}</CardDescription>
         </CardHeader>
         <CardContent>
           {draft.hasDraft && draft.restoredDraft && (
             <div className="mb-4 rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 p-3 flex items-start gap-3">
               <div className="flex-1 text-sm">
                 <p className="font-medium text-blue-900 dark:text-blue-100">
-                  Unsaved changes from earlier
-                </p>
+                  {tr("conb.unsavedChangesFromEarlier")}</p>
                 <p className="text-blue-800 dark:text-blue-200 text-xs mt-1">
-                  Auto-saved{" "}
-                  {new Date(draft.restoredDraft.savedAt).toLocaleString()}
-                </p>
+                  {tr("conb.autoSaved", { v: String(new Date(draft.restoredDraft.savedAt).toLocaleString()) })}</p>
               </div>
               <Button
                 type="button"
@@ -341,12 +337,11 @@ export default function CompanyOnboardingForm({
                 onClick={() => {
                   reset(draft.restoredDraft!.values);
                   draft.dismissDraft();
-                  toast.success("Draft restored");
+                  toast.success(tr("conb.draftRestored"));
                 }}
               >
                 <RotateCcw className="h-3 w-3 mr-1" />
-                Restore
-              </Button>
+                {tr("label.conb.restore")}</Button>
               <Button
                 type="button"
                 size="sm"
@@ -354,7 +349,7 @@ export default function CompanyOnboardingForm({
                 onClick={() => {
                   void draft.clear();
                 }}
-                aria-label="Discard draft"
+                aria-label={tr("label.conb.discardDraft")}
               >
                 <X className="h-3 w-3" />
               </Button>
@@ -366,28 +361,28 @@ export default function CompanyOnboardingForm({
                 id="company-name"
                 control={control}
                 name="name"
-                label="Company Name *"
-                placeholder="Acme Inc."
+                label={tr("label.conb.companyName")}
+                placeholder={tr("conb.acmeInc")}
               />
               <PhoneInputField
                 id="phone"
                 control={control}
                 name="phone"
-                label="Phone *"
+                label={tr("conb.phone")}
                 placeholder="+1 (555) 000-0000"
               />
               <InputField
                 id="official-email"
                 control={control}
                 name="official_email"
-                label="Email *"
+                label={tr("label.conb.email")}
                 placeholder="contact@acme.com"
               />
               <InputField
                 id="website-url"
                 control={control}
                 name="website_url"
-                label="Website URL"
+                label={tr("label.req.websiteUrl")}
                 placeholder="https://acme.com"
               />
 
@@ -396,9 +391,9 @@ export default function CompanyOnboardingForm({
                   id="vat-no"
                   control={control}
                   name="vat_no"
-                  label="VAT No *"
+                  label={tr("conb.vatNo")}
                   disabled={values.is_not_vat}
-                  placeholder="VAT-123456"
+                  placeholder={tr("conb.vat123456")}
                 />
                 <div className="flex gap-2 mt-1">
                   <Checkbox
@@ -413,7 +408,7 @@ export default function CompanyOnboardingForm({
                     htmlFor="is_not_vat"
                     className="text-muted-foreground text-sm"
                   >
-                    {"My Company isn't VAT registered"}
+                    {tr("conb.myCompanyIsnTVat")}
                   </Label>
                 </div>
               </div>
@@ -423,35 +418,35 @@ export default function CompanyOnboardingForm({
               id="address"
               control={control}
               name="address"
-              label="Street Address *"
-              placeholder="123 Main St"
+              label={tr("label.conb.streetAddress")}
+              placeholder={tr("label.conb.123MainSt")}
             />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <InputField
                 id="state"
                 control={control}
                 name="state"
-                label="State/City *"
-                placeholder="State"
+                label={tr("label.conb.stateCity")}
+                placeholder={tr("label.conb.state")}
               />
               <InputField
                 id="country"
                 control={control}
                 name="country"
-                label="Country *"
-                placeholder="Country"
+                label={tr("label.conb.country")}
+                placeholder={tr("label.adv.country")}
               />
               <InputField
                 id="zipcode"
                 control={control}
                 name="zipcode"
-                label="Zip Code *"
+                label={tr("label.conb.zipCode")}
                 placeholder="00000"
               />
             </div>
 
             <div className="space-y-4 pt-4 border-t">
-              <h3 className="text-lg font-bold">Billing Information</h3>
+              <h3 className="text-lg font-bold">{tr("conb.billingInformation")}</h3>
 
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -465,16 +460,15 @@ export default function CompanyOnboardingForm({
                   htmlFor="same-as-company"
                   className="text-sm font-medium"
                 >
-                  Same as company address
-                </Label>
+                  {tr("conb.sameAsCompanyAddress")}</Label>
               </div>
               <div className="space-y-4">
                 <InputField
                   id="billing-address"
                   control={control}
                   name="billing.address"
-                  label="Street Address *"
-                  placeholder="123 Main St"
+                  label={tr("label.conb.streetAddress")}
+                  placeholder={tr("label.conb.123MainSt")}
                   disabled={values.billing.same_as_company}
                 />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -482,23 +476,23 @@ export default function CompanyOnboardingForm({
                     id="billing-state"
                     control={control}
                     name="billing.state"
-                    label="State/City *"
-                    placeholder="State"
+                    label={tr("label.conb.stateCity")}
+                    placeholder={tr("label.conb.state")}
                     disabled={values.billing.same_as_company}
                   />
                   <InputField
                     id="billing-country"
                     control={control}
                     name="billing.country"
-                    label="Country *"
-                    placeholder="Country"
+                    label={tr("label.conb.country")}
+                    placeholder={tr("label.adv.country")}
                     disabled={values.billing.same_as_company}
                   />
                   <InputField
                     id="billing-zipcode"
                     control={control}
                     name="billing.zipcode"
-                    label="Zip Code *"
+                    label={tr("label.conb.zipCode")}
                     placeholder="00000"
                     disabled={values.billing.same_as_company}
                   />
@@ -511,8 +505,7 @@ export default function CompanyOnboardingForm({
                 {isSubmitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Save & Continue
-              </Button>
+                {tr("label.conb.saveContinue")}</Button>
             </div>
           </form>
         </CardContent>

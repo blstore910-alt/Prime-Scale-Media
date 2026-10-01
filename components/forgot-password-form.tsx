@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -15,6 +16,7 @@ import { MailIcon, RocketMark, StatusBadge } from "@/components/auth/auth-bits";
 // one click away from.
 
 export function ForgotPasswordForm() {
+  const { t: tr } = useT();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -42,7 +44,7 @@ export function ForgotPasswordForm() {
       if (error) throw error;
       setSuccess(true);
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Something went wrong. Try again.");
+      setError(error instanceof Error ? error.message : tr("forgot.somethingWentWrongTryAgain"));
     } finally {
       setIsLoading(false);
     }
@@ -54,34 +56,31 @@ export function ForgotPasswordForm() {
         <StatusBadge tone="mail">
           <MailIcon />
         </StatusBadge>
-        <h2>Check your inbox</h2>
+        <h2>{tr("label.forgot.checkYourInbox")}</h2>
         <p className="lede" style={{ display: "block" }}>
-          If an account exists for this address, a link to choose a new password is on its way.
-        </p>
+          {tr("forgot.ifAnAccountExistsFor")}</p>
         <div className="whoami">
           <MailIcon />
           <span className="t">
-            <small>Sent to</small>
+            <small>{tr("forgot.sentTo")}</small>
             <b title={email}>{email}</b>
           </span>
         </div>
         <p className="meta">
-          Nothing after a few minutes? Check your spam folder, or{" "}
+          {tr("forgot.nothingAfterAFewMinutes")}{" "}
           <a
             className="lnk"
             href={whatsappUrl("Hi PSM, I asked for a password reset but did not get the email.")}
             target="_blank"
             rel="noopener noreferrer"
           >
-            message us on WhatsApp
-          </a>
+            {tr("forgot.messageUsOnWhatsapp")}</a>
           .
         </p>
         <p className="meta" style={{ marginTop: 4 }}>
-          Remembered it?{" "}
+          {tr("forgot.rememberedIt")}{" "}
           <Link className="lnk" href="/auth/login">
-            Log in
-          </Link>
+            {tr("label.forgot.logIn")}</Link>
         </p>
       </section>
     );
@@ -90,11 +89,11 @@ export function ForgotPasswordForm() {
   return (
     <section className="card login-card">
       <RocketMark />
-      <h2>Reset your password</h2>
-      <p className="lede">Type your email and we send you a link to choose a new one.</p>
+      <h2>{tr("forgot.resetYourPassword")}</h2>
+      <p className="lede">{tr("forgot.typeYourEmailAndWe")}</p>
       <form onSubmit={handleForgotPassword} noValidate>
         <div className="field">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">{tr("label.aff.email")}</label>
           <div className="inp">
             <MailIcon />
             <input
@@ -111,14 +110,13 @@ export function ForgotPasswordForm() {
         </div>
         {error && <p className="err">{error}</p>}
         <button className="btn" type="submit" disabled={isLoading || !email.trim()}>
-          {isLoading ? "Sending…" : "Send me a reset link"}
+          {isLoading ? tr("btn.sending") : tr("forgot.sendMeAResetLink")}
         </button>
       </form>
       <p className="meta">
-        Remembered it?{" "}
+        {tr("forgot.rememberedIt")}{" "}
         <Link className="lnk" href="/auth/login">
-          Log in
-        </Link>
+          {tr("label.forgot.logIn")}</Link>
       </p>
     </section>
   );

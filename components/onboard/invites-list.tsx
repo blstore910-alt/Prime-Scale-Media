@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/hooks/use-t";
 import { InvitationStatus } from "@/lib/types/invite";
 import React, { useState } from "react";
 import { getInitials } from "@/lib/utils";
@@ -36,6 +37,7 @@ export default function InvitesList({
 }
 
 function InviteCard({ invite }: { invite: InviteToChoose }) {
+  const { t: tr } = useT();
   // The invitee isn't a tenant member yet, so RLS can leave the embedded
   // `tenant` null. Id lives on the invitation row; name is display-only.
   const tenant = invite.tenant;
@@ -72,9 +74,9 @@ function InviteCard({ invite }: { invite: InviteToChoose }) {
       router.push("/dashboard");
     } catch (error: unknown) {
       if (error instanceof Error) {
-        toast.error(`Error: ${error.message}`);
+        toast.error(tr("iaccept.error", { message: String(error.message) }));
       } else {
-        toast.error("An unexpected error occurred.");
+        toast.error(tr("iaccept.anUnexpectedErrorOccurred"));
       }
     } finally {
       setLoadingState(null);
@@ -90,9 +92,9 @@ function InviteCard({ invite }: { invite: InviteToChoose }) {
       <span className="av">{getInitials(tenantName)}</span>
       <span className="nm">
         <b>{tenantName}</b>
-        <small>{invite.role ? `Join as ${invite.role}` : "Join this organisation"}</small>
+        <small>{invite.role ? tr("ilist.joinAs", { role: String(invite.role) }) : tr("ilist.joinThisOrganisation")}</small>
       </span>
-      <span className="go">{loadingState === "accepted" ? "Joining…" : "Accept →"}</span>
+      <span className="go">{loadingState === "accepted" ? tr("label.ilist.joining") : tr("label.ilist.accept")}</span>
     </button>
   );
 }

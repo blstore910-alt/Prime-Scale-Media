@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { scorePassword } from "@/lib/password-strength";
 import { createClient } from "@/lib/supabase/client";
 import { UserInvitation } from "@/lib/types/invite";
@@ -128,6 +129,7 @@ export default function InviteSignUpForm({
   token: string;
   className?: string;
 }) {
+  const { t: tr } = useT();
   const router = useRouter();
   const [viewPass, setViewPass] = useState({ pass: false, repeatPass: false });
   const {
@@ -199,7 +201,7 @@ export default function InviteSignUpForm({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.success) {
-        throw new Error(data?.message || "Failed to sign up");
+        throw new Error(data?.message || tr("label.isignup.failedToSignUp"));
       }
 
       // The server created the account with an admin client, which does
@@ -220,7 +222,7 @@ export default function InviteSignUpForm({
         // which now hits the orphan-user path and is refused.
         console.error("invite signup auto sign-in failed:", signInError.message);
         toast.warning(
-          "Your account was created, but we couldn't sign you in automatically — log in with the password you just chose.",
+          tr("isignup.yourAccountWasCreatedBut"),
           { duration: 10000 },
         );
         router.push("/auth/login");
@@ -241,11 +243,11 @@ export default function InviteSignUpForm({
       // on.
       if (data?.planAttached === false) {
         toast.warning(
-          "Your account is created, but we could not set up your plan — tell us and we will finish it.",
+          tr("isignup.yourAccountIsCreatedBut"),
           { duration: 10000 },
         );
       } else {
-        toast.success("Welcome! Your account is ready.");
+        toast.success(tr("isignup.welcomeYourAccountIsReady"));
       }
       // ── AN ADVERTISER NEEDS THEIR COMPANY BEFORE ANYTHING ELSE ──
       //
@@ -266,7 +268,7 @@ export default function InviteSignUpForm({
     } catch (error) {
       console.error("Error during sign up:", error);
       toast.error(
-        error instanceof Error ? error.message : "Sign up failed. Try again.",
+        error instanceof Error ? error.message : tr("isignup.signUpFailedTryAgain"),
       );
     }
   };
@@ -278,9 +280,9 @@ export default function InviteSignUpForm({
           <Rocket />
         </span>
       </div>
-      <h2>Create your account</h2>
+      <h2>{tr("signup.createYourAccount")}</h2>
       <p className="lede">
-        You were invited to join {invite.tenant_name} as an{" "}
+        {tr("isignup.youWereInvitedToJoin")}{" "}{invite.tenant_name} {" "}{tr("label.isignup.asAn")}{" "}
         <b>{invite.role}</b>.
       </p>
 
@@ -296,8 +298,7 @@ export default function InviteSignUpForm({
         <MailIcon />
         <span className="t">
           <small>
-            Joining {invite.tenant_name} as {invite.role}
-          </small>
+            {tr("isignup.joiningAs", { tenantname: String(invite.tenant_name), role: String(invite.role) })}</small>
           <b title={invite.email}>{invite.email}</b>
         </span>
       </div>
@@ -305,40 +306,40 @@ export default function InviteSignUpForm({
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="row2">
           <div className="field">
-            <label htmlFor="firstName">First name</label>
+            <label htmlFor="firstName">{tr("label.signup.firstName")}</label>
             <div className="inp">
               <UserIcon />
-              <input id="firstName" placeholder="John" {...register("firstName")} />
+              <input id="firstName" placeholder={tr("label.signup.john")} {...register("firstName")} />
             </div>
             {errors.firstName && (
               <p className="err">{errors.firstName.message}</p>
             )}
           </div>
           <div className="field">
-            <label htmlFor="lastName">Last name</label>
+            <label htmlFor="lastName">{tr("label.signup.lastName")}</label>
             <div className="inp">
               <UserIcon />
-              <input id="lastName" placeholder="Doe" {...register("lastName")} />
+              <input id="lastName" placeholder={tr("signup.doe")} {...register("lastName")} />
             </div>
             {errors.lastName && <p className="err">{errors.lastName.message}</p>}
           </div>
         </div>
 
         <div className="field">
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">{tr("label.login.password")}</label>
           <div className="inp haseye">
             <LockIcon />
             <input
               id="password"
               type={viewPass.pass ? "text" : "password"}
-              placeholder="At least 12 characters"
+              placeholder={tr("signup.atLeast12Characters")}
               {...register("password")}
             />
             <button
               type="button"
               className="eye"
               onClick={() => setViewPass({ ...viewPass, pass: !viewPass.pass })}
-              aria-label={viewPass.pass ? "Hide password" : "Show password"}
+              aria-label={viewPass.pass ? tr("signup.hidePassword") : tr("label.signup.showPassword")}
             >
               <EyeIcon off={viewPass.pass} />
             </button>
@@ -358,13 +359,13 @@ export default function InviteSignUpForm({
         </div>
 
         <div className="field">
-          <label htmlFor="repeatPassword">Repeat password</label>
+          <label htmlFor="repeatPassword">{tr("signup.repeatPassword")}</label>
           <div className="inp haseye">
             <LockIcon />
             <input
               id="repeatPassword"
               type={viewPass.repeatPass ? "text" : "password"}
-              placeholder="Type it again"
+              placeholder={tr("signup.typeItAgain")}
               {...register("repeatPassword")}
             />
             <button
@@ -374,7 +375,7 @@ export default function InviteSignUpForm({
                 setViewPass({ ...viewPass, repeatPass: !viewPass.repeatPass })
               }
               aria-label={
-                viewPass.repeatPass ? "Hide password" : "Show password"
+                viewPass.repeatPass ? tr("signup.hidePassword") : tr("label.signup.showPassword")
               }
             >
               <EyeIcon off={viewPass.repeatPass} />
@@ -390,7 +391,7 @@ export default function InviteSignUpForm({
             contradiction. */}
         {!invite.affiliate_id && (
           <div className="field">
-            <label>Were you referred by someone?</label>
+            <label>{tr("isignup.wereYouReferredBySomeone")}</label>
             <Controller
               control={control}
               name="referral_status"
@@ -404,7 +405,7 @@ export default function InviteSignUpForm({
                       checked={field.value === "referred"}
                       onChange={() => field.onChange("referred")}
                     />
-                    <span>Yes, someone referred me</span>
+                    <span>{tr("isignup.yesSomeoneReferredMe")}</span>
                   </label>
                   <label className="radio">
                     <input
@@ -414,7 +415,7 @@ export default function InviteSignUpForm({
                       checked={field.value === "not_referred"}
                       onChange={() => field.onChange("not_referred")}
                     />
-                    <span>No, I found you another way</span>
+                    <span>{tr("isignup.noIFoundYouAnother")}</span>
                   </label>
                 </div>
               )}
@@ -425,7 +426,7 @@ export default function InviteSignUpForm({
 
             {watch("referral_status") === "referred" && (
               <div className="field" style={{ marginTop: 12 }}>
-                <label htmlFor="referred_by">Their email or company name</label>
+                <label htmlFor="referred_by">{tr("isignup.theirEmailOrCompanyName")}</label>
                 <input
                   id="referred_by"
                   placeholder="name@company.com"
@@ -439,9 +440,9 @@ export default function InviteSignUpForm({
 
             {watch("referral_status") === "not_referred" && (
               <div className="field" style={{ marginTop: 12 }}>
-                <label htmlFor="heard_from">How did you hear about us?</label>
+                <label htmlFor="heard_from">{tr("isignup.howDidYouHearAbout")}</label>
                 <select id="heard_from" {...register("heard_from")}>
-                  <option value="">Select an option</option>
+                  <option value="">{tr("label.isignup.selectAnOption")}</option>
                   {HEARD_FROM.map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
@@ -462,7 +463,7 @@ export default function InviteSignUpForm({
             bad connection, which is exactly when people press twice.
             react-hook-form has no re-entrancy lock of its own. */}
         <button className="btn" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Creating your account…" : "Join Prime Scale Media"}
+          {isSubmitting ? tr("signup.creatingYourAccount") : tr("isignup.joinPrimeScaleMedia")}
         </button>
       </form>
     </section>

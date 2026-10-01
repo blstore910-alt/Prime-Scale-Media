@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -33,6 +34,7 @@ export function UpdatePasswordForm({
   requireCurrent?: boolean;
   email?: string;
 }) {
+  const { t: tr } = useT();
   const [serverError, setServerError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -63,7 +65,7 @@ export function UpdatePasswordForm({
       if (requireCurrent) {
         const current = (data.currentPassword ?? "").trim();
         if (!current) {
-          setServerError("Enter your current password to change it.");
+          setServerError(tr("updpw.enterYourCurrentPasswordTo"));
           return;
         }
         const { error: checkError } = await supabase.auth.signInWithPassword({
@@ -71,7 +73,7 @@ export function UpdatePasswordForm({
           password: current,
         });
         if (checkError) {
-          setServerError("That current password is not right.");
+          setServerError(tr("updpw.thatCurrentPasswordIsNot"));
           return;
         }
       }
@@ -81,48 +83,46 @@ export function UpdatePasswordForm({
       if (error) throw error;
       router.push("/dashboard");
     } catch (error: unknown) {
-      setServerError(error instanceof Error ? error.message : "Something went wrong. Try again.");
+      setServerError(error instanceof Error ? error.message : tr("forgot.somethingWentWrongTryAgain"));
     }
   };
 
   return (
     <section className="card login-card">
       <RocketMark />
-      <h2>{requireCurrent ? "Change your password" : "Choose a new password"}</h2>
+      <h2>{requireCurrent ? tr("updpw.changeYourPassword") : tr("updpw.chooseANewPassword")}</h2>
       <p className="lede">
         {email ? (
           <>
-            For <b>{email}</b>. At least 12 characters.
-          </>
+            {tr("label.updpw.for")}{" "}<b>{email}</b>{tr("updpw.atLeast12Characters")}</>
         ) : (
-          "At least 12 characters."
+          tr("updpw.atLeast12Characters2")
         )}
       </p>
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         {requireCurrent && (
           <div className="field">
-            <label htmlFor="currentPassword">Current password</label>
+            <label htmlFor="currentPassword">{tr("label.updpw.currentPassword")}</label>
             <PasswordInput
               id="currentPassword"
               autoComplete="current-password"
-              placeholder="Your current password"
+              placeholder={tr("updpw.yourCurrentPassword")}
               {...register("currentPassword")}
             />
             <p className="hint">
-              You are signed in, so we ask for this before changing it. Forgotten it?{" "}
+              {tr("updpw.youAreSignedInSo")}{" "}
               <a className="lnk" href="/auth/forgot-password">
-                Send yourself a reset link
-              </a>
+                {tr("updpw.sendYourselfAResetLink")}</a>
               .
             </p>
           </div>
         )}
         <div className="field">
-          <label htmlFor="password">New password</label>
+          <label htmlFor="password">{tr("updpw.newPassword")}</label>
           <PasswordInput
             id="password"
             autoComplete="new-password"
-            placeholder="At least 12 characters"
+            placeholder={tr("signup.atLeast12Characters")}
             {...register("password")}
           />
           <div className="pwbar" data-score={password ? strength.score : 0}>
@@ -137,18 +137,18 @@ export function UpdatePasswordForm({
           {errors.password && <p className="err">{errors.password.message}</p>}
         </div>
         <div className="field">
-          <label htmlFor="repeatPassword">Repeat new password</label>
+          <label htmlFor="repeatPassword">{tr("updpw.repeatNewPassword")}</label>
           <PasswordInput
             id="repeatPassword"
             autoComplete="new-password"
-            placeholder="Type it again"
+            placeholder={tr("signup.typeItAgain")}
             {...register("repeatPassword")}
           />
           {errors.repeatPassword && <p className="err">{errors.repeatPassword.message}</p>}
         </div>
         {serverError && <p className="err">{serverError}</p>}
         <button className="btn" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Saving…" : "Save new password"}
+          {isSubmitting ? tr("label.adv.saving") : tr("label.updpw.saveNewPassword")}
         </button>
       </form>
     </section>

@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/hooks/use-t";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
@@ -26,6 +27,7 @@ export default function InactiveContent({
   user: User;
   profile: UserProfile;
 }) {
+  const { t: tr } = useT();
   // The person looking at this page, so the table below can be
   // scoped to their own payments instead of the tenant's.
   const advertiserId =
@@ -47,16 +49,11 @@ export default function InactiveContent({
                   </div>
                   <div className="flex-1 text-center md:text-left">
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                      Account Inactive
-                    </h1>
+                      {tr("label.inactive.accountInactive")}</h1>
                     <p className="text-gray-600">
-                      Hello{" "}
+                      {tr("label.inactive.hello")}{" "}
                       <span className="font-semibold">{profile.full_name}</span>
-                      , your account has been temporarily deactivated. Please
-                      contact our support team to reactivate your account and
-                      regain access. Below is your recent topup history for your
-                      reference.
-                    </p>
+                      {tr("inactive.yourAccountHasBeenTemporarily")}</p>
                   </div>
                   {/* ── A DEAD END, UNTIL NOW ────────────────────────
                       "Switch Account" was a Link to /auth/login. The
@@ -70,7 +67,7 @@ export default function InactiveContent({
                   <div className="flex flex-wrap gap-3">
                     <LogoutButton />
                     <Button asChild>
-                      <a href={`mailto:${SUPPORT_EMAIL}`}>Contact Support</a>
+                      <a href={`mailto:${SUPPORT_EMAIL}`}>{tr("label.inactive.contactSupport")}</a>
                     </Button>
                   </div>
                 </div>
@@ -80,9 +77,8 @@ export default function InactiveContent({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-800">
-                  Topup Records
-                </h2>
-                <p className="text-sm text-muted-foreground">Read-only view</p>
+                  {tr("label.inactive.topupRecords")}</h2>
+                <p className="text-sm text-muted-foreground">{tr("label.inactive.readOnlyView")}</p>
               </div>
               {/* THEIR OWN TOP-UPS, NOT THE TENANT'S.
                   This renders the admin table, which reads top_ups_view
@@ -101,9 +97,7 @@ export default function InactiveContent({
               {/* "PSM Logbook" is a different product. The invite
                   screen carried the same line and was corrected; this
                   one is customer-facing too. */}
-              &copy; {new Date().getFullYear()} Prime Scale Media. All rights
-              reserved.
-            </p>
+              &copy; {new Date().getFullYear()} {" "}{tr("inactive.primeScaleMediaAllRights")}</p>
           </div>
         </div>
       </QueryClientProvider>

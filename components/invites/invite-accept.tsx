@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -21,6 +22,7 @@ type InviteAcceptProps = {
 };
 
 export default function InviteAccept({ sender, invite }: InviteAcceptProps) {
+  const { t: tr } = useT();
   // The invitee isn't a tenant member yet, so RLS can leave the embedded
   // `tenant` null. The tenant id we actually need lives on the invitation
   // row itself; the name is display-only and degrades gracefully.
@@ -59,7 +61,7 @@ export default function InviteAccept({ sender, invite }: InviteAcceptProps) {
         throw new Error(
           data.message ||
             data.error ||
-            "We couldn't accept that invitation just now. Try again shortly.",
+            tr("iaccept.weCouldnTAcceptThat"),
         );
       }
 
@@ -75,9 +77,9 @@ export default function InviteAccept({ sender, invite }: InviteAcceptProps) {
       }
     } catch (error: unknown) {
       if (error instanceof Error) {
-        toast.error(`Error: ${error.message}`);
+        toast.error(tr("iaccept.error", { message: String(error.message) }));
       } else {
-        toast.error("An unexpected error occurred.");
+        toast.error(tr("iaccept.anUnexpectedErrorOccurred"));
       }
     } finally {
       setLoadingState(null);
@@ -89,17 +91,17 @@ export default function InviteAccept({ sender, invite }: InviteAcceptProps) {
   return (
     <section className="card login-card">
       <RocketMark />
-      <h2>You&apos;ve been invited</h2>
+      <h2>{tr("iaccept.youVeBeenInvited")}</h2>
       <p className="lede" style={{ display: "block" }}>
-        <b>{sender?.full_name || "Someone"}</b> invited you to join{" "}
-        <b>{tenantName}</b> on Prime Scale Media as <b>{invite.role}</b>.
+        <b>{sender?.full_name || tr("label.iaccept.someone")}</b> {" "}{tr("iaccept.invitedYouToJoin")}{" "}
+        <b>{tenantName}</b> {" "}{tr("iaccept.onPrimeScaleMediaAs")}{" "}<b>{invite.role}</b>.
       </p>
       <div className="orgs">
         <div className="orgbtn" style={{ cursor: "default" }}>
           <span className="av">{getInitials(tenantName)}</span>
           <span className="nm">
             <b>{tenantName}</b>
-            <small>Joining as {invite.role}</small>
+            <small>{tr("iaccept.joiningAs", { role: String(invite.role) })}</small>
           </span>
         </div>
       </div>
@@ -109,7 +111,7 @@ export default function InviteAccept({ sender, invite }: InviteAcceptProps) {
         disabled={loadingState !== null}
         onClick={() => handleInvite("accepted")}
       >
-        {loadingState === "accepted" ? "Accepting…" : "Accept invitation"}
+        {loadingState === "accepted" ? tr("label.iaccept.accepting") : tr("label.iaccept.acceptInvitation")}
       </button>
     </section>
   );

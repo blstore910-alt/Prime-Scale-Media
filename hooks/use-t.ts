@@ -34,6 +34,25 @@ function abonneer(f: () => void) {
   return () => luisteraars.delete(f);
 }
 
+// ── VOOR HET INLOGGEN: DE TAAL VAN DE BROWSER ───────────────────
+//
+// Op de login-, aanmeld- en wachtwoordschermen is er nog geen profiel,
+// dus ook geen gekozen taal. Daar volgt de app de browser: een
+// Nederlandse telefoon krijgt het Nederlands. Zodra er een profiel is,
+// wint de keuze in het profiel -- ook als dat Engels is.
+//
+// Via useSyncExternalStore met "en" als server-snapshot: de server
+// rendert Engels, de browser schakelt na de hydratie om, zonder
+// hydratiefout.
+const geenAbonnement = () => () => {};
+function browserTaal(): Locale {
+  try {
+    return /^nl(-|$)/i.test(navigator.language || "") ? "nl" : "en";
+  } catch {
+    return "en";
+  }
+}
+
 export function useLocale(): Locale {
   const { profile } = useAppContext();
   const override = useSyncExternalStore(
@@ -41,7 +60,10 @@ export function useLocale(): Locale {
     () => lokaal,
     () => null,
   );
-  return override ?? asLocale((profile as { locale?: unknown } | null)?.locale);
+  const browser = useSyncExternalStore(geenAbonnement, browserTaal, () => "en" as Locale);
+  if (override) return override;
+  if (!profile) return browser;
+  return asLocale((profile as { locale?: unknown } | null)?.locale);
 }
 
 export function useT() {

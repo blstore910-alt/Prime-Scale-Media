@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useState } from "react";
 
 // The small pieces every screen in the auth shell uses, in the shell's own
@@ -85,6 +86,7 @@ export function PasswordInput(
   // react-hook-form's register() hands over (a plain prop in React 19).
   props: React.ComponentProps<"input"> & { id: string },
 ) {
+  const { t: tr } = useT();
   const [show, setShow] = useState(false);
   return (
     <div className="inp haseye">
@@ -94,7 +96,7 @@ export function PasswordInput(
         type="button"
         className="eye"
         onClick={() => setShow((s) => !s)}
-        aria-label={show ? "Hide password" : "Show password"}
+        aria-label={show ? tr("signup.hidePassword") : tr("label.signup.showPassword")}
       >
         <EyeIcon off={show} />
       </button>

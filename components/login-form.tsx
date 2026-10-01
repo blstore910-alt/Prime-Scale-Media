@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { loginUser } from "@/actions/user-actions";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -25,6 +26,7 @@ function Rocket() {
 const STALE_RELOAD_KEY = "psm-login-stale-reload";
 
 export function LoginForm() {
+  const { t: tr } = useT();
   // Set just before the one automatic reload below, read once here.
   const [email, setEmail] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -65,8 +67,8 @@ export function LoginForm() {
       setResend("idle");
       setError(
         e instanceof Error && /seconds|rate/i.test(e.message)
-          ? "Just sent one — wait a minute before asking again."
-          : "We couldn't send it again just now. Try again in a minute.",
+          ? tr("login.justSentOneWaitA")
+          : tr("login.weCouldnTSendIt"),
       );
     }
   };
@@ -165,7 +167,7 @@ export function LoginForm() {
         // Neither error nor redirect (shouldn't happen) — recover the UI so the
         // rocket-launch fade never strands the user on a blank screen.
         shell?.removeAttribute("data-launching");
-        setError("Something went wrong. Please try again.");
+        setError(tr("login.somethingWentWrongPleaseTry"));
       } catch {
         // Network drop / 500 / action-transport failure: always restore the
         // form (the launch CSS fades it to opacity:0) and show a retryable
@@ -234,7 +236,7 @@ export function LoginForm() {
           return;
         }
         setError(
-          "We couldn't sign you in. Check your connection and try again — if this keeps happening, the service may be down.",
+          tr("login.weCouldnTSignYou"),
         );
       }
     });
@@ -247,20 +249,18 @@ export function LoginForm() {
           <Rocket />
         </span>
       </div>
-      <h2>Sign in</h2>
-      <p className="lede">Welcome back to Prime Scale Media.</p>
+      <h2>{tr("label.login.signIn")}</h2>
+      <p className="lede">{tr("login.welcomeBackToPrimeScale")}</p>
 
       {reasonMessage && <div className="note">{reasonMessage}</div>}
       {wasReloaded && !reasonMessage && (
         <div className="note">
-          We updated the page to the latest version. Your email is still
-          there — enter your password and sign in.
-        </div>
+          {tr("login.weUpdatedThePageTo")}</div>
       )}
 
       <form onSubmit={handleSubmit}>
         <div className="field">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">{tr("label.aff.email")}</label>
           <div className="inp">
             <svg viewBox="0 0 24 24">
               <rect width="20" height="16" x="2" y="4" rx="2" />
@@ -278,7 +278,7 @@ export function LoginForm() {
         </div>
 
         <div className="field">
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">{tr("label.login.password")}</label>
           <div className="inp">
             <svg viewBox="0 0 24 24">
               <rect width="18" height="11" x="3" y="11" rx="2" />
@@ -297,14 +297,13 @@ export function LoginForm() {
 
         <div style={{ textAlign: "right", margin: "-2px 0 2px" }}>
           <Link className="lnk" href="/auth/forgot-password">
-            Forgot password?
-          </Link>
+            {tr("login.forgotPassword")}</Link>
         </div>
 
         {error && (
           <p className="err">
             {notConfirmed
-              ? "Your email is not confirmed yet. Open the link in the email we sent you — or get a fresh one:"
+              ? tr("login.yourEmailIsNotConfirmed")
               : error}
           </p>
         )}
@@ -317,15 +316,15 @@ export function LoginForm() {
             style={{ marginBottom: 8 }}
           >
             {resend === "sending"
-              ? "Sending…"
+              ? tr("btn.sending")
               : resend === "sent"
-                ? "Sent — check your inbox (and spam)"
-                : "Send the confirmation email again"}
+                ? tr("login.sentCheckYourInboxAnd")
+                : tr("login.sendTheConfirmationEmailAgain")}
           </button>
         ) : null}
 
         <button className="btn" type="submit" disabled={isPending}>
-          {isPending ? "Signing in…" : "Sign in"}
+          {isPending ? tr("label.login.signingIn") : tr("label.login.signIn")}
         </button>
 
       </form>

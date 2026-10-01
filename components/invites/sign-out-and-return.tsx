@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { useState } from "react";
 import { signOutCompletely } from "@/lib/auth/sign-out";
 
@@ -39,6 +40,7 @@ import { signOutCompletely } from "@/lib/auth/sign-out";
  * ──────────────────────────────────────────────────────────────────────
  */
 export default function SignOutAndReturn({ token }: { token: string }) {
+  const { t: tr } = useT();
   const [busy, setBusy] = useState(false);
 
   return (
@@ -58,7 +60,7 @@ export default function SignOutAndReturn({ token }: { token: string }) {
         );
       }}
     >
-      {busy ? "Signing out…" : "Sign out and continue"}
+      {busy ? tr("label.sor.signingOut") : tr("sor.signOutAndContinue")}
     </button>
   );
 }

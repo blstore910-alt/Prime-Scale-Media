@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -103,6 +104,7 @@ export function SignUpForm({
   referralCode?: string | null;
   tenantSlug?: string | null;
 }) {
+  const { t: tr } = useT();
   const router = useRouter();
   const [show, setShow] = useState({ pass: false, repeat: false });
 
@@ -159,11 +161,11 @@ export function SignUpForm({
         // and what it said is then gone. The Log in link at the bottom of
         // this form is below the fold on a phone, which is where this
         // whole shell is designed to be read. One tap.
-        toast.error("This email already has an account", {
-          description: "Log in instead, or reset your password if you can't.",
+        toast.error(tr("signup.thisEmailAlreadyHasAn"), {
+          description: tr("signup.logInInsteadOrReset"),
           duration: 12_000,
           action: {
-            label: "Log in",
+            label: tr("label.forgot.logIn"),
             onClick: () => {
               router.push("/auth/login");
             },
@@ -195,7 +197,7 @@ export function SignUpForm({
       // comment that CLAUDE.md calls it non-negotiable; the sign-up
       // form was missed.
       console.error(safeErrorMessage(error));
-      toast.error("Sign up failed", {
+      toast.error(tr("signup.signUpFailed"), {
         description: userFacingErrorMessage(
           error,
           "We couldn't create the account just now. Check the address and try again, or log in if you already have one.",
@@ -211,8 +213,8 @@ export function SignUpForm({
           <Rocket />
         </span>
       </div>
-      <h2>Create your account</h2>
-      <p className="lede">Run your ad accounts with Prime Scale Media.</p>
+      <h2>{tr("signup.createYourAccount")}</h2>
+      <p className="lede">{tr("signup.runYourAdAccountsWith")}</p>
 
       {/* The link worked, and says so. The code is the one in the address
           the person clicked -- nothing here that the link did not carry. */}
@@ -220,8 +222,8 @@ export function SignUpForm({
         <div className="whoami">
           <GiftIcon />
           <span className="t">
-            <small>Invited by a partner</small>
-            <b>Referral code {referralCode}</b>
+            <small>{tr("signup.invitedByAPartner")}</small>
+            <b>{tr("signup.referralCode", { referralCode: String(referralCode) })}</b>
           </span>
         </div>
       ) : null}
@@ -229,26 +231,26 @@ export function SignUpForm({
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="row2">
           <div className="field">
-            <label htmlFor="firstName">First name</label>
+            <label htmlFor="firstName">{tr("label.signup.firstName")}</label>
             <div className="inp">
               <UserIcon />
               <input
                 id="firstName"
                 autoComplete="given-name"
-                placeholder="John"
+                placeholder={tr("label.signup.john")}
                 {...register("firstName")}
               />
             </div>
             {errors.firstName && <p className="err">{errors.firstName.message}</p>}
           </div>
           <div className="field">
-            <label htmlFor="lastName">Last name</label>
+            <label htmlFor="lastName">{tr("label.signup.lastName")}</label>
             <div className="inp">
               <UserIcon />
               <input
                 id="lastName"
                 autoComplete="family-name"
-                placeholder="Doe"
+                placeholder={tr("signup.doe")}
                 {...register("lastName")}
               />
             </div>
@@ -257,7 +259,7 @@ export function SignUpForm({
         </div>
 
         <div className="field">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">{tr("label.aff.email")}</label>
           <div className="inp">
             <MailIcon />
             <input
@@ -273,21 +275,21 @@ export function SignUpForm({
         </div>
 
         <div className="field">
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">{tr("label.login.password")}</label>
           <div className="inp haseye">
             <LockIcon />
             <input
               id="password"
               type={show.pass ? "text" : "password"}
               autoComplete="new-password"
-              placeholder="At least 12 characters"
+              placeholder={tr("signup.atLeast12Characters")}
               {...register("password")}
             />
             <button
               type="button"
               className="eye"
               onClick={() => setShow((s) => ({ ...s, pass: !s.pass }))}
-              aria-label={show.pass ? "Hide password" : "Show password"}
+              aria-label={show.pass ? tr("signup.hidePassword") : tr("label.signup.showPassword")}
             >
               <EyeIcon off={show.pass} />
             </button>
@@ -306,21 +308,21 @@ export function SignUpForm({
         </div>
 
         <div className="field">
-          <label htmlFor="repeatPassword">Repeat password</label>
+          <label htmlFor="repeatPassword">{tr("signup.repeatPassword")}</label>
           <div className="inp haseye">
             <LockIcon />
             <input
               id="repeatPassword"
               type={show.repeat ? "text" : "password"}
               autoComplete="new-password"
-              placeholder="Type it again"
+              placeholder={tr("signup.typeItAgain")}
               {...register("repeatPassword")}
             />
             <button
               type="button"
               className="eye"
               onClick={() => setShow((s) => ({ ...s, repeat: !s.repeat }))}
-              aria-label={show.repeat ? "Hide password" : "Show password"}
+              aria-label={show.repeat ? tr("signup.hidePassword") : tr("label.signup.showPassword")}
             >
               <EyeIcon off={show.repeat} />
             </button>
@@ -330,15 +332,14 @@ export function SignUpForm({
 
         {/* Disabled while it runs: people press twice on a slow phone. */}
         <button className="btn" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Creating your account…" : "Create my account"}
+          {isSubmitting ? tr("signup.creatingYourAccount") : tr("label.signup.createMyAccount")}
         </button>
       </form>
 
       <p className="meta">
-        Already have an account?{" "}
+        {tr("signup.alreadyHaveAnAccount")}{" "}
         <Link className="lnk" href="/auth/login">
-          Log in
-        </Link>
+          {tr("label.forgot.logIn")}</Link>
       </p>
     </section>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/hooks/use-t";
 import { Button } from "@/components/ui/button";
 import { signOutCompletely } from "@/lib/auth/sign-out";
 import { LogOut } from "lucide-react";
@@ -7,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function LogoutButton() {
+  const { t: tr } = useT();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -30,7 +32,6 @@ export function LogoutButton() {
       ) : (
         <LogOut className="h-4 w-4 mr-2" />
       )}
-      Log out
-    </Button>
+      {tr("label.logout.logOut")}</Button>
   );
 }
