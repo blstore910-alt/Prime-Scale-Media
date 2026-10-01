@@ -194,7 +194,12 @@ export default function StaffHandbook() {
     }
     (async () => {
       try {
-        const kan = await t.availability({ sourceLanguage: "en", targetLanguage: lang });
+        // Sommige browsers antwoorden nooit (gezien in een ingebouwde browser):
+        // na 4 seconden zonder antwoord is het "kan niet", niet eeuwig wachten.
+        const kan = await Promise.race([
+          t.availability({ sourceLanguage: "en", targetLanguage: lang }),
+          new Promise<string>((ok) => setTimeout(() => ok("unavailable"), 4000)),
+        ]);
         if (ik !== loop.current) return;
         if (kan === "unavailable") setStand("unsupported");
         else if (kan === "available") void vertaal(ik);

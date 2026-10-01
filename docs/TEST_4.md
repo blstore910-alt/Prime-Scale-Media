@@ -90,8 +90,19 @@ die elke klant kon lezen.
 | L3 | `ad_account_withdrawals`: supplier_status, external_withdraw_id, sent_to_supplier_at leesbaar voor de klant | nu leeg, straks een transactie-id van de leverancier | naar een tabel alleen voor admins |
 | L4 | vrije admin-notities (`ad_accounts.notes`, `advertisers.note`, `top_ups.notes/author`) leesbaar voor de klant | nu schoon, maar één getypte leveranciersnaam lekt | naar een tabel alleen voor admins |
 
-Pas als L1–L4 dicht zijn en R20 opnieuw schoon is, staat R20 op
-**werkt**.
+**Stand 01-10 avond — Blok 0 DICHT:**
+
+- L1 dicht: plak 192 (my_ad_accounts) + code; klanten lezen ad_accounts niet meer.
+- L2 dicht: een bundel per rol (components/role-split), typelijsten, MUXUE en
+  het eigenaarshandboek naar beheerbestanden.
+- L3 bewust geaccepteerd: de leveranciersvelden bij terugboekingen zijn leeg en
+  bevatten nooit een naam (alleen een id); de kolomnaam zegt "supplier".
+- L4 dicht: plak 193 weigert een leveranciers- of typenaam in een notitie die de
+  klant kan lezen.
+- **Gemeten als klant (PSM0022)**: alle 74 tabellen/views opgevraagd met de
+  klantsessie (12 leesbaar, 0 treffers), alle 44 JavaScript-bestanden (0
+  leveranciers- of typenamen), alle 12 schermen (0 treffers). Script:
+  scripts/leak-scan-browser.js.
 
 ---
 
