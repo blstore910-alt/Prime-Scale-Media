@@ -109,8 +109,8 @@ export const PARTNER_CSS = `
 
 .ptile .pt-body{padding:0 14px 14px}
 /* Het icoon steekt half in de banner; naam en website staan ernaast. */
-.ptile .pt-top{display:flex;align-items:flex-end;gap:11px;min-width:0;margin-top:-22px}
-.ptile .pt-ic{position:relative;z-index:1;width:50px;height:50px;border-radius:15px;flex:0 0 auto;
+.ptile .pt-top{display:flex;align-items:flex-start;gap:11px;min-width:0}
+.ptile .pt-ic{position:relative;z-index:1;width:50px;height:50px;border-radius:15px;flex:0 0 auto;margin-top:-22px;
   display:grid;place-items:center;overflow:hidden;color:#fff;
   background:linear-gradient(135deg,var(--acc),#8B5CF6);
   box-shadow:0 0 0 3px var(--panel),0 10px 22px -10px color-mix(in srgb,var(--acc) 90%,transparent);
@@ -119,7 +119,7 @@ export const PARTNER_CSS = `
 .ptile .pt-ic svg{width:23px;height:23px}
 .ptile .pt-ic.logo{background:#fff}
 .ptile .pt-ic img{width:100%;height:100%;object-fit:contain;padding:7px}
-.ptile .pt-head{min-width:0;flex:1 1 auto;padding-bottom:1px}
+.ptile .pt-head{min-width:0;flex:1 1 auto;padding-top:7px}
 .ptile .pt-name{font-family:var(--hd);font-weight:800;font-size:1.04rem;line-height:1.2;
   letter-spacing:-.02em;color:var(--ink);overflow-wrap:anywhere}
 /* De website HEEL: een eigen regel, mag afbreken op een punt, nooit
