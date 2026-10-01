@@ -407,11 +407,14 @@ export default function PsmVerifyAdTopups() {
                   }}
                 >
                   <SupplierPill link={supplierFor(t.account_id)} />
-                  <span style={{ marginLeft: "auto" }} />
+                </div>
+                {/* Same layout as the wallet queue (de eigenaar, 01-10):
+                    Verify across the top, the rest on one row. */}
+                <div className="actrow tupacts" style={{ marginTop: 10 }}>
                   {pend && (
                     <>
                       <button
-                        className="btn sm"
+                        className="btn sm tupmain"
                         onClick={(e) => {
                           e.stopPropagation();
                           setVerifyId(t.id);

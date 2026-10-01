@@ -213,6 +213,30 @@ de beheerkant.
   **weigeren met reden** → de klant ziet de reden, in zijn taal.
 - **Database:** `wallet_topups` (status, bedrag), `wallets`
   (saldo), `wallet_ledger` (balance_before/after), melding verstuurd.
+- **Herontwerp 01-10 — loop elk van deze ook langs:**
+  - Stap 1 = wallet + valuta + **bedrag**. Het vak staat in de valuta
+    die je STUURT (teken en snelknoppen mee; HKD-knoppen in HKD-sommen).
+    Een USD-wallet opent op USD.
+  - Andere valuta dan de wallet: bon met je stuurt / dagkoers /
+    omgerekend / **conversion fee 0,6%** / wij schrijven bij; dat netto
+    bedrag is EXACT wat in `wallet_topups.amount` komt (tegen de koers in
+    `exchange_rates`, tot op de cent). Minimum in de betaalvaluta, dekt de fee.
+  - Kleine regel onder de koers: "Koers bijgewerkt … · middenkoers".
+  - Stap 2 opent met "Maak precies X over"; alle bankgegevens in de
+    donkere kaart; adres per veld kopieerbaar; rekeninghoudersregel als
+    voetregel; één kenmerk-ticket (een open top-up heeft zijn eigen kleine
+    kenmerk in de melding). Kopieerknoppen echt plakken om te testen.
+  - Stap 3: samenvatting + bewijs (ook slepen). Zonder vinkje "aparte
+    overboeking" blijft Submit uit.
+  - Route/valuta verandert na stap 1 → terug naar stap 1, vak leeg,
+    bewijs weg, melding.
+  - Succes past op één telefoonscherm; bedrag = ingediend bedrag.
+  - Concept: sluit en open twee keer; het bedrag komt terug, alleen in
+    dezelfde valuta.
+- **Beheer, herontwerp:** de Verify-bevestiging toont de slip;
+  Details/Reject/Slip op één rij (ook bij ad top-ups); **Other amount**
+  en **Precharge** alleen in Details; geen Precharge zolang een ander
+  bedrag is voorgesteld.
 
 ### R4 — Exchange (T4-A en T4-B)
 
@@ -221,6 +245,10 @@ de beheerkant.
 - **Eigenaar:** het exchange-overzicht (`/exchanges`) → detail → koers,
   wallet voor en na, en de match met het grootboek.
 - **Database:** `wallet_exchanges`, twee ledgerregels, saldi.
+- **Herontwerp 01-10:** je betaalt (cursor staat er meteen in, Max) /
+  omdraaiknop / je ontvangt; wallet voor → na onder beide kaarten; bon
+  met koers, omgerekend, fee 0,6%, je ontvangt; koersregel met tijd. Op
+  360 px niets buiten beeld.
 
 ### R5 — Ad account aanvragen (T4-A, T4-B, T4-C, T4-N, T4-0)
 
@@ -511,6 +539,7 @@ eigenaar nodig is).
 | R1 | T4-W | EN | | | | |
 | R2 | T4-B (snelle check) | NL | | | | |
 | R3 | T4-A EUR | EN | werkt | alle dialoogtakken (EUR/USD wallet x EUR/USD/GBP/HKD), herontwerp in 4 rondes; Verify door Lasse | wallet_topups 500 EUR completed; wallet EUR 0.00 -> 500.00; ledger 1 regel +500.00 (0.00 -> 500.00, actor); melding wallet_topup_completed | herontwerp topup (263db364 .. 14a7d9fa); kopieerknop in dialoog (7022c035); Other amount/Precharge naar Details (66d36cee). Open: reject-met-reden en Other amount (twee admins) nog te lopen |
+| R3 | T4-A USD → EUR-wallet | EN | werkt (indienen) | stap 1 bon: $1.000 × 0,88243363 = €882,43, fee €5,29, bijschrijving €877,14; stap 2 'maak precies $1.000 over' | wallet_topups 877.14 EUR pending, ref 0231606101, één keer | 0,6% bij andere valuta (119c9809); open: verifiëren of weigeren met reden |
 | R3 | T4-B USD | EN | | | | |
 | R3 | T4-N HK | EN | | | | |
 | R4 | T4-A / T4-B | | | | | |

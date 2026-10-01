@@ -17,6 +17,7 @@ import {
   payoutReach,
 } from "@/lib/pure-payout-reach";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
+import { RateStamp } from "@/components/topups/topup-ui";
 import useAffiliatePayouts, { type AffiliatePayout } from "@/hooks/use-affiliate-payouts";
 import type { PayoutDetails } from "@/actions/payout-actions";
 
@@ -215,7 +216,7 @@ export default function PayoutCard({
   });
   const MIN_PER_CURRENCY = payoutMinimumFor(minOverride);
   const payouts = useAffiliatePayouts(enabled, scope);
-  const { rate } = useUsdToEur();
+  const { rate, updatedAt: rateUpdatedAt } = useUsdToEur();
 
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -867,7 +868,8 @@ export default function PayoutCard({
                     </div>
                     {legs.some((l) => l.rate) ? (
                       <p className="note">
-                        {tr("payout.liveRate1UsdEur", { v: String(Number(legs.find((l) => l.rate)?.rate ?? 0).toFixed(4)) })}</p>
+                        {tr("payout.liveRate1UsdEur", { v: String(Number(legs.find((l) => l.rate)?.rate ?? 0).toFixed(4)) })}
+                        <RateStamp at={rateUpdatedAt} align="left" /></p>
                     ) : null}
                   </div>
                 ) : null}

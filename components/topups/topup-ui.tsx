@@ -287,7 +287,13 @@ export function ChoiceCard({
  * market-rate feed (lib/get-exchange-rates.ts); a stale row is refreshed
  * on read (hooks/use-usd-to-eur.ts).
  */
-export function RateStamp({ at }: { at: string | null | undefined }) {
+export function RateStamp({
+  at,
+  align = "right",
+}: {
+  at: string | null | undefined;
+  align?: "left" | "right";
+}) {
   const { t: tr, locale } = useT();
   if (!at) return null;
   const d = new Date(at);
@@ -298,7 +304,16 @@ export function RateStamp({ at }: { at: string | null | undefined }) {
     hour: "2-digit",
     minute: "2-digit",
   });
-  return <span className="tpx-stamp">{tr("rate.stamp", { t: when })}</span>;
+  // Styled inline as well, so it reads the same outside the .tpx screens
+  // (the payout preview, the dashboard).
+  return (
+    <span
+      className="tpx-stamp"
+      style={{ display: "block", fontSize: 10.5, color: "#9AA2B4", textAlign: align, lineHeight: 1.35 }}
+    >
+      {tr("rate.stamp", { t: when })}
+    </span>
+  );
 }
 
 const SYMBOLS: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", HKD: "HK$" };
