@@ -240,6 +240,10 @@ export default function InviteForm() {
   const affiliateId = form.watch("affiliate_id");
   const monthlyFee = form.watch("monthly_fee");
   const nextClientCodeRef = useRef("");
+  // Het nummer dat de server net reserveerde. tenant.last_client_code in de
+  // context ververst niet na een uitnodiging, dus "Create another" toonde
+  // dezelfde code nog eens (test 4: PSM0023 voorspeld, PSM0024 gekregen).
+  const [laatstGereserveerd, setLaatstGereserveerd] = useState(0);
   const includedAccts = form.watch("included_ad_accounts");
   const topupFeePct = form.watch("topup_fee_pct");
   const sendEmail = form.watch("send_email");
@@ -445,6 +449,7 @@ export default function InviteForm() {
         setEmailWasSent(data.emailSent === true);
         setLastInviteEmail(String(values.email ?? "").trim());
         const vast = typeof data.clientCode === "string" && data.clientCode ? data.clientCode : null;
+        if (vast) setLaatstGereserveerd(Number(vast.replace(/\D+/g, "")) || 0);
         setLastClientCode(vast ?? `${tenant?.initials ?? ""}${nextClientCodeRef.current}`);
         setCodeReserved(!!vast);
         toast.success(data.message);
@@ -464,7 +469,9 @@ export default function InviteForm() {
   // client code is the first half of every payment reference
   // (0012-1234567890), so it is a string that gets read out to a customer
   // and typed into a bank.
-  const nextClientCode = String((tenant?.last_client_code as number) + 1).padStart(
+  const nextClientCode = String(
+    Math.max(Number(tenant?.last_client_code ?? 0), laatstGereserveerd) + 1,
+  ).padStart(
     4,
     "0",
   );
@@ -909,6 +916,14 @@ export default function InviteForm() {
                         onClick={() => {
                           form.setValue("plan_id", "");
                           form.setValue("community_id", "");
+                          // Test 4, 01-10: "Clear" liet de bedragen van het
+                          // plan staan -- "Plan None chosen · Monthly €200".
+                          // Wie dan uitgenodigd werd, kreeg toch €200 per
+                          // maand. Leeg = niets ingevuld; het formulier zegt
+                          // dan zelf wat dat betekent.
+                          form.setValue("monthly_fee", undefined as unknown as number);
+                          form.setValue("included_ad_accounts", undefined as unknown as number);
+                          form.setValue("topup_fee_pct", undefined as unknown as number);
                         }}
                       >
                         Clear
