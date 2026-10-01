@@ -26,6 +26,7 @@ import { resolveUserContext } from "./_shared";
 import { createAdminClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { sendEmail } from "@/lib/email-sender";
+import { emailLayout, emailPanel, escapeHtml } from "@/lib/pure-email-layout";
 
 const INVITE_VALID_DAYS = 7;
 
@@ -246,14 +247,29 @@ export async function inviteTeamMember(
       to: email,
       subject: `You have been invited to view an account on ${tenantName}`,
       text: [
-        `You have been invited to view an ad account on Prime Scale Media.`,
+        `You have been invited to join a team account on Prime Scale Media.`,
         ``,
         `Accept: ${link}`,
         ``,
-        `You can see balances, ad accounts and invoices. You cannot move money.`,
+        `You can see balances, ad accounts and invoices. The account owner decides what else you may do.`,
         `This link is valid for ${INVITE_VALID_DAYS} days.`,
       ].join(String.fromCharCode(10)),
-      html: `<p>You have been invited to view an ad account on Prime Scale Media.</p><p><a href="${link}">Accept the invitation</a></p><p>You can see balances, ad accounts and invoices. You cannot move money. This link is valid for ${INVITE_VALID_DAYS} days.</p>`,
+      // De eigenaar, 01-10: "alle e-mailtemplates super wow". Dit was de
+      // enige kale mail; nu dezelfde opmaak als de rest. En niet meer
+      // "you cannot move money": sinds plak 184 kiest de eigenaar per lid.
+      html: emailLayout({
+        preheader: `You have been invited to a team account on ${escapeHtml(tenantName)}.`,
+        eyebrow: "Team invite",
+        title: "Join the team",
+        lead: `You have been invited to work on an advertiser account on ${escapeHtml(tenantName)}.`,
+        cta: { label: "Accept the invitation", href: link },
+        steps: ["Accept", "Set a password", "See the account"],
+        bodyHtml: emailPanel(
+          "What you can do",
+          "See balances, ad accounts and invoices.<br>The account owner decides what else you may do.",
+        ),
+        footnoteHtml: `This link is valid for ${INVITE_VALID_DAYS} days. Not expecting this? You can ignore it.`,
+      }),
     });
     emailSent = true;
   } catch {
