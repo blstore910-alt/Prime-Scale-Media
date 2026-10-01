@@ -12,6 +12,11 @@
 //   manifest.json        per bestand het aantal rijen en een sha256, plus
 //                        wat er misging -- zodat een herstel kan nagaan of
 //                        de zip heel is
+//   schema.sql           het hele databaseschema (plak 190): tabellen,
+//                        functies, triggers, RLS, rechten. Zonder dit is de
+//                        data zonder huis als het project weg is
+//   NOODPLAN.md, docs/   wat te doen bij elk scenario, en hoe alles draait --
+//                        altijd de versie die die nacht live stond
 //
 // Dit VERVANGT Supabase's eigen backups niet: die zijn er ook, met
 // point-in-time herstel (docs/RESTORE_DRILL.md). Dit is de kopie die
@@ -26,6 +31,8 @@
 
 import JSZip from "jszip";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Drive, driveConfig } from "@/lib/google-drive";
 import { sendEmail } from "@/lib/email-sender";
@@ -44,6 +51,18 @@ import {
 const PAGINA = 1000;
 /** Bestanden uit storage tot deze grootte samen; de rest staat in het
  *  manifest als overgeslagen, zodat het opvalt in plaats van verdwijnt. */
+/** [bestand in de repo, pad in de zip]. Houd gelijk met next.config.ts. */
+const BACKUP_DOCS: [string, string][] = [
+  ["docs/NOODPLAN.md", "NOODPLAN.md"],
+  ["docs/RESTORE_DRILL.md", "docs/RESTORE_DRILL.md"],
+  ["docs/BACKUP_DRIVE_SETUP.md", "docs/BACKUP_DRIVE_SETUP.md"],
+  ["docs/RUNBOOK.md", "docs/RUNBOOK.md"],
+  ["docs/WISE_SETUP.md", "docs/WISE_SETUP.md"],
+  ["docs/DEPLOYMENT.md", "docs/DEPLOYMENT.md"],
+  ["CLAUDE.md", "docs/CLAUDE.md"],
+  ["supabase/checks/RESTORE-DRILL-TELLING.sql", "docs/RESTORE-DRILL-TELLING.sql"],
+];
+
 const MAX_STORAGE_BYTES = 150 * 1024 * 1024;
 
 const sha = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex");
@@ -214,6 +233,36 @@ export async function runSystemBackup(
     }
   } catch (e) {
     entries.push({ file: "storage/", rows: 0, sha256: "", error: safeErrorMessage(e) });
+  }
+
+  // ── HET SCHEMA (plak 190) ──────────────────────────────────────
+  // Zonder de plak bestaat de functie niet: dan een briefje in de zip en
+  // geen alarm -- het is een ontbrekende plak, geen kapotte backup.
+  try {
+    const { data: ddl, error: sErr } = await db.rpc("_backup_schema_ddl");
+    if (sErr) {
+      if (/does not exist|schema cache|PGRST202/i.test(sErr.message ?? "")) {
+        zip.file("schema-ONTBREEKT.txt", "Het schema zit nog niet in de backup: plak 190 (supabase/checks/PLAK-DIT-190-SCHEMA-IN-DE-BACKUP.sql) is niet geplakt.");
+      } else throw new Error(sErr.message);
+    } else {
+      const tekst = String(ddl ?? "");
+      zip.file("schema.sql", tekst);
+      entries.push({ file: "schema.sql", rows: 0, sha256: sha(new TextEncoder().encode(tekst)) });
+    }
+  } catch (e) {
+    entries.push({ file: "schema.sql", rows: 0, sha256: "", error: safeErrorMessage(e) });
+  }
+
+  // ── HET NOODPLAN EN DE HANDLEIDINGEN ──────────────────────────────
+  // De eigenaar, 01-10: "ik wil de md ook als kopie in elke backup, altijd
+  // up to date". Gelezen uit de deploy zelf (next.config.ts neemt ze mee
+  // in deze route), dus altijd de versie die live staat.
+  for (const [bron, doel] of BACKUP_DOCS) {
+    try {
+      zip.file(doel, readFileSync(join(process.cwd(), bron), "utf8"));
+    } catch (e) {
+      entries.push({ file: doel, rows: 0, sha256: "", error: `niet meegenomen: ${safeErrorMessage(e)}` });
+    }
   }
 
   const sam = summarize(entries);

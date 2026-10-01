@@ -42,6 +42,22 @@ const csp = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // ── HET NOODPLAN GAAT MEE IN DE BACKUP ─────────────────────────────
+  // lib/backup-run.ts leest deze bestanden bij het maken van de zip. Een
+  // serverless functie bevat alleen wat hij importeert; .md en .sql
+  // importeert niemand, dus hier expliciet. Houd gelijk met BACKUP_DOCS.
+  outputFileTracingIncludes: {
+    "/api/cron/system-backup": [
+      "./docs/NOODPLAN.md",
+      "./docs/RESTORE_DRILL.md",
+      "./docs/BACKUP_DRIVE_SETUP.md",
+      "./docs/RUNBOOK.md",
+      "./docs/WISE_SETUP.md",
+      "./docs/DEPLOYMENT.md",
+      "./CLAUDE.md",
+      "./supabase/checks/RESTORE-DRILL-TELLING.sql",
+    ],
+  },
   // ── SKEW PROTECTION, THE FRAMEWORK HALF ─────────────────────────────
   //
   // Turning it on in Vercel is not enough by itself: the platform can

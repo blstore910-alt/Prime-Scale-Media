@@ -143,11 +143,14 @@ export default function StaffHandbook() {
   // gesture when availability is downloadable") -- dan een knop. Staat de
   // taal er al, dan begint het meteen.
   const api = () => (globalThis as unknown as { Translator?: TranslatorApi }).Translator;
-  const vertaal = async (ik: number) => {
+  // Gestart vanuit de keuze zelf (een echte klik): het effect hieronder
+  // moet die run dan niet overdoen of wissen.
+  const gestart = useRef<string | null>(null);
+  const vertaal = async (ik: number, code: string = lang) => {
     const t = api();
     if (!t) return;
     try {
-      const opt = { sourceLanguage: "en", targetLanguage: lang };
+      const opt = { sourceLanguage: "en", targetLanguage: code };
       setStand("busy");
       setVoortgang(0);
       const v = await t.create(opt);
@@ -177,6 +180,7 @@ export default function StaffHandbook() {
   };
 
   useEffect(() => {
+    if (gestart.current === lang) return;
     const ik = ++loop.current;
     setVertaald({});
     if (lang === "en" || lang === "nl") {
@@ -206,6 +210,17 @@ export default function StaffHandbook() {
   const tt = (s: string) => (bron === "en" ? (vertaald[s] ?? s) : s);
   const kies = (code: string) => {
     setLang(code);
+    // De eigenaar, 01-10: "andere taal vertaald niet eens" -- er moest
+    // nog op een tweede knop gedrukt worden. Chrome wil de download van
+    // een taal laten beginnen IN een klik; de keuze in de lijst IS die
+    // klik. Dus meteen hier, zonder tussenstap.
+    if (code !== "en" && code !== "nl" && api()) {
+      gestart.current = code;
+      setVertaald({});
+      void vertaal(++loop.current, code);
+    } else {
+      gestart.current = null;
+    }
     try {
       window.localStorage.setItem(OPSLAG, code);
     } catch {
@@ -254,7 +269,10 @@ export default function StaffHandbook() {
           {stand === "needsClick" ? (
             <button
               type="button"
-              onClick={() => void vertaal(loop.current)}
+              onClick={() => {
+                gestart.current = lang;
+                void vertaal(++loop.current, lang);
+              }}
               className="w-fit rounded-xl bg-white px-4 py-2 text-sm font-extrabold text-[#0a0f2e] shadow"
             >
               <Languages className="mr-1.5 inline h-4 w-4" /> Translate into {taalLabel}
