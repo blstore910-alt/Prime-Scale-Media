@@ -91,8 +91,8 @@ const CSS = `
 .tpx-amount{border:1.5px solid var(--tpx-line);border-radius:18px;padding:14px 16px;background:#fff;transition:border-color .15s,box-shadow .15s}
 .tpx-amount:focus-within{border-color:var(--tpx-a);box-shadow:0 0 0 4px rgba(91,141,255,.13)}
 .tpx-amount>label{display:block;font-size:12.5px;font-weight:600;color:var(--tpx-mut);margin-bottom:4px}
-.tpx-amount-in{display:flex;align-items:center;gap:8px}
-.tpx-amount-in span{font-size:30px;font-weight:800;line-height:1;background:var(--tpx-grad);-webkit-background-clip:text;background-clip:text;color:transparent;padding-bottom:2px}
+.tpx-amount-in{display:flex;align-items:baseline;gap:8px}
+.tpx-amount-in span{font-size:34px;font-weight:800;line-height:1.1;background:var(--tpx-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .tpx-amount-in input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:34px;line-height:1.1;height:40px;font-weight:800;color:var(--tpx-ink);font-variant-numeric:tabular-nums;padding:0;letter-spacing:-.01em}
 .tpx-amount-in input::placeholder{color:#C9CFDC}
 .tpx-amount-in input:disabled{opacity:.5}
