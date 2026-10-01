@@ -21,16 +21,18 @@
 // 4. ifUpdatedAt via versionMatches, zodat twee admins die tegelijk
 //    dezelfde partner bewerken elkaar niet blind overschrijven.
 //
-// ── ARCHIVEREN, NIET WISSEN ───────────────────────────────────────
+// ── UITZETTEN OF VERWIJDEREN ──────────────────────────────────────
 //
-// Er is geen verwijderknop. Een partner gaat "uit" (is_active = false)
-// en verdwijnt daarmee voor elke klant, maar blijft terug te zetten.
-// Een weggeklikte partner met de verkeerde link is met één klik
-// hersteld; een gewiste niet.
+// Eerst was er alleen "uit" (is_active = false): weg voor elke klant,
+// met een klik terug. De eigenaar, 01-10: "admin moet ook easy en snel
+// partners kunnen toevoegen of verwijderen". Dus nu ook verwijderen --
+// met een bevestiging in het scherm, want dat is niet terug te draaien.
+// Een partner is geen geld; er hangt niets aan vast.
 
 import { resolveAdminContext, versionMatches } from "./_shared";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { createAdminClient } from "@/lib/supabase/server";
+import { PARTNER_ICON_KEYS } from "@/lib/partner-icons";
 
 export type PartnerRow = {
   id: string;
@@ -43,14 +45,26 @@ export type PartnerRow = {
   sort_order: number;
   is_active: boolean;
   updated_at: string;
+  // Plak 181. Afwezig tot die gedraaid is.
+  highlights?: string[] | null;
+  icon?: string | null;
+  badge?: string | null;
+  cta_label?: string | null;
+  cta2_label?: string | null;
+  cta2_url?: string | null;
 };
 
 const KOLOMMEN =
   "id, name, tagline, category, url, logo_url, accent, sort_order, is_active, updated_at";
+const KOLOMMEN_181 = `${KOLOMMEN}, highlights, icon, badge, cta_label, cta2_label, cta2_url`;
+
+/** Een kolom die plak 181 nog niet heeft toegevoegd. */
+const kolomOntbreekt = (e: { message?: string } | null) =>
+  !!e && /column .* does not exist|schema cache/i.test(String(e.message ?? ""));
 
 /** Alles, ook wat uit staat -- dit is het beheerscherm. */
 export async function listPartnersForAdmin(): Promise<
-  { ok: true; data: PartnerRow[] } | { ok: false; error: string }
+  { ok: true; data: PartnerRow[]; plakNodig: boolean } | { ok: false; error: string }
 > {
   const res0 = await resolveAdminContext();
   if (!res0.ok) return { ok: false, error: res0.error };
@@ -66,14 +80,21 @@ export async function listPartnersForAdmin(): Promise<
   // service-rol, met de tenant uit de SESSIE als enige filter. Hetzelfde
   // patroon als ad-account-actions.ts.
   const db = await createAdminClient();
-  const { data, error } = await db
-    .from("partners")
-    .select(KOLOMMEN)
-    .eq("tenant_id", profile.tenant_id)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
+  const lees = (kol: string) =>
+    db
+      .from("partners")
+      .select(kol)
+      .eq("tenant_id", profile.tenant_id)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true });
+  let plakNodig = false;
+  let { data, error } = await lees(KOLOMMEN_181);
+  if (kolomOntbreekt(error)) {
+    plakNodig = true;
+    ({ data, error } = await lees(KOLOMMEN));
+  }
   if (error) return { ok: false, error: safeErrorMessage(error) };
-  return { ok: true, data: (data ?? []) as PartnerRow[] };
+  return { ok: true, data: (data ?? []) as unknown as PartnerRow[], plakNodig };
 }
 
 export type PartnerInput = {
@@ -86,6 +107,12 @@ export type PartnerInput = {
   accent?: string | null;
   sort_order?: number | null;
   is_active?: boolean | null;
+  highlights?: string[] | null;
+  icon?: string | null;
+  badge?: string | null;
+  cta_label?: string | null;
+  cta2_label?: string | null;
+  cta2_url?: string | null;
   ifUpdatedAt?: string | null;
 };
 
@@ -112,7 +139,10 @@ function link(v: unknown): { ok: true; value: string | null } | { ok: false } {
 
 export async function savePartner(
   input: PartnerInput,
-): Promise<{ ok: true; data: { id: string; ingekort?: boolean } } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; data: { id: string; ingekort?: boolean; plakNodig?: boolean } }
+  | { ok: false; error: string }
+> {
   const res0 = await resolveAdminContext();
   if (!res0.ok) return { ok: false, error: res0.error };
   const { profile } = res0.ctx;
@@ -142,6 +172,11 @@ export async function savePartner(
     return { ok: false, error: "The logo link has to start with https://." };
   }
 
+  const cta2 = link(input?.cta2_url);
+  if (!cta2.ok) {
+    return { ok: false, error: "The second button's link has to start with https://." };
+  }
+
   const accentRaw = String(input?.accent ?? "").trim();
   const accent = /^#[0-9a-fA-F]{6}$/.test(accentRaw) ? accentRaw : null;
 
@@ -163,31 +198,59 @@ export async function savePartner(
     is_active: input?.is_active !== false,
   };
 
+  // De velden van plak 181, ook allowlisted en begrensd.
+  const highlights = (Array.isArray(input?.highlights) ? input.highlights : [])
+    .map((h) => String(h ?? "").trim().slice(0, 40))
+    .filter(Boolean)
+    .slice(0, 4);
+  const iconRaw = String(input?.icon ?? "").trim();
+  const extra = {
+    highlights: highlights.length ? highlights : null,
+    icon: PARTNER_ICON_KEYS.includes(iconRaw) ? iconRaw : null,
+    badge: tekst(input?.badge, 30),
+    cta_label: tekst(input?.cta_label, 30),
+    cta2_label: cta2.value ? tekst(input?.cta2_label, 30) : null,
+    cta2_url: cta2.value,
+  };
+
   const id = String(input?.id ?? "").trim();
 
-  // ── EEN KOLOM DIE DE MIGRATIE NOG NIET HEEFT VERRUIMD ───────────
-  // Zonder plak 181 weigert partners_tagline_check alles boven de 120
-  // tekens. Dan niet het hele opslaan laten mislukken: inkorten, nog een
-  // keer, en zeggen dat het ingekort is.
+  // ── KOLOMMEN DIE DE MIGRATIE NOG NIET HEEFT ─────────────────────
+  // Zonder plak 181 bestaan de nieuwe kolommen niet en weigert
+  // partners_tagline_check alles boven de 120 tekens. Dan niet het hele
+  // opslaan laten mislukken: zonder de nieuwe velden, ingekort, nog een
+  // keer -- en zeggen wat er gebeurde.
   const teLang = (e: { message?: string } | null) =>
     !!e && /partners_tagline_check/.test(String(e.message ?? ""));
-  const inkorten = () => ({ ...rij, tagline: rij.tagline ? rij.tagline.slice(0, 120) : null });
+  let plakNodig = false;
+  let ingekort = false;
+  const payload = (): Record<string, unknown> => ({
+    ...rij,
+    ...(plakNodig ? {} : extra),
+    tagline: ingekort && rij.tagline ? rij.tagline.slice(0, 120) : rij.tagline,
+  });
+  /** Probeert, en past bij een bekende weigering het payload aan. */
+  async function probeer<T extends { error: { message?: string } | null }>(
+    doe: () => PromiseLike<T>,
+  ): Promise<T> {
+    let res = await doe();
+    for (let i = 0; i < 2 && res.error; i++) {
+      if (!plakNodig && kolomOntbreekt(res.error)) plakNodig = true;
+      else if (!ingekort && teLang(res.error)) ingekort = true;
+      else break;
+      res = await doe();
+    }
+    return res;
+  }
 
   if (!id) {
-    let ingekort = false;
-    let { data, error } = await supabase
-      .from("partners")
-      .insert({ ...rij, tenant_id: profile.tenant_id })
-      .select("id")
-      .limit(1);
-    if (teLang(error)) {
-      ingekort = true;
-      ({ data, error } = await supabase
+    const { data, error } = await probeer(() =>
+      supabase
         .from("partners")
-        .insert({ ...inkorten(), tenant_id: profile.tenant_id })
+        .insert({ ...payload(), tenant_id: profile.tenant_id })
         .select("id")
-        .limit(1));
-    }
+        .limit(1),
+    );
     if (error) return { ok: false, error: safeErrorMessage(error) };
     const nieuw = (data ?? [])[0];
     // Nul rijen terug is geen succes: RLS geeft geen fout maar een lege
@@ -199,7 +262,7 @@ export async function savePartner(
         error: "The partner was not saved. Run plak 174 first, or tell us.",
       };
     }
-    return { ok: true, data: { id: String(nieuw.id), ingekort } };
+    return { ok: true, data: { id: String(nieuw.id), ingekort, plakNodig } };
   }
 
   // ── BESTAANDE RIJ: TENANT EN VERSIE TOETSEN ─────────────────────
@@ -221,25 +284,52 @@ export async function savePartner(
     };
   }
 
-  let ingekort = false;
-  let { data: bijgewerkt, error: schrijfFout } = await supabase
-    .from("partners")
-    .update(rij)
-    .eq("id", id)
-    .eq("tenant_id", profile.tenant_id)
-    .select("id");
-  if (teLang(schrijfFout)) {
-    ingekort = true;
-    ({ data: bijgewerkt, error: schrijfFout } = await supabase
+  const { data: bijgewerkt, error: schrijfFout } = await probeer(() =>
+    supabase
       .from("partners")
-      .update(inkorten())
+      .update(payload())
       .eq("id", id)
       .eq("tenant_id", profile.tenant_id)
-      .select("id"));
-  }
+      .select("id"),
+  );
   if (schrijfFout) return { ok: false, error: safeErrorMessage(schrijfFout) };
   if (!(bijgewerkt ?? []).length) {
     return { ok: false, error: "Nothing was changed — the partner may have been removed." };
   }
-  return { ok: true, data: { id, ingekort } };
+  return { ok: true, data: { id, ingekort, plakNodig } };
+}
+
+/** Een partner echt weghalen. Het scherm vraagt eerst om bevestiging. */
+export async function deletePartner(input: {
+  id: string;
+  ifUpdatedAt?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res0 = await resolveAdminContext();
+  if (!res0.ok) return { ok: false, error: res0.error };
+  const { profile } = res0.ctx;
+  const supabase = await createAdminClient();
+
+  const id = String(input?.id ?? "").trim();
+  if (!id) return { ok: false, error: "Which partner?" };
+  const { data: bestaand, error: leesFout } = await supabase
+    .from("partners")
+    .select("id, tenant_id, updated_at")
+    .eq("id", id)
+    .limit(1);
+  if (leesFout) return { ok: false, error: safeErrorMessage(leesFout) };
+  const oud = (bestaand ?? [])[0];
+  if (!oud) return { ok: false, error: "That partner was already removed." };
+  if (oud.tenant_id !== profile.tenant_id) return { ok: false, error: "Forbidden" };
+  if (!versionMatches(oud.updated_at, input?.ifUpdatedAt)) {
+    return { ok: false, error: "Somebody changed this partner a moment ago. Reload and try again." };
+  }
+  const { data, error } = await supabase
+    .from("partners")
+    .delete()
+    .eq("id", id)
+    .eq("tenant_id", profile.tenant_id)
+    .select("id");
+  if (error) return { ok: false, error: safeErrorMessage(error) };
+  if (!(data ?? []).length) return { ok: false, error: "Nothing was removed." };
+  return { ok: true };
 }
