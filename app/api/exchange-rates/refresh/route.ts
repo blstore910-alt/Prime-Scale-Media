@@ -3,7 +3,9 @@ import { NextResponse } from "next/server";
 import { isMaintenanceMode } from "@/actions/_shared";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
-import { rateAge, RATE_STALE_HOURS } from "@/lib/pure-rate-guard";
+import { rateAge } from "@/lib/pure-rate-guard";
+
+const REFRESH_AFTER_HOURS = 0.25;
 import { refreshExchangeRates } from "@/lib/refresh-exchange-rates";
 
 // ── A STALE RATE GETS REFRESHED BY WHOEVER NOTICES ──────────────────
@@ -116,14 +118,19 @@ export async function POST() {
   // No row at all is not "fresh" — there is nothing to be fresh. Let the
   // refresh run; it writes only rows that exist, so at worst it is a
   // provider call that updates nothing and says so.
+  // ── FIFTEEN MINUTES, NOT SIX HOURS ──────────────────────────────
+  // De eigenaar, 01-10: "it should update every 15min". This skipped any
+  // row younger than RATE_STALE_HOURS (6), so the client asking every 15
+  // minutes was always told "fresh". RATE_STALE_HOURS stays what it is
+  // for the WARNING that a rate is old; refreshing is cheaper than that.
   if (newest) {
     const age = rateAge(newest);
-    if (!age.stale) {
+    if (age.hours !== null && age.hours < REFRESH_AFTER_HOURS) {
       return NextResponse.json({
         ok: true,
         skipped: "fresh",
         hours: age.hours,
-        staleAfterHours: RATE_STALE_HOURS,
+        refreshAfterHours: REFRESH_AFTER_HOURS,
       });
     }
   }
