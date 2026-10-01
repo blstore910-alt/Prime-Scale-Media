@@ -982,7 +982,7 @@ export const en = {
   "wtop.copyShort": "Copy",
   "wtop.youSend": "You send {c} to",
   "wtop.weCredit": "We credit your",
-  "wtop.next1": "We match your transfer to the slip",
+  "wtop.next1": "We match your transfer",
   "wtop.next2": "Your wallet is credited",
   "wtop.next3": "You get a notification",
   "wtop.stepBank": "Bank details",

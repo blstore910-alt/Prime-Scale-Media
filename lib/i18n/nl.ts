@@ -990,7 +990,7 @@ export const nl: Record<Key, string> = {
   "wtop.copyShort": "Kopieer",
   "wtop.youSend": "Je stuurt {c} naar",
   "wtop.weCredit": "Wij schrijven bij op je",
-  "wtop.next1": "Wij koppelen je overboeking aan het bewijs",
+  "wtop.next1": "Wij koppelen je overboeking",
   "wtop.next2": "Je wallet wordt bijgeschreven",
   "wtop.next3": "Je krijgt een melding",
   "wtop.stepBank": "Bankgegevens",

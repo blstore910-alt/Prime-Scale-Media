@@ -178,6 +178,25 @@ const CSS = `
 @keyframes tpxFly{0%{opacity:1;transform:translate(-50%,-50%) rotate(0)}100%{opacity:0;transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) rotate(220deg)}}
 @keyframes tpxUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes tpxBlink{50%{opacity:.35}}
+/* ── ONE PHONE SCREEN ─────────────────────────────────────────────
+   De eigenaar, 01-10: "dit moet allemaal op 1 mobiel scherm passen".
+   Smaller burst, amount and ticket; the three next steps side by side. */
+.tpx-done{gap:10px;padding:0}
+.tpx-done .tpx-burst{width:72px;height:72px;margin-top:0}
+.tpx-done .tpx-burst-core,.tpx-done .tpx-burst-ring{inset:8px}
+.tpx-done .tpx-burst-core svg{width:26px;height:26px}
+.tpx-done h3{font-size:18px}
+.tpx-done .tpx-amt{font-size:32px}
+.tpx-done>p{margin:-2px 0 0;font-size:12.5px;line-height:1.4}
+.tpx-done .tpx-ticket{padding:12px 14px}
+.tpx-done .tpx-ticket-code{font-size:20px;margin:2px 0 0}
+.tpx-done .tpx-ticket-foot{padding-top:8px;margin-top:6px}
+.tpx-done .tpx-pill{padding:6px 12px}
+.tpx-done .tpx-next{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:0;border:0}
+.tpx-done .tpx-next-row{flex-direction:column;justify-content:flex-start;text-align:center;gap:6px;padding:10px 6px;border:1px solid var(--tpx-line);border-radius:14px;font-size:11.5px;line-height:1.3}
+.tpx-done .tpx-next-row+.tpx-next-row{border-top:1px solid var(--tpx-line)}
+.tpx-done .tpx-next-row span{width:22px;height:22px;font-size:11px;border-radius:7px}
+.tpx-done .tpx-cta{min-height:46px}
 @media (prefers-reduced-motion:reduce){.tpx *{animation:none!important}.tpx-burst-core path{stroke-dashoffset:0}}
 .tpx-x-pay,.tpx-x-get{border-radius:20px;padding:14px 16px;min-width:0}
 .tpx-x-pay{border:1.5px solid var(--tpx-line);background:#fff;transition:border-color .15s,box-shadow .15s}
