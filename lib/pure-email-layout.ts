@@ -52,7 +52,7 @@ export function escapeHtml(s: string): string {
 
 /** A paragraph in the body's own type, centred like the rest. */
 export function emailParagraph(html: string): string {
-  return `<p style="margin:0 0 14px;font:400 15px/1.65 ${FONT};color:#475069;text-align:center;">${html}</p>`;
+  return `<p style="margin:0 0 14px;font-family:${FONT};font-size:15px;line-height:1.65;font-weight:400;color:#475069;text-align:center;">${html}</p>`;
 }
 
 /** A soft panel for facts (a plan, an address change, a code). */
@@ -60,8 +60,8 @@ export function emailPanel(labelHtml: string, valueHtml: string): string {
   return (
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 18px;">` +
     `<tr><td align="center" style="padding:16px 18px;background:#f4f6fd;border:1px solid #e3e8f4;border-radius:16px;">` +
-    `<div style="font:700 11px/1.4 ${FONT};letter-spacing:.14em;text-transform:uppercase;color:#7c86a6;">${labelHtml}</div>` +
-    `<div style="margin-top:7px;font:700 16px/1.5 ${FONT};color:#12162a;">${valueHtml}</div>` +
+    `<div style="font-family:${FONT};font-size:11px;line-height:1.4;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#7c86a6;">${labelHtml}</div>` +
+    `<div style="margin-top:7px;font-family:${FONT};font-size:16px;line-height:1.5;font-weight:700;color:#12162a;">${valueHtml}</div>` +
     `</td></tr></table>`
   );
 }
@@ -69,13 +69,19 @@ export function emailPanel(labelHtml: string, valueHtml: string): string {
 function button(cta: EmailCta): string {
   // A pill with a lit edge. The solid colour is the fallback for clients
   // that drop the gradient; the shadow is a bonus where it is supported.
+  //
+  // OUTLOOK ON WINDOWS. The owner, 01-10: "op mobile perfect, op desktop
+  // Outlook limited". Outlook renders with Word, which ignores padding on
+  // an <a> -- the button shrank to a highlighted word. The padding now
+  // sits on the CELL (which Word honours), bgcolor carries the colour,
+  // and the link fills it. Square corners in Outlook; a pill elsewhere.
   return (
     `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:26px auto 4px;">` +
-    `<tr><td align="center" style="border-radius:999px;background:#6d63ff;` +
+    `<tr><td align="center" bgcolor="#6d63ff" style="padding:16px 38px;mso-padding-alt:16px 38px;border-radius:999px;background:#6d63ff;` +
     `background-image:linear-gradient(118deg,#4f83ff 0%,#6d63ff 50%,#a26bff 100%);` +
     `box-shadow:0 12px 30px -8px rgba(124,92,255,.75),0 0 0 1px rgba(255,255,255,.22) inset;">` +
-    `<a href="${cta.href}" target="_blank" style="display:inline-block;padding:16px 38px;` +
-    `font:800 16px/1 ${FONT};letter-spacing:.01em;color:#ffffff;text-decoration:none;border-radius:999px;">` +
+    `<a href="${cta.href}" target="_blank" style="display:inline-block;` +
+    `font-family:${FONT};font-size:16px;line-height:1;font-weight:800;letter-spacing:.01em;color:#ffffff;text-decoration:none;border-radius:999px;">` +
     `${cta.label} &rarr;</a></td></tr></table>`
   );
 }
@@ -88,8 +94,8 @@ function steps(items: string[]): string {
         `<table role="presentation" cellpadding="0" cellspacing="0" align="center"><tr>` +
         `<td align="center" valign="middle" width="36" height="36" style="width:36px;height:36px;border-radius:999px;` +
         `background:#6d63ff;background-image:linear-gradient(135deg,#5b8dff,#8b5cf6);` +
-        `font:800 15px/36px ${FONT};color:#ffffff;text-align:center;">${i + 1}</td></tr></table>` +
-        `<div style="margin-top:9px;font:700 13px/1.4 ${FONT};color:#12162a;">${label}</div></td>`,
+        `font-family:${FONT};font-size:15px;line-height:36px;font-weight:800;color:#ffffff;text-align:center;">${i + 1}</td></tr></table>` +
+        `<div style="margin-top:9px;font-family:${FONT};font-size:13px;line-height:1.4;font-weight:700;color:#12162a;">${label}</div></td>`,
     )
     .join("");
   return (
@@ -126,21 +132,21 @@ export function emailLayout(input: EmailLayoutInput): string {
     // subtitle in the same quiet grey.
     `<td valign="middle" style="padding-right:11px;"><img src="${ASSETS}/rocket-mark.png" width="40" height="40" alt="PSM" ` +
       `style="display:block;width:40px;height:40px;border:0;border-radius:11px;background:#0a0e24;` +
-      `box-shadow:0 0 22px rgba(91,141,255,.5);font:800 11px/40px ${FONT};color:#ffffff;text-align:center;"></td>`,
+      `box-shadow:0 0 22px rgba(91,141,255,.5);font-family:${FONT};font-size:11px;line-height:40px;font-weight:800;color:#ffffff;text-align:center;"></td>`,
     `<td valign="middle" style="text-align:left;">` +
-      `<div style="font:800 16px/1.2 ${FONT};letter-spacing:-.01em;color:#ffffff;">Prime Scale Media</div>` +
-      `<div style="margin-top:2px;font:500 11px/1.4 ${FONT};color:#9ba1b8;">Advertiser &amp; affiliate platform</div></td>`,
+      `<div style="font-family:${FONT};font-size:16px;line-height:1.2;font-weight:800;letter-spacing:-.01em;color:#ffffff;">Prime Scale Media</div>` +
+      `<div style="margin-top:2px;font-family:${FONT};font-size:11px;line-height:1.4;font-weight:500;color:#9ba1b8;">Advertiser &amp; affiliate platform</div></td>`,
     `</tr></table>`,
     `<img src="${ASSETS}/launch.png" width="250" alt="" ` +
       `style="display:block;margin:6px auto 0;width:250px;max-width:72%;height:auto;border:0;">`,
     eyebrow
       ? `<div style="margin:4px 0 0;"><span style="display:inline-block;padding:6px 14px;border-radius:999px;` +
         `background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);` +
-        `font:800 11px/1 ${FONT};letter-spacing:.2em;text-transform:uppercase;color:#ffd98a;">${eyebrow}</span></div>`
+        `font-family:${FONT};font-size:11px;line-height:1;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#ffd98a;">${eyebrow}</span></div>`
       : "",
-    `<h1 style="margin:${eyebrow ? 14 : 8}px 0 0;font:800 30px/1.2 ${FONT};letter-spacing:-.02em;color:#ffffff;text-align:center;">${title}</h1>`,
+    `<h1 style="margin:${eyebrow ? 14 : 8}px 0 0;font-family:${FONT};font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-.02em;color:#ffffff;text-align:center;">${title}</h1>`,
     lead
-      ? `<p style="margin:12px auto 0;max-width:420px;font:400 16px/1.6 ${FONT};color:#c9d4ff;text-align:center;">${lead}</p>`
+      ? `<p style="margin:12px auto 0;max-width:420px;font-family:${FONT};font-size:16px;line-height:1.6;font-weight:400;color:#c9d4ff;text-align:center;">${lead}</p>`
       : "",
     cta ? button(cta) : "",
     `</td></tr>`,
@@ -150,31 +156,31 @@ export function emailLayout(input: EmailLayoutInput): string {
     // ── BODY ─────────────────────────────────────────────────────────────
     `<tr><td align="center" style="padding:30px 28px 6px;text-align:center;">`,
     input.steps?.length
-      ? `<div style="margin:0 0 16px;font:800 11px/1.4 ${FONT};letter-spacing:.16em;text-transform:uppercase;color:#7c86a6;">What happens next</div>` +
+      ? `<div style="margin:0 0 16px;font-family:${FONT};font-size:11px;line-height:1.4;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#7c86a6;">What happens next</div>` +
         steps(input.steps)
       : "",
     bodyHtml ?? "",
     cta
       ? // The link in words too: some clients block buttons, and a person
         // should always be able to see where a link goes before pressing it.
-        `<p style="margin:6px 0 0;font:400 12px/1.6 ${FONT};color:#8b93a6;text-align:center;">` +
+        `<p style="margin:6px 0 0;font-family:${FONT};font-size:12px;line-height:1.6;font-weight:400;color:#8b93a6;text-align:center;">` +
         `Button not working? Copy this link into your browser:<br>` +
         `<a href="${cta.href}" target="_blank" style="color:#3a6fff;word-break:break-all;">${cta.href}</a></p>`
       : "",
     footnoteHtml
-      ? `<p style="margin:16px 0 0;font:400 13px/1.6 ${FONT};color:#8b93a6;text-align:center;">${footnoteHtml}</p>`
+      ? `<p style="margin:16px 0 0;font-family:${FONT};font-size:13px;line-height:1.6;font-weight:400;color:#8b93a6;text-align:center;">${footnoteHtml}</p>`
       : "",
     `</td></tr>`,
 
     // ── FOOTER ───────────────────────────────────────────────────────────
     `<tr><td align="center" style="padding:24px 28px 30px;text-align:center;">`,
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="border-top:1px solid #eef1f8;padding-top:22px;text-align:center;">`,
-    `<div style="font:600 13px/1.5 ${FONT};color:#475069;">Questions? We answer on WhatsApp.</div>`,
+    `<div style="font-family:${FONT};font-size:13px;line-height:1.5;font-weight:600;color:#475069;">Questions? We answer on WhatsApp.</div>`,
     `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:12px auto 0;"><tr>`,
-    `<td align="center" style="border-radius:999px;background:#1faa53;">`,
-    `<a href="${WHATSAPP}" target="_blank" style="display:inline-block;padding:10px 20px;font:800 13px/1 ${FONT};color:#ffffff;text-decoration:none;border-radius:999px;">`,
+    `<td align="center" bgcolor="#1faa53" style="padding:10px 20px;border-radius:999px;background:#1faa53;">`,
+    `<a href="${WHATSAPP}" target="_blank" style="display:inline-block;font-family:${FONT};font-size:13px;line-height:1;font-weight:800;color:#ffffff;text-decoration:none;border-radius:999px;">`,
     `Message us &middot; +31 6 15300300</a></td></tr></table>`,
-    `<div style="margin-top:18px;font:500 12px/1.6 ${FONT};color:#aab1c4;">Prime Scale Media &middot; `,
+    `<div style="margin-top:18px;font-family:${FONT};font-size:12px;line-height:1.6;font-weight:500;color:#aab1c4;">Prime Scale Media &middot; `,
     `<a href="https://app.primescalemedia.com" target="_blank" style="color:#aab1c4;text-decoration:none;">app.primescalemedia.com</a></div>`,
     `</td></tr></table></td></tr>`,
     `</table></td></tr></table></body></html>`,
