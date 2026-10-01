@@ -20,3 +20,11 @@ test("de factuurmails ook niet", () => {
     assert.doesNotMatch(m.html + m.text, NUMMER, type);
   }
 });
+
+test("de Supabase-mails (supabase/email-templates) ook niet", async () => {
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const map = "supabase/email-templates";
+  for (const f of readdirSync(map).filter((x) => x.endsWith(".html"))) {
+    assert.doesNotMatch(readFileSync(`${map}/${f}`, "utf8"), NUMMER, f);
+  }
+});
