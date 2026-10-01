@@ -1,4 +1,3 @@
-import AdminLayout from "@/components/admin/layout";
 import AppVersionBanner from "@/components/app-version-banner";
 import ChunkReloadGuard from "@/components/chunk-reload-guard";
 import ErrorBoundary from "@/components/error-boundary";
@@ -12,8 +11,17 @@ import { safeErrorMessage } from "@/lib/pure-error";
 import { redirect } from "next/navigation";
 import React from "react";
 
-import AdvertiserLayout from "@/components/advertiser/layout";
-import AffiliateLayout from "@/components/affiliate/layout";
+
+// ── EEN BUNDEL PER ROL ────────────────────────────────────────────
+// Lekcontrole 01-10: met gewone imports zaten de admin-, klant- en
+// affiliate-schermen in DEZELFDE JavaScript, en de browser van een klant
+// laadde zo "RockAds", "Falkyn", "Bestads" en elke interne typenaam mee.
+// Elke rol in zijn eigen bundel via components/role-split/* (next/dynamic
+// in een client-bestand); een klant laadt alleen de zijne. Gemeten in de
+// browser van een klant, niet aangenomen.
+import AdminLayout from "@/components/role-split/admin-layout";
+import AdvertiserLayout from "@/components/role-split/advertiser-layout";
+import AffiliateLayout from "@/components/role-split/affiliate-layout";
 import { UserRole } from "@/lib/types/user";
 import { cookies } from "next/headers";
 

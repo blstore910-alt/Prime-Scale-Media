@@ -1,5 +1,13 @@
-import AdminDashboard from "@/components/admin/dashboard";
-import AdvertiserDashboard from "@/components/advertiser/dashboard";
+
+// ── EEN BUNDEL PER ROL ────────────────────────────────────────────
+// Lekcontrole 01-10: met gewone imports zaten de admin-, klant- en
+// affiliate-schermen in DEZELFDE JavaScript, en de browser van een klant
+// laadde zo "RockAds", "Falkyn", "Bestads" en elke interne typenaam mee.
+// Elke rol in zijn eigen bundel via components/role-split/* (next/dynamic
+// in een client-bestand); een klant laadt alleen de zijne. Gemeten in de
+// browser van een klant, niet aangenomen.
+import AdminDashboard from "@/components/role-split/admin-dashboard";
+import AdvertiserDashboard from "@/components/role-split/advertiser-dashboard";
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";

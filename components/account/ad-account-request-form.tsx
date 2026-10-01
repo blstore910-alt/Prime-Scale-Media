@@ -1,5 +1,6 @@
 "use client";
 
+import { readMyAdAccounts } from "@/lib/my-ad-accounts";
 import { useT } from "@/hooks/use-t";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -526,10 +527,8 @@ export default function AdAccountRequestForm({
         // none of it. A customer on a one-account plan could hold two
         // and be charged for neither. The owner's rule: an ad account
         // is an ad account, wherever it came from.
-        supabase
-          .from("ad_accounts")
-          .select("id")
-          .eq("advertiser_id", advertiserId),
+        // via my_ad_accounts (plak 192); zonder de plak de oude weg
+        readMyAdAccounts(supabase, { column: "advertiser_id", value: advertiserId as string }, "id"),
         // A free_ad_account_requests perk also makes the request free once
         // the plan allowance is used up — mirror ad_account_request_create_paid
         // so the preview doesn't show a fee (and block submit) for a request

@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { readMyAdAccounts } from "@/lib/my-ad-accounts";
 import { useT } from "@/hooks/use-t";
 import { useAppContext } from "@/context/app-provider";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
@@ -113,19 +114,22 @@ export default function AccountTopupForm({
       // ad_accounts carries `notes` (an operator's private remarks,
       // including supplier account numbers and what we pay) and
       // `metadata`. The form reads six fields; none of them is ours.
-      const { data, error } = await supabase
-        .from("ad_accounts")
-        .select(AD_ACCOUNT_CUSTOMER_COLUMNS)
-        .eq("tenant_id", profile?.tenant_id);
+      // via my_ad_accounts (plak 192): geen intern type in de JSON.
+      const { data, error } = await readMyAdAccounts(
+        supabase,
+        { column: "tenant_id", value: profile?.tenant_id as string },
+        AD_ACCOUNT_CUSTOMER_COLUMNS,
+      );
       if (error) {
-        const retry = await supabase
-          .from("ad_accounts")
-          .select(AD_ACCOUNT_CORE_COLUMNS)
-          .eq("tenant_id", profile?.tenant_id);
+        const retry = await readMyAdAccounts(
+          supabase,
+          { column: "tenant_id", value: profile?.tenant_id as string },
+          AD_ACCOUNT_CORE_COLUMNS,
+        );
         if (retry.error) throw retry.error;
-        return (retry.data ?? []) as unknown as AccountRecord[];
+        return retry.data as unknown as AccountRecord[];
       }
-      return (data ?? []) as unknown as AccountRecord[];
+      return data as unknown as AccountRecord[];
     },
   });
 

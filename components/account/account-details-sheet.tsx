@@ -1,5 +1,6 @@
 "use client";
 
+import { readMyAdAccounts } from "@/lib/my-ad-accounts";
 import { useT } from "@/hooks/use-t";
 import { formatCurrency } from "@/lib/utils-pure";
 import { safeExternalHref } from "@/lib/url-field";
@@ -259,6 +260,12 @@ export function AccountDetailsSheet({
         return data;
       }
 
+      // De klant (en een teamlid) via my_ad_accounts: geen intern type,
+      // geen notities. Zonder plak 192 de oude weg hieronder.
+      {
+        const v = await readMyAdAccounts(supabase, { column: "id", value: accountId as string }, AD_ACCOUNT_CORE_COLUMNS);
+        if (!v.error && v.data.length) return v.data[0] as unknown as AccountDetailsRow;
+      }
       const { data, error } = await run(AD_ACCOUNT_CUSTOMER_COLUMNS);
       if (error) {
         // The live schema is hand-authored and diverges from the types, so
@@ -547,6 +554,8 @@ export function AccountDetailsSheet({
                             <span className="font-medium text-muted-foreground block">
                               Platform:
                             </span>
+                            {/* Alleen een admin komt hier (zie !isAdvertiser);
+                                de ruwe slug is voor hem precies goed. */}
                             {PLATFORMS.find((p) => p.value === data.platform)
                               ?.label || "—"}
                           </div>

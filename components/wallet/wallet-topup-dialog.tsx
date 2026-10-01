@@ -10,12 +10,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+// Alleen de bankGROEPEN (turlit/zanel), nooit de typeslugs: dit bestand
+// laadt in de browser van de klant. Lekcontrole 01-10, L2.
 import {
-  bankDestination,
   bankGroupFromStored,
-  banksForAccountTypes,
-} from "@/lib/bank-routing";
-import { bankOverrideFor } from "@/lib/pure-bank-override";
+  destinationFromGroups,
+  routedGroups,
+} from "@/lib/bank-groups";
 import { copyText } from "@/lib/copy-text";
 import { DEFAULT_MIN_TOPUP } from "@/lib/min-topup";
 import { formatPaymentReference } from "@/lib/payment-reference";
@@ -44,7 +45,6 @@ import {
 } from "./bank-transfer-instructions";
 
 import { createClient } from "@/lib/supabase/client";
-import { safeErrorMessage } from "@/lib/pure-error";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import useExchangeRates from "@/components/settings/finance/use-exchange-rates";
 import { formatCurrency } from "@/lib/utils-pure";
@@ -158,8 +158,9 @@ export default function WalletTopupDialog({
   walletId: string | null;
   referenceNo: number | null;
   minTopup: number | null;
-  /** Type slugs of the advertiser's own ad accounts, to route the transfer. */
-  accountTypeSlugs?: string[];
+  /** De bankgroep per eigen ad account (my_ad_accounts.bank_group);
+   *  null voor een account waarvan de route niet vastligt. */
+  accountTypeSlugs?: Array<string | null>;
   /** Which wallet the customer pressed Top up on. */
   initialCurrency?: CurrencyCode | null;
   /**
@@ -203,7 +204,7 @@ export default function WalletTopupDialog({
   // was shown TURLIT's IBAN with no control to correct it, and nothing
   // server-side would ever notice: the RPC takes amount, currency and slip,
   // and never learns which beneficiary the customer was shown.
-  const routed = banksForAccountTypes(accountTypeSlugs);
+  const routed = routedGroups(accountTypeSlugs);
   // THE THIRD SITUATION, which fell into the harmless-default branch:
   //
   //   we could not READ the accounts → we know even less than "nobody
@@ -274,8 +275,8 @@ export default function WalletTopupDialog({
   //
   // It only speaks when the accounts cannot: an account they hold is the
   // stronger fact, and in practice the two agree.
-  const destination = bankDestination({
-    accountTypeSlugs,
+  const destination = destinationFromGroups({
+    routed,
     accountsUnknown,
     assigned: assignedBankGroup,
   });
@@ -358,82 +359,9 @@ export default function WalletTopupDialog({
   //     the wrong legal entity.
   //   - show HALF. The resolver requires an account number before a row
   //     counts as a destination at all.
-  const { data: bankRows } = useQuery({
-    // The slugs are in the key: the query now filters on them, so two
-    // customers with different account types must not share a cache
-    // entry and read each other's destination.
-    queryKey: [
-      "topup-bank-accounts",
-      profile?.tenant_id ?? null,
-      [...accountTypeSlugs].sort().join(","),
-    ],
-    enabled: !!profile?.tenant_id,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const supabase = createClient();
-      // ── NOT THE WHOLE ROUTING MAP ────────────────────────────────
-      //
-      // The header of this file records that the beneficiary PICKER was
-      // removed because its option list "is our routing map printed on
-      // a customer screen: which platforms we run, how they are split
-      // across two legal entities". This query then sent the customer
-      // exactly that, over the wire: every active bank row for the
-      // tenant, every currency, joined to the ad-account-type slug --
-      // the slug-to-IBAN map itself.
-      //
-      // The dialog only ever renders ONE destination, and it already
-      // knows which type slugs this customer holds. So ask for those,
-      // and nothing else. A customer with no ad accounts asks for
-      // nothing at all and gets the built-in, which is what that case
-      // was always going to show.
-      const mySlugs = Array.from(
-        new Set(accountTypeSlugs.filter(Boolean)),
-      );
-      if (mySlugs.length === 0) return [];
-      const { data, error } = await supabase
-        .from("bank_accounts")
-        .select(
-          // `notes` is gone: it is an internal field (empty on every
-          // one of the 19 live rows) that was rendered to the customer
-          // as "Note", so it was a leak waiting for somebody to type
-          // in it.
-          "currency, is_active, label, beneficiary, account_no, swift_bic, bank_name, bank_address, routing_no, ad_account_types!inner(slug)",
-        )
-        .eq("tenant_id", profile!.tenant_id!)
-        .eq("is_active", true)
-        .in("ad_account_types.slug", mySlugs);
-      // A failure is the built-in, not an empty sheet. Logged, not shown:
-      // there is nothing the customer could do about it and the details
-      // they are about to read are still correct.
-      if (error) {
-        console.error("topup bank accounts", safeErrorMessage(error));
-        return [];
-      }
-      return (data ?? []).map((r) => {
-        const row = r as Record<string, unknown> & {
-          ad_account_types?: { slug?: string | null } | { slug?: string | null }[] | null;
-        };
-        const t = Array.isArray(row.ad_account_types)
-          ? row.ad_account_types[0]
-          : row.ad_account_types;
-        return {
-          slug: t?.slug ?? null,
-          currency: (row.currency as string) ?? null,
-          is_active: (row.is_active as boolean) ?? null,
-          label: (row.label as string) ?? null,
-          beneficiary: (row.beneficiary as string) ?? null,
-          account_no: (row.account_no as string) ?? null,
-          swift_bic: (row.swift_bic as string) ?? null,
-          bank_name: (row.bank_name as string) ?? null,
-          bank_address: (row.bank_address as string) ?? null,
-          routing_no: (row.routing_no as string) ?? null,
-          // Not selected any more -- an internal field that was being
-          // rendered to the customer as "Note".
-          notes: null,
-        };
-      });
-    },
-  });
+  // De bankgegevens uit Settings -> Banks (bank_accounts) zijn sinds plak
+  // 191 alleen voor admins, en de klant kreeg ze al nooit: de lees joinde
+  // een admin-tabel. De klant ziet de ingebouwde gegevens.
   // Their own client code, for the payment reference below.
   const clientCode = profile?.advertiser?.[0]?.tenant_client_code ?? null;
   const [refCopied, setRefCopied] = useState(false);
@@ -1238,10 +1166,7 @@ export default function WalletTopupDialog({
                   <BankTransferInstructions
                     group={bankGroup}
                     transferCurrency={transferCurrency}
-                    override={
-                      bankOverrideFor(bankRows, bankGroup, transferCurrency)
-                        .override
-                    }
+                    override={null}
                   />
                 </div>
 

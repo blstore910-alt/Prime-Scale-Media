@@ -21,6 +21,7 @@ import { Check, Copy, Landmark, MessageCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { bankInstructions, type BankGroup, type TransferCurrency } from "@/lib/bank-beneficiaries";
 import { bankLines, bankWhatsAppText, whatsAppLink } from "@/lib/pure-bank-whatsapp";
+import { BANK_ROUTES } from "@/lib/bank-routes-admin";
 import { copyText } from "@/lib/copy-text";
 import { createClient } from "@/lib/supabase/client";
 
@@ -120,7 +121,7 @@ function BankDetails() {
             </button>
           ))}
         </div>
-        <div className="text-[11px] text-muted-foreground">For: {cfg.routes}</div>
+        <div className="text-[11px] text-muted-foreground">For: {BANK_ROUTES[groep]}</div>
 
         <div className="flex flex-wrap gap-1.5">
           {beschikbaar.map((v) => (

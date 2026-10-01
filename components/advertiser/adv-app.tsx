@@ -1,5 +1,6 @@
 "use client";
 
+import { readMyAdAccounts } from "@/lib/my-ad-accounts";
 import PrivacyControls from "@/components/profile/privacy-controls";
 import { withdrawalStatusLook } from "@/lib/pure-withdrawal-status";
 import { dailyQuote } from "@/lib/pure-daily-quote";
@@ -676,24 +677,25 @@ export default function AdvertiserApp() {
       // provenance. Neither is rendered anywhere on this side; both were
       // in the JSON. gdpr-actions.ts already excludes ad_accounts.notes
       // from the customer's own data export by name.
-      const { data, error } = await supabase
-        .from("ad_accounts")
-        .select(AD_ACCOUNT_CUSTOMER_COLUMNS)
-        .eq("advertiser_id", advertiserId);
+      // Via my_ad_accounts (plak 192): zonder het interne type. Zonder de
+      // plak de oude weg; zie lib/my-ad-accounts.ts.
+      const { data, error } = await readMyAdAccounts(
+        supabase,
+        { column: "advertiser_id", value: advertiserId as string },
+        AD_ACCOUNT_CUSTOMER_COLUMNS,
+      );
       if (error) {
         // A named column the live schema does not have yet throws rather
-        // than degrading, and "column ad_accounts.x does not exist" would
-        // land on the customer's dashboard. Retry with the core list —
-        // never with "*", which would trade a thinner screen for the leak
-        // this change exists to close.
-        const retry = await supabase
-          .from("ad_accounts")
-          .select(AD_ACCOUNT_CORE_COLUMNS)
-          .eq("advertiser_id", advertiserId);
+        // than degrading. Retry with the core list -- never with "*".
+        const retry = await readMyAdAccounts(
+          supabase,
+          { column: "advertiser_id", value: advertiserId as string },
+          AD_ACCOUNT_CORE_COLUMNS,
+        );
         if (retry.error) throw retry.error;
-        return (retry.data ?? []) as unknown as AdAccount[];
+        return retry.data as unknown as AdAccount[];
       }
-      return (data ?? []) as unknown as AdAccount[];
+      return data as unknown as AdAccount[];
     },
   });
 
@@ -8325,7 +8327,9 @@ export default function AdvertiserApp() {
         // Their own accounts decide where the transfer goes, so the dialog
         // can work it out instead of showing every customer all three
         // beneficiary companies and asking them to route their own payment.
-        accountTypeSlugs={(accounts ?? []).map((a) => a.platform)}
+        accountTypeSlugs={(accounts ?? []).map(
+          (a) => (a as { bank_group?: string | null }).bank_group ?? null,
+        )}
         /* A failed or in-flight accounts read is not "no accounts". It
            decides which company's IBAN the customer is told to pay. */
         accountsUnknown={accountsError || accountsBusy}

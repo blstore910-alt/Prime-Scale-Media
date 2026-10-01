@@ -36,7 +36,8 @@ type BankGroupConfig = {
   // Beneficiary account holder, shown in the summary.
   beneficiary: string;
   // Human label for which ad-account families route here.
-  routes: string;
+  // `routes` (welke accounttypes hierheen gaan) staat NIET meer hier:
+  // dit bestand laadt bij de klant. Zie lib/bank-routes-admin.ts.
   // Per transfer-currency bank details.
   accounts: Partial<Record<TransferCurrency, BankDetail>>;
 };
@@ -44,7 +45,6 @@ type BankGroupConfig = {
 export const bankInstructions: Record<BankGroup, BankGroupConfig> = {
   turlit: {
     beneficiary: "TURLIT LLC",
-    routes: "Meta-EU-PSM · Google · TikTok · Taboola · Snapchat",
     accounts: {
       USD: {
         account_name: "TURLIT LLC — USD (Wise US)",
@@ -189,7 +189,6 @@ export const bankInstructions: Record<BankGroup, BankGroupConfig> = {
 
   zanel: {
     beneficiary: "ZANEL ENTERPRISE",
-    routes: "Meta-EU-PSM-GH",
     accounts: {
       USD: {
         // Geen "Slash": dat is onze bankleverancier, de klant ziet dit.
@@ -259,7 +258,6 @@ export const bankInstructions: Record<BankGroup, BankGroupConfig> = {
 
   muxue: {
     beneficiary: "MUXUE TRADE LIMITED",
-    routes: "Meta-HK-Premium · Meta-HK-Business",
     accounts: {
       USD: {
         account_name: "MUXUE TRADE LIMITED — USD (J.P. Morgan Chase)",
