@@ -110,7 +110,9 @@ async function staffOf(db: Awaited<ReturnType<typeof createAdminClient>>, tenant
       isOwner: await isTenantOwner(db, tenantId, p.user_id, p.id),
     });
   }
-  return uit.sort((a, b) => Number(b.isOwner) - Number(a.isOwner) || a.name.localeCompare(b.name));
+  // De eigenaar, 01-10: "owners / super admins niet in de schedule". Het
+  // rooster, de uren en de keuzelijsten gaan over de medewerkers.
+  return uit.filter((s) => !s.isOwner).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getSchedule(day?: string | null): Promise<R<ScheduleData>> {

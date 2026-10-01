@@ -30,6 +30,7 @@ import { addDays, blocks, toMin, type Block } from "@/lib/pure-schedule";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const DAGEN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAGEN_LANG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const BLOK_LABEL: Record<Block, string> = { morning: "Morning", late: "Late", full: "Full day", any: "Any" };
 const veld = "h-10 w-full rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30";
 
@@ -59,6 +60,9 @@ export default function StaffSchedule() {
   const qc = useQueryClient();
   const [dag, setDag] = useState<string | null>(null);
   const [bewerk, setBewerk] = useState<Bewerk | null>(null);
+  // Op de telefoon: een dag tegelijk (de eigenaar, 01-10: "on mobile
+  // must be better view" -- de tabel van zeven kolommen scrolde opzij).
+  const [mobielDag, setMobielDag] = useState<string | null>(null);
 
   const q = useQuery({
     queryKey: ["staff-schedule", dag],
@@ -159,14 +163,14 @@ export default function StaffSchedule() {
             <button
               disabled={vul.isPending || d.plakNodig}
               onClick={() => vul.mutate()}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-extrabold text-primary-foreground disabled:opacity-50"
+              className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-extrabold text-primary-foreground disabled:opacity-50 md:flex-none"
             >
               {vul.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Auto-fill this week
             </button>
             <button
               disabled={kopieer.isPending || d.plakNodig}
               onClick={() => kopieer.mutate()}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border bg-card px-4 text-sm font-bold disabled:opacity-50"
+              className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border bg-card px-4 text-sm font-bold disabled:opacity-50 md:flex-none"
             >
               <Copy className="h-4 w-4" /> Copy last week
             </button>
@@ -191,8 +195,90 @@ export default function StaffSchedule() {
         </span>
       </div>
 
+      {/* ── DE WEEK, OP DE TELEFOON: EEN DAG TEGELIJK ──────────── */}
+      {(() => {
+        const gekozen = mobielDag && dagen.includes(mobielDag) ? mobielDag : dagen.includes(d.today) ? d.today : dagen[0];
+        const i = dagen.indexOf(gekozen);
+        const g = gat(gekozen);
+        return (
+          <div className="grid gap-3 md:hidden">
+            <div className="grid grid-cols-7 gap-1">
+              {dagen.map((day, j) => {
+                const gg = gat(day);
+                const open = gg.ochtend || gg.laat;
+                return (
+                  <button
+                    key={day}
+                    onClick={() => setMobielDag(day)}
+                    className={`flex flex-col items-center rounded-xl border py-1.5 ${day === gekozen ? "border-primary bg-primary text-primary-foreground" : "bg-card"}`}
+                  >
+                    <span className="text-[10px] font-bold uppercase opacity-80">{DAGEN[j].slice(0, 2)}</span>
+                    <span className="text-sm font-extrabold">{Number(day.slice(8, 10))}</span>
+                    <span className={`mt-0.5 h-1.5 w-1.5 rounded-full ${open ? "bg-red-500" : "bg-emerald-500"}`} />
+                  </button>
+                );
+              })}
+            </div>
+            <div className="overflow-hidden rounded-2xl border bg-card">
+              <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+                <div>
+                  <div className="text-base font-extrabold">
+                    {DAGEN_LANG[i]} {kort(gekozen)} {vast(gekozen) ? <Lock className="inline h-3.5 w-3.5" /> : null}
+                  </div>
+                  <div className={`text-xs font-bold ${g.ochtend || g.laat ? "text-red-600" : "text-emerald-700"}`}>
+                    {!g.ochtend && !g.laat
+                      ? "✓ Morning and late covered"
+                      : `Gap: ${[g.ochtend ? "morning" : null, g.laat ? "late" : null].filter(Boolean).join(" + ")}`}
+                  </div>
+                </div>
+                {gekozen === d.today ? <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary">Today</span> : null}
+              </div>
+              {d.staff.length ? (
+                d.staff.map((st) => {
+                  const hier = d.shifts.filter((x) => x.profileId === st.id && x.day === gekozen);
+                  return (
+                    <div key={st.id} className="flex items-center justify-between gap-3 border-b px-4 py-3 last:border-b-0">
+                      <div className="min-w-0">
+                        <div className="font-bold">{st.name}</div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {hier.length ? (
+                            hier.map((x) => (
+                              <button
+                                key={x.id}
+                                disabled={!magBewerken(gekozen)}
+                                onClick={() => setBewerk({ id: x.id, profileId: st.id, day: gekozen, start: x.start, end: x.end, note: x.note ?? "" })}
+                                className={`rounded-lg border px-2.5 py-1 text-xs font-bold ${KLEUR[soortVan(x, cov)]}`}
+                              >
+                                {x.start}–{x.end}
+                              </button>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Off</span>
+                          )}
+                        </div>
+                      </div>
+                      {magBewerken(gekozen) ? (
+                        <button
+                          aria-label={`Add a shift for ${st.name}`}
+                          onClick={() => setBewerk({ profileId: st.id, day: gekozen, start: b.morning.start, end: b.morning.end, note: "" })}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-dashed text-muted-foreground"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No staff admins yet. Owners are not on the schedule.</p>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── DE WEEK ─────────────────────────────────────────────── */}
-      <div className="overflow-x-auto rounded-2xl border bg-card">
+      <div className="hidden overflow-x-auto rounded-2xl border bg-card md:block">
         <table className="w-full min-w-[880px] table-fixed text-sm">
           <thead>
             <tr className="bg-muted/40">
