@@ -24,9 +24,13 @@
 //
 // ── WELK SALDO IS VAN ONS ─────────────────────────────────────────
 //
-// Een debit-rekening geeft "debit". Een charge card geeft er twee:
-// "cash" (ons geld) en "credit" (de kredietruimte van de kaart -- NIET
-// ons geld). "credit" telt dus niet mee in wat we hebben.
+// Een debit-rekening geeft "debit". Een charge card geeft er twee,
+// "cash" en "credit". De eerste versie telde "credit" niet mee, omdat dat
+// bij een gewone charge card de kredietruimte is. Gemeten op productie
+// 01-10 (/api/slash-probe): bij ZANEL staat "cash" op 0 en "credit" op
+// precies $2,669.95 -- het bedrag dat Slash zelf als Cash Balance toont.
+// Dus per rekening het HOOGSTE beschikbare saldo van zijn typen: dat is
+// wat Slash laat zien, en twee typen van een rekening tellen nooit op.
 //
 // ── DE VALUTA ─────────────────────────────────────────────────────
 //
@@ -168,6 +172,7 @@ export async function fetchSlashBalances(): Promise<{
 
   const byCur = new Map<string, number>();
   const failed: string[] = [];
+  let gelezen = 0;
   for (const acc of rows) {
     const id = encodeURIComponent(acc.id);
     let { body, error: bErr } = await get(`/account/${id}/balance`, key);
@@ -178,22 +183,26 @@ export async function fetchSlashBalances(): Promise<{
     }
     const list = (body as { balances?: unknown[] } | null)?.balances;
     if (!Array.isArray(list)) continue;
+    let hoogste: number | null = null;
     for (const b of list) {
       const x = b as {
         type?: unknown;
         available?: { amountCents?: unknown };
         posted?: { amountCents?: unknown };
       };
-      // De kredietruimte van een kaart is geen geld dat we hebben.
-      if (String(x.type ?? "").toLowerCase() === "credit") continue;
       const cents = num(x.available?.amountCents) ?? num(x.posted?.amountCents);
       if (cents === null) continue;
-      byCur.set(acc.currency, (byCur.get(acc.currency) ?? 0) + cents / 100);
+      if (hoogste === null || cents > hoogste) hoogste = cents;
+    }
+    if (hoogste !== null) {
+      gelezen++;
+      byCur.set(acc.currency, (byCur.get(acc.currency) ?? 0) + hoogste / 100);
     }
   }
 
   // Een rekening die niet antwoordde is GEEN nul. Kon er geen enkele
   // gelezen worden, dan is dat een storing en geen leeg saldo.
+  void gelezen;
   if (!byCur.size) {
     return {
       balances: [],
