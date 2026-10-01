@@ -179,15 +179,10 @@ export function BankTransferInstructions({
               ))}
             </div>
           ))}
+        {/* The one sentence that stops a deposit being rejected -- on the
+            card it is about, not loose between two cards. */}
+        <p className="tpx-bank-foot">{tr("bank.useTheExactAccountHolder")}</p>
       </div>
-
-      {/* The one sentence that stops a deposit being rejected. */}
-      <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
-        <span
-          aria-hidden
-          className="mt-[3px] inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"
-        />
-        {tr("bank.useTheExactAccountHolder")}</p>
     </div>
   );
 }
@@ -226,7 +221,9 @@ function CopyRow({
     }
   };
 
-  const wide = variant === "mini" && (value.length > 22 || value.includes("\n"));
+  const wide =
+    variant === "mini" &&
+    (value.length > 22 || value.includes("\n") || (MONO_LABELS.test(label) && value.length > 9));
   const body = (
     <div>
       <span className="tpx-lbl">{label}</span>

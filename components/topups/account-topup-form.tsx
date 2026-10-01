@@ -746,6 +746,18 @@ export default function AccountTopupForm({
           )}
           {tr("atop.topUpThisAccount")}</button>
       </div>
+      {/* A title tooltip does not exist on a phone: the reason the
+          button is off is said on screen, with a retry where one helps. */}
+      {blockedByRate || feeQuote.isError ? (
+        <p className="tpx-hint" style={{ textAlign: "center" }}>
+          {blockedByRate ? tr("atop.weCanTReadToday") : tr("atop.weCouldNotCheckThis")}{" "}
+          {feeQuote.isError ? (
+            <button type="button" className="tpx-link" onClick={() => void feeQuote.refetch()}>
+              {tr("wtop.retry")}
+            </button>
+          ) : null}
+        </p>
+      ) : null}
 
       <ConfirmModal
         open={!!confirming}

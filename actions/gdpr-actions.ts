@@ -85,7 +85,7 @@ export async function exportOwnData(): Promise<
     supabase
       .from("advertisers")
       .select(
-        "id, user_id, tenant_id, profile_id, tenant_client_code, startup_fee, fee_status, airtable, created_at, updated_at",
+        "id, user_id, tenant_id, profile_id, tenant_client_code, startup_fee, fee_status, created_at, updated_at",
       )
       .eq("user_id", userId),
   ]);

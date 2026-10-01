@@ -1630,7 +1630,9 @@ export async function quoteTopupFeePct(
       return { ok: false, error: "No advertiser for this account." };
     }
     if (String(acct.advertiser_id ?? "") !== String(adv.id)) {
-      return { ok: false, error: "That ad account is not yours." };
+      // Same words as "not found": the service-role read must not tell a
+      // customer that someone else's account id exists.
+      return { ok: false, error: "That ad account was not found." };
     }
     advertiserId = String(adv.id);
   }

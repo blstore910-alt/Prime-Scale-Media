@@ -200,7 +200,9 @@ const CSS = `
 .tpx-sendbox{display:flex;flex-direction:column;align-items:center;text-align:center;padding:14px;border-radius:18px;background:var(--tpx-soft)}
 .tpx-sendbox b{font-size:30px;font-weight:800;line-height:1.15;margin-top:2px;background:var(--tpx-grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums}
 .tpx-sendbox small{font-size:12.5px;color:var(--tpx-mut);margin-top:2px}
-@media (max-width:380px){.tpx-grid4{grid-template-columns:repeat(2,minmax(0,1fr))}.tpx-tiles{grid-template-columns:1fr}.tpx-amount-in input{font-size:30px}}
+.tpx-bank-foot{position:relative;z-index:1;margin:2px -16px 0;padding:10px 16px 12px;border-top:1px solid rgba(255,255,255,.1);font-size:11.5px;line-height:1.4;color:rgba(255,255,255,.7)}
+.tpx-bank-foot::before{content:"!";display:inline-grid;place-items:center;width:15px;height:15px;margin-right:7px;border-radius:99px;background:#F2A516;color:#0B1020;font-size:10px;font-weight:800;vertical-align:1px}
+@media (max-width:380px){.tpx-pills>div{grid-template-columns:repeat(2,minmax(0,1fr))}.tpx-grid4{grid-template-columns:repeat(2,minmax(0,1fr))}.tpx-tiles{grid-template-columns:1fr}.tpx-amount-in input{font-size:30px}}
 `;
 
 export function TopupStyles() {

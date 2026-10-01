@@ -53,13 +53,19 @@ export async function copyText(text: string): Promise<boolean> {
     // copied de reference niet", on the top-up ticket.
     const active = document.activeElement as HTMLElement | null;
     const host =
-      (active?.closest?.("[role=dialog]") as HTMLElement | null) ?? document.body;
+      (active?.closest?.("[role=dialog]") as HTMLElement | null) ??
+      (document.querySelector('[role=dialog][data-state="open"]') as HTMLElement | null) ??
+      document.body;
     host.appendChild(ta);
     ta.focus({ preventScroll: true });
     ta.select();
     ta.setSelectionRange(0, value.length);
-    const ok = document.execCommand("copy");
-    host.removeChild(ta);
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } finally {
+      if (ta.parentNode) ta.parentNode.removeChild(ta);
+    }
     // Give focus back to the button that was pressed.
     active?.focus?.({ preventScroll: true });
     return ok;

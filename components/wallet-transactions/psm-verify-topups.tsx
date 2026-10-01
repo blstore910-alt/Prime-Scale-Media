@@ -958,9 +958,11 @@ export default function PsmVerifyTopups({
               ) : null}
               <button
                 className="btn ghost sm"
-                disabled={prechargingId === t.id || !!queueAdvances[t.id] || advancesUnknown}
+                disabled={prechargingId === t.id || !!queueAdvances[t.id] || advancesUnknown || !!voorstel}
                 title={
-                  advancesUnknown
+                  voorstel
+                    ? "Another amount is proposed — settle that first."
+                    : advancesUnknown
                     ? "Checking whether this top-up carries an advance."
                     : queueAdvances[t.id]
                       ? "Already advanced — verify it to settle"

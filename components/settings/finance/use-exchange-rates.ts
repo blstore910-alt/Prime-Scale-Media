@@ -32,6 +32,7 @@ export default function useExchangeRates({
     isLoading,
     isError,
     error,
+    refetch,
   } = useQuery({
     // ── ONE PREFIX, AND THE TENANT IN THE KEY ───────────────────────
     //
@@ -74,5 +75,5 @@ export default function useExchangeRates({
     },
   });
 
-  return { exchangeRates, isLoading, isError, error };
+  return { exchangeRates, isLoading, isError, error, refetch };
 }

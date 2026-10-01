@@ -18,6 +18,8 @@ import { useT } from "@/hooks/use-t";
  */
 
 const PRESETS = [1000, 3000, 5000, 10000] as const;
+// HKD 1,000 is about EUR 110 -- under every minimum. Same sums, in HKD.
+const PRESETS_HKD = [10000, 25000, 50000, 100000] as const;
 
 export default function AmountPills({
   currency,
@@ -40,7 +42,7 @@ export default function AmountPills({
 
   return (
     <div className="flex flex-wrap gap-2 pt-1">
-      {PRESETS.map((v) => {
+      {(cur === "HKD" ? PRESETS_HKD : PRESETS).map((v) => {
         const tooBig = ceiling !== null && v > ceiling;
         return (
           <button

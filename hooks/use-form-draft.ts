@@ -68,6 +68,11 @@ export function useFormDraft<T>({
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    // A reopened form loads again: `dismissed` from the last opening
+    // hid the draft for ever, and the saver then wrote the emptied form
+    // over it -- typing lost on the second close (CLAUDE.md: never).
+    initialLoadDone.current = false;
+    setDismissed(false);
     loadDraft<T>(formKey, userScope).then((d) => {
       if (!cancelled) {
         setRestoredDraft(d);
@@ -77,7 +82,6 @@ export function useFormDraft<T>({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formKey, userScope, enabled]);
 
   // Debounced save on every value change
