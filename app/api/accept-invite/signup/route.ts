@@ -36,17 +36,6 @@ export async function POST(request: NextRequest) {
   }
   const supabase = await createAdminClient();
 
-  const allowed = await rateLimitCheck(
-    LIMITS.signup,
-    `ip:${callerIp(request)}`,
-  );
-  if (!allowed) {
-    return NextResponse.json(
-      { success: false, message: "Too many signup attempts — try again later" },
-      { status: 429 },
-    );
-  }
-
   const parsed = await parseJsonBody(request, SignupSchema);
   if (!parsed.ok) return parsed.response;
   const {
@@ -70,6 +59,28 @@ export async function POST(request: NextRequest) {
     .select("id, email, role, tenant_id, status, expires_at, affiliate_id, token")
     .eq("token", invite.token)
     .maybeSingle();
+
+  // ── DE GRENS GELDT VOOR WIE RAADT, NIET VOOR WIE UITGENODIGD IS ────
+  // Test 4, 01-10: vijf echte uitnodigingen achter elkaar vanaf één
+  // adres, en de zesde kreeg "too many signup attempts". De grens (5 per
+  // uur per IP) is er tegen het raden van links; een geldige, openstaande
+  // uitnodiging met het juiste adres is niet te raden (een uuid) en maakt
+  // precies één account. Die telt dus niet mee -- elke andere poging wel.
+  const geldig =
+    !inviteFetchError &&
+    !!validInvite &&
+    validInvite.status === "pending" &&
+    validInvite.email?.toLowerCase() === email.toLowerCase() &&
+    new Date(validInvite.expires_at) >= new Date();
+  if (!geldig) {
+    const allowed = await rateLimitCheck(LIMITS.signup, `ip:${callerIp(request)}`);
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, message: "Too many signup attempts — try again later" },
+        { status: 429 },
+      );
+    }
+  }
 
   if (inviteFetchError || !validInvite) {
     return NextResponse.json(
