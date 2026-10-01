@@ -550,10 +550,10 @@ eigenaar nodig is).
 | R5 | T4-0 geen plan | EN | | | | |
 | R6 | T4-A | EN | werkt | fee-offerte na L1 werkt: EUR 100 -> fee 5% EUR 5,00 -> landt EUR 95,00, wallet 325 -> 225; klant ziet alleen 'Meta', geen type. Beheer: Verify vraagt 'ik heb het bij Rockads gefund' + 'de klant krijgt bericht' | top_ups #13: 100.00 / fee 5.00 / 95.00, wallet_debited, pending -> completed; ledger -100.00 (325 -> 225, top_up_create_for_advertiser); melding topup_completed | bevestiging opnieuw ontworpen (b7899347) |
 | R6 | T4-B / T4-C / T4-N handmatig | EN | | | | |
-| R7 | T4-A live plafond | EN | | | | |
+| R7 | T4-A | EN | werkt | 'Up to EUR 95.00' (gefund min eerder teruggevraagd); EUR 100 geweigerd met uitleg; EUR 20 -> bevestiging -> 'Request sent'. Beheer: goedkeuren vraagt 'balans zelf gecontroleerd' (leverancier in mock-modus: 'not read') | wallet EUR 225.00 -> 245.00; ledger +20.00 (ad_account_withdrawal_approve); melding withdrawal_approved | live plafond niet te testen: leverancier staat op mock |
 | R7 | T4-C handmatig plafond | EN | | | | |
 | R7 | T4-R clawback | EN | | | | |
-| R8 | T4-A EUR | EN | werkt | Billing: Flex EUR 75, 'Pay EUR 75.00 from wallet' -> bevestiging 'EUR 400 -> 325' -> 'This month is paid, next 1 Nov' | invoice 150: total 75.00, paid, paid_from wallet; ledger -75.00 (400 -> 325, invoice_pay_from_wallet); subscription active | hinderlijk: titel 'Renew your plan?' bij de EERSTE betaling |
+| R8 | T4-A EUR | EN | werkt | Billing: Flex EUR 75, 'Pay EUR 75.00 from wallet' -> bevestiging 'EUR 400 -> 325' -> 'This month is paid, next 1 Nov' | invoice 150: total 75.00, paid, paid_from wallet; ledger -75.00 (400 -> 325, invoice_pay_from_wallet); subscription active | titel was 'Renew your plan?' bij de eerste betaling -> 'Pay your plan?' (9ee0d9c7) |
 | R8 | T4-B USD | EN | | | | |
 | R8 | T4-0 geen plan | EN | | | | |
 | R9 | T4-F + T4-R | EN | | | | |
