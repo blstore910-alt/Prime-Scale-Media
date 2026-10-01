@@ -1,6 +1,7 @@
 "use client";
 
 import { useT } from "@/hooks/use-t";
+import { useApplySignupLocale } from "@/lib/signup-locale";
 import PrivacyControls from "@/components/profile/privacy-controls";
 
 import { copyText } from "@/lib/copy-text";
@@ -213,6 +214,7 @@ export default function AffiliateApp() {
   // doorverwijst houdt rol `advertiser`, een zuivere affiliate is
   // `affiliate`. Dat is dezelfde splitsing die /users maakt in zijn
   // twee tellers.
+  useApplySignupLocale(affLocale, !!profile);
   const affQuote = dailyQuote(
     profile?.id ?? null,
     new Date(),

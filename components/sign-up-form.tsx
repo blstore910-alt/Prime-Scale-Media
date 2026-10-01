@@ -1,6 +1,7 @@
 "use client";
 
 import { useT } from "@/hooks/use-t";
+import { rememberSignupLocale } from "@/lib/signup-locale";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -104,7 +105,7 @@ export function SignUpForm({
   referralCode?: string | null;
   tenantSlug?: string | null;
 }) {
-  const { t: tr } = useT();
+  const { t: tr, locale } = useT();
   const router = useRouter();
   const [show, setShow] = useState({ pass: false, repeat: false });
 
@@ -123,6 +124,8 @@ export function SignUpForm({
   const strength = scorePassword(password);
 
   const onSubmit = async (data: SignUpFormData) => {
+    // De taal van dit formulier gaat mee naar het profiel -- zie lib/signup-locale.ts.
+    rememberSignupLocale(locale);
     try {
       const supabase = createClient();
       // ── BACK THROUGH /auth/confirm, WITH THE LINK'S OWN t AND ref ──

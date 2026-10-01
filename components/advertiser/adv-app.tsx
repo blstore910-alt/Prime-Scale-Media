@@ -21,6 +21,7 @@ import PartnerDirectory from "@/components/partners/partner-directory";
 import LanguageSwitcher from "@/components/i18n/language-switcher";
 import TeamPanel from "@/components/team/team-panel";
 import { useT } from "@/hooks/use-t";
+import { useApplySignupLocale } from "@/lib/signup-locale";
 import type { Key } from "@/lib/i18n/en";
 import WhatsappIcon from "@/components/psm/whatsapp-icon";
 import AffiliateApplicationCard from "@/components/advertiser/affiliate-application-card";
@@ -383,6 +384,7 @@ export default function AdvertiserApp() {
   // De taal van deze klant. Zie docs/NL_EN.md; valt terug op Engels
   // zolang plak 177 niet gedraaid is, zodat de app dan werkt als vandaag.
   const { t, tx, locale } = useT();
+  useApplySignupLocale(locale, !!profile);
   // Dezelfde functie onder een naam die een lusvariabele niet kan
   // overschaduwen. In de walletlijst heet een top-uprij toevallig ook
   // `t` (`t.status`, `t.description`), en daarbinnen roept t("...") dan
