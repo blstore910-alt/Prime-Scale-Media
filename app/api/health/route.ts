@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { isMaintenanceMode } from "@/actions/_shared";
 
 export const runtime = "nodejs";
@@ -26,11 +26,14 @@ export async function GET() {
   // Supabase reachability
   const supaStart = Date.now();
   try {
-    const supabase = await createClient();
-    // Cheapest possible query — hits Postgres via PostgREST.
-    // Anon RLS on `tenants` will typically return 0 rows for an
-    // unauthenticated caller; success = the endpoint is alive.
-    const { error } = await supabase.from("tenants").select("id").limit(1);
+    // ── MET DE SERVER-SLEUTEL, NIET ANONIEM ─────────────────────────
+    // Dit las `tenants` met de anonieme sleutel. Die rechten zijn bij het
+    // dichtzetten (de anon-revokes) terecht ingetrokken -- en dus faalde
+    // deze check ALTIJD, en gaf UptimeRobot "down" terwijl de app gewoon
+    // werkte (01-10). Nu met de service-sleutel, en alleen een telling:
+    // er gaat geen rij naar buiten, het antwoord blijft een boolean.
+    const supabase = await createAdminClient();
+    const { error } = await supabase.from("tenants").select("id", { count: "exact", head: true });
     // This endpoint is unauthenticated — never echo the raw DB error
     // (it leaks schema/infra detail). Generic note only; detail logged.
     if (error) {
