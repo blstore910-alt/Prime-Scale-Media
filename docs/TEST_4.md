@@ -558,7 +558,7 @@ eigenaar nodig is).
 | R8 | T4-0 geen plan | EN | | | | |
 | R9 | T4-F + T4-R | EN | | | | |
 | R10 | T4-U | EN | | | | |
-| R11 | T4-A + T4-V | EN | | | | |
+| R11 | T4-A + T4-V | EN | werkt (V) | T4-A Team -> twee uitnodigingen (link ook zichtbaar). Aanmeldpagina: 'Viewing PSM0030 as viewer', geen referral. BLOKKER gevonden + gefixt: na Join landde V op 'we can''t open your account' (0642aa8b). V ziet T4-A: EUR 245.00 / USD 55.76, account, Flex, facturen; geen enkele geldknop (wallet: alleen saldi; accounts: Tax rates/Details; billing: View/Download); avatar 'Team member · PSM0030' | subject_members: V viewer van T4-A, permissions []; invitation accepted. Server: alle zes geldfuncties eisen _psm_can(advertiser, perm) -> viewer zonder rechten wordt geweigerd (uit de definities gelezen, niet aangeroepen) | hinderlijk: 'First name is required' blijft staan na invullen tot Join |
 | R12 | alle | | | | | |
 | R13 | T4-A, T4-B | | | | | |
 | R14 | beheer | EN | | | | |

@@ -121,17 +121,17 @@ const CSS = `
 .tm .rol.act{background:var(--primary-tint);color:var(--primary-600)}
 .tm .memset{margin:0 0 12px 49px;padding:12px 14px;border-radius:14px;background:var(--panel-2);
   display:flex;flex-direction:column;gap:2px}
-.tm .sw{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;
+.tm .tmsw{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;
   font-size:.86rem;font-weight:600;color:var(--ink);cursor:pointer;border-bottom:1px solid var(--line)}
-.tm .sw:last-of-type{border-bottom:0}
-.tm .sw input{position:absolute;opacity:0;width:1px;height:1px}
-.tm .sw i{flex:0 0 auto;width:40px;height:23px;border-radius:99px;background:var(--line-2);position:relative;transition:background .2s}
-.tm .sw i::after{content:"";position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:#fff;
+.tm .tmsw:last-of-type{border-bottom:0}
+.tm .tmsw input{position:absolute;opacity:0;width:1px;height:1px}
+.tm .tmsw i{flex:0 0 auto;width:40px;height:23px;border-radius:99px;background:var(--line-2);position:relative;transition:background .2s}
+.tm .tmsw i::after{content:"";position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:#fff;
   box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
-.tm .sw input:checked + i{background:linear-gradient(135deg,#5B8DFF,#8B5CF6)}
-.tm .sw input:checked + i::after{transform:translateX(17px)}
-.tm .sw input:focus-visible + i{box-shadow:0 0 0 3px var(--primary-tint)}
-.tm .sw input:disabled + i{opacity:.6}
+.tm .tmsw input:checked + i{background:linear-gradient(135deg,#5B8DFF,#8B5CF6)}
+.tm .tmsw input:checked + i::after{transform:translateX(17px)}
+.tm .tmsw input:focus-visible + i{box-shadow:0 0 0 3px var(--primary-tint)}
+.tm .tmsw input:disabled + i{opacity:.6}
 .tm .x.wide{margin-top:10px;align-self:flex-start}
 .tm .perms{display:flex;flex-wrap:wrap;gap:6px;margin:-2px 0 10px 49px}
 .tm .perm{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:.74rem;font-weight:700;
@@ -428,7 +428,7 @@ function EigenaarsTeam({
                       {RECHTEN.map((r) => {
                         const aan = perms.includes(r);
                         return (
-                          <label key={r} className="sw">
+                          <label key={r} className="tmsw">
                             <span>{t(`team.perm.${r}` as Parameters<typeof t>[0])}</span>
                             <input
                               type="checkbox"
