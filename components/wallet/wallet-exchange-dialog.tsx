@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
+import ConfirmModal from "@/components/ui/confirm-modal";
 import { createClient } from "@/lib/supabase/client";
 import { userFacingErrorMessage } from "@/lib/pure-error";
 import { formatCurrency } from "@/lib/utils-pure";
@@ -574,25 +574,45 @@ export default function WalletExchangeDialog({
           busy={isPending}
           busyLabel={tr("label.exch.exchanging")}
           onConfirm={() => confirming && mutate(confirming.values)}
+          bare
         >
-          <ConfirmFact
-            label={tr("exch.takenFromYourWallet")}
-            value={`${confirmAmount.toFixed(2)} ${confirmFrom}`}
-            strong
-          />
-          <ConfirmFact
-            label={tr("label.tax.rate")}
-            value={`1 ${confirmFrom} = ${(confirming?.rate ?? 0).toFixed(6)} ${confirmTo}`}
-          />
-          <ConfirmFact
-            label={tr("exch.exchangeFee062")}
-            value={`${confirmQuote.fee.toFixed(2)} ${confirmTo}`}
-          />
-          <ConfirmFact
-            label={tr("exch.addedToYourWallet")}
-            value={`${confirmQuote.lands.toFixed(2)} ${confirmTo}`}
-            strong
-          />
+          {/* De eigenaar, 01-10: "dit moet ook veel beter en mooier, ook
+              subtiel Wise en tijd". The same figures as before -- what
+              leaves, the rate, the fee, what lands -- as the pay/get pair
+              the form itself uses, and the rate with its time and source. */}
+          <div className="tpx">
+            <div className="tpx-xc">
+              <div className="tpx-xc-box">
+                <small>{tr("exch.takenFromYourWallet")}</small>
+                <b>{formatCurrency(confirmAmount, confirmFrom)}</b>
+              </div>
+              <span className="tpx-route-arrow"><ArrowLeftRight className="h-4 w-4" /></span>
+              <div className="tpx-xc-box tpx-xc-get">
+                <small>{tr("exch.addedToYourWallet")}</small>
+                <b>{formatCurrency(confirmQuote.lands, confirmTo)}</b>
+              </div>
+            </div>
+            <div className="tpx-receipt" style={{ marginTop: 10 }}>
+              <div className="tpx-receipt-row">
+                <span>{tr("label.tax.rate")}</span>
+                <span>1 {confirmFrom} = {(confirming?.rate ?? 0).toFixed(6)} {confirmTo}</span>
+              </div>
+              <RateStamp at={rateUpdatedAt} source={rateSource} />
+              <div className="tpx-receipt-row">
+                <span>{tr("exch.converted")}</span>
+                <span>{formatCurrency(confirmQuote.gross, confirmTo)}</span>
+              </div>
+              <div className="tpx-receipt-row">
+                <span>{tr("exch.exchangeFee062")}</span>
+                <span>− {formatCurrency(confirmQuote.fee, confirmTo)}</span>
+              </div>
+              <hr />
+              <div className="tpx-receipt-row" data-tone="strong">
+                <span>{tr("exch.addedToYourWallet")}</span>
+                <span>{formatCurrency(confirmQuote.lands, confirmTo)}</span>
+              </div>
+            </div>
+          </div>
         </ConfirmModal>
       </DialogContent>
     </Dialog>

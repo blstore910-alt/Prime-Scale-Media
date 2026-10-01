@@ -136,6 +136,12 @@ const CSS = `
 .tpx-receipt-hero b{display:block;font-size:26px;font-weight:800;line-height:1.1;margin-top:3px;font-variant-numeric:tabular-nums}
 .tpx-receipt-hero span{font-size:12px;color:rgba(255,255,255,.88);text-align:right}
 .tpx-stamp{display:block;padding:0 14px 10px;margin-top:-4px;font-size:10.5px;color:#9AA2B4;text-align:right;line-height:1.35}
+.tpx-xc{display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr);align-items:center;gap:6px}
+.tpx-xc-box{min-width:0;border-radius:16px;padding:12px;background:var(--tpx-soft)}
+.tpx-xc-box small{display:block;font-size:11px;color:var(--tpx-mut);line-height:1.3}
+.tpx-xc-box b{display:block;font-size:20px;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tpx-xc-get{color:#fff;background:radial-gradient(120% 140% at 100% 0%,rgba(139,92,246,.6),transparent 55%),radial-gradient(110% 130% at 0% 100%,rgba(91,141,255,.5),transparent 55%),#0B1020}
+.tpx-xc-get small{color:rgba(255,255,255,.65)}
 .tpx-receipt hr{border:0;border-top:1px dashed var(--tpx-line);margin:2px 14px}
 
 .tpx-route{border-radius:18px;padding:12px;background:var(--tpx-soft);display:flex;flex-direction:column;gap:10px}

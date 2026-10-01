@@ -42,6 +42,7 @@ export default function ConfirmModal({
   busyLabel,
   cancelLabel = "Go back",
   tone = "default",
+  bare = false,
   onConfirm,
   disabled = false,
   disabledHint,
@@ -58,6 +59,8 @@ export default function ConfirmModal({
   busyLabel?: string;
   cancelLabel?: string;
   tone?: "default" | "danger";
+  /** Render children as they are, without the grey facts box. */
+  bare?: boolean;
   onConfirm: () => void;
   disabled?: boolean;
   /** Why the confirm button is greyed out. Shown while `disabled`. */
@@ -82,9 +85,13 @@ export default function ConfirmModal({
         </DialogHeader>
 
         {children ? (
-          <div className="rounded-xl border bg-muted/40 p-3 text-sm">
-            {children}
-          </div>
+          bare ? (
+            <div>{children}</div>
+          ) : (
+            <div className="rounded-xl border bg-muted/40 p-3 text-sm">
+              {children}
+            </div>
+          )
         ) : null}
 
         {/* A greyed-out button with no explanation is a dead end: the
