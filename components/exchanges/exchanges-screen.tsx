@@ -92,6 +92,11 @@ const LEDGER_VANAF = "2026-09-28";
 
 const CSS = `
 .psm-exc{display:flex;flex-direction:column;gap:16px}
+.psm-exc{min-width:0;max-width:100%}
+/* Kop en ondertitel onder elkaar: naast elkaar duwden ze de pagina op
+   een telefoon breder dan het scherm (Test 4, 01-10). */
+.psm-exc .phead{display:block}
+.psm-exc .phead p{white-space:normal}
 .psm-exc .phead h1{margin:0;font-family:var(--hd);font-weight:800;
   font-size:1.35rem;letter-spacing:-.02em;color:var(--ink)}
 .psm-exc .phead p{margin:4px 0 0;color:var(--txt-2);font-size:.9rem}
