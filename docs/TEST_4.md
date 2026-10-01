@@ -73,6 +73,28 @@ tot op de cent tegen de database gehouden.
 
 ---
 
+## Blok 0 — eerst dicht: de lekken uit de controle van 01-10
+
+Drie agents liepen op 01-10 alles na (scherm, data achter de pagina,
+mails/pdf/meldingen). Gefixt en live (537b797b + plak 191): meldingsdata
+met de typeslug, "Slash" in de ZANEL-bankgegevens, "Meta Premium",
+de privacy-export, accountnamen met HK/GH, en de tabel bank_accounts
+die elke klant kon lezen.
+
+**Nog open — BLOKKER voor live, eerste werk van test 4:**
+
+| # | wat | waarom het telt | aanpak |
+|---|---|---|---|
+| L1 | `ad_accounts.platform` is de interne typeslug (`hk-meta-premium`, `eu-meta-psm`) en de klant leest zijn eigen rijen (ook via `top_ups_view`) | staat in de JSON achter elk accountscherm | klanten lezen hun accounts via een eigen view/RPC die `network` (Meta/Google/TikTok) en de bankgroep geeft, niet de slug; de directe klant-policy op ad_accounts gaat dicht |
+| L2 | `lib/bank-routing.ts` (slug → bank) en `routes` in `lib/bank-beneficiaries.ts` zitten in de JavaScript van de klant | elke typenaam staat leesbaar in het bestand dat de browser laadt | de bankgroep komt van de server (L1); `routes` naar een bestand alleen voor admins |
+| L3 | `ad_account_withdrawals`: supplier_status, external_withdraw_id, sent_to_supplier_at leesbaar voor de klant | nu leeg, straks een transactie-id van de leverancier | naar een tabel alleen voor admins |
+| L4 | vrije admin-notities (`ad_accounts.notes`, `advertisers.note`, `top_ups.notes/author`) leesbaar voor de klant | nu schoon, maar één getypte leveranciersnaam lekt | naar een tabel alleen voor admins |
+
+Pas als L1–L4 dicht zijn en R20 opnieuw schoon is, staat R20 op
+**werkt**.
+
+---
+
 ## Laag 0 — voor er een scherm opengaat
 
 ```bash

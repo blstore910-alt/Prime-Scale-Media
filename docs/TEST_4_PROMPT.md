@@ -1,6 +1,16 @@
 TEST 4 — ELKE REIS, ELKE SOORT. Lees docs/TEST_4.md en
 ga verder bij de EERSTE regel in het logboek onderaan die nog geen
-uitkomst heeft. Zeg in een zin waar je begint, en begin dan.
+uitkomst heeft. Staat Blok 0 (L1-L4) nog open, dan begin je DAAR.
+Zeg in een zin waar je begint, en begin dan.
+
+IK KIJK MEE EN WIL ELK SCHERM ZIEN. Bij elk scherm dat je in mijn
+Chrome opent: screenshot opslaan (save_to_disk) en als bestand in de
+chat sturen, met een regel erbij wat het is en of het klopt. De klantkant
+in het ingebouwde paneel zie ik live; zeg in de chat welk scherm het is.
+Een reeks schermen van een reis mag in een bericht samen.
+
+WACHTWOORDEN EN JOIN doe ik zelf (productie). Zet alles klaar, zeg in EEN
+regel: scherm, rol, e-mailadres -- en ga intussen door met wat kan.
 
 WAT TEST 4 IS: dezelfde reizen als test 3, maar over elke soort
 account (API en handmatig, EUR en USD, elk plan, NSA, geen plan), elke
