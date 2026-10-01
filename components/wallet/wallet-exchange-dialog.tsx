@@ -8,10 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { userFacingErrorMessage } from "@/lib/pure-error";
 import useUsdToEur from "@/hooks/use-usd-to-eur";
@@ -21,7 +18,8 @@ import {
   neededFromAmount,
 } from "@/lib/pure-exchange";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowDownUp, ArrowLeftRight, Loader2 } from "lucide-react";
+import { TopupStyles, currencySymbol } from "@/components/topups/topup-ui";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -378,7 +376,8 @@ export default function WalletExchangeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="tpx sm:max-w-[440px]">
+        <TopupStyles />
         <DialogHeader>
           <DialogTitle>{tr("label.exch.exchangeBalance")}</DialogTitle>
           <DialogDescription>
@@ -391,8 +390,10 @@ export default function WalletExchangeDialog({
             and the 0.6% fee in their head, and a cent short means the
             payment they came for is refused anyway. */}
         {need != null && needIsTarget ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900/50 dark:bg-amber-950/30">
-            <div className="font-medium text-foreground">
+          <div className="tpx-note" data-tone="warn">
+            <AlertTriangle />
+            <div>
+            <div style={{ fontWeight: 700, color: "var(--tpx-ink)" }}>
               {tr("exch.youNeed", { needSymbol: String(needSymbol), v: String(need.toFixed(2)), v2: String(needLabel ? ` ${needLabel}` : "") })}</div>
             <div className="mt-1 text-muted-foreground">
               {ratesLoading
@@ -403,41 +404,80 @@ export default function WalletExchangeDialog({
                     ? tr("exch.convertingLandsItFeeIncluded", { fromSymbol: String(fromSymbol), v: String(needFrom.toFixed(2)) })
                     : tr("exch.yourWalletHoldsAndIs", { fromCurrency: String(fromCurrency), fromSymbol: String(fromSymbol), v: String(haveOnFromSide.toFixed(2)), fromSymbol2: String(fromSymbol), v2: String(needFrom.toFixed(2)) })}
             </div>
+            </div>
           </div>
         ) : null}
-        <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-          <div className="grid gap-2">
-            <Label htmlFor="from-currency">{tr("label.exch.fromCurrency")}</Label>
-            <select
-              id="from-currency"
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-              {...register("from_currency")}
-              disabled={hasSingleBalance}
-            >
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-            </select>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="from-amount">{tr("label.amount")}</Label>
-            <Input
-              id="from-amount"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-              {...amountRegister}
-            />
+        {/* ── PAY, SWAP, GET ──────────────────────────────────────────
+            De eigenaar, 01-10: "exchange ook 10x meer wow". The shape
+            every exchange app uses: what leaves on top, a round swap
+            button, what lands underneath on the dark card -- and the
+            rate and fee as a small receipt. Same form, same figures,
+            same confirmation; only the look changed. */}
+        <form className="flex flex-col gap-3" onSubmit={handleSubmit(onSubmit)}>
+          <input type="hidden" {...register("from_currency")} />
+          <div className="tpx-x-pay">
+            <div className="tpx-x-top">
+              <span className="tpx-lbl">{tr("exch.youPay")}</span>
+              <button
+                type="button"
+                className="tpx-link"
+                onClick={() =>
+                  setValue("from_amount", Number((fromCurrency === "USD" ? usdBalance : eurBalance).toFixed(2)), {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  })
+                }
+              >
+                {tr("exch.max")} {currencySymbol(fromCurrency)}
+                {(fromCurrency === "USD" ? usdBalance : eurBalance).toFixed(2)}
+              </button>
+            </div>
+            <div className="tpx-x-row">
+              <span className="tpx-x-chip">
+                <i>{currencySymbol(fromCurrency)}</i>
+                {fromCurrency}
+              </span>
+              <input
+                id="from-amount"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                onFocus={(e) => e.currentTarget.select()}
+                {...amountRegister}
+              />
+            </div>
             {errors.from_amount && (
-              <p className="text-sm text-destructive">
-                {errors.from_amount.message}
-              </p>
+              <p className="tpx-err">{errors.from_amount.message}</p>
             )}
           </div>
 
-          <div className="rounded-lg border p-3 text-sm text-muted-foreground">
-            <div className="flex items-center justify-between">
+          <button
+            type="button"
+            className="tpx-swap"
+            disabled={hasSingleBalance}
+            aria-label={tr("exch.swap")}
+            onClick={() =>
+              setValue("from_currency", toCurrency, { shouldDirty: true })
+            }
+          >
+            <ArrowDownUp className="h-4 w-4" />
+          </button>
+
+          <div className="tpx-x-get">
+            <span className="tpx-lbl">{tr("label.exch.youLlReceive")}</span>
+            <div className="tpx-x-row">
+              <span className="tpx-x-chip">
+                <i>{currencySymbol(toCurrency)}</i>
+                {toCurrency}
+              </span>
+              <b>{rate ? exchangeableAmount.toFixed(2) : "—"}</b>
+            </div>
+          </div>
+
+          <div className="tpx-receipt">
+            <div className="tpx-receipt-row">
               <span>{tr("label.tax.rate")}</span>
               <span>
                 {ratesLoading
@@ -447,52 +487,29 @@ export default function WalletExchangeDialog({
                     : `1 ${fromCurrency} = ${rate.toFixed(6)} ${toCurrency}`}
               </span>
             </div>
-            <div className="mt-2 flex items-center justify-between">
+            <div className="tpx-receipt-row">
               <span>{tr("exch.exchangeFee06")}</span>
-              <span className="text-foreground font-medium">
-                {rate ? `${feeAmount.toFixed(2)} ${toCurrency}` : "-"}
-              </span>
+              <span>{rate ? `${feeAmount.toFixed(2)} ${toCurrency}` : "-"}</span>
             </div>
-            <div className="mt-2 flex items-center justify-between">
-              <span>{tr("label.exch.youLlReceive")}</span>
-              <span className="text-foreground font-medium">
-                {rate ? `${exchangeableAmount.toFixed(2)} ${toCurrency}` : "-"}
-              </span>
-            </div>
-            {/* Does this actually close the gap they came to close?
-                A figure that is "internally consistent and 3 cents
-                short" is exactly the kind of near-miss that sends the
-                customer back through the whole loop. */}
+            {/* Does this actually close the gap they came to close? A
+                figure that is internally consistent and 3 cents short
+                sends the customer back through the whole loop. */}
             {needIsTarget && need != null && fromAmount > 0 && rate ? (
-              <div className="mt-2 flex items-center justify-between border-t pt-2">
+              <div className="tpx-receipt-row" data-tone={shortOf > 0 ? "danger" : "strong"}>
                 <span>{tr("exch.coversTheYouNeed", { needSymbol: String(needSymbol), v: String(need.toFixed(2)) })}</span>
-                <span
-                  className={
-                    shortOf > 0
-                      ? "font-medium text-destructive"
-                      : "font-medium text-emerald-600 dark:text-emerald-400"
-                  }
-                >
+                <span style={shortOf > 0 ? undefined : { color: "#16A36F" }}>
                   {shortOf > 0
                     ? tr("exch.short", { needSymbol: String(needSymbol), v: String(shortOf.toFixed(2)) })
                     : tr("label.acct.yes")}
                 </span>
               </div>
             ) : null}
-            <div className="mt-2 flex items-center justify-between text-xs">
-              <span>{tr("label.exch.availableBalance")}</span>
-              <span>
-                {fromCurrency === "USD"
-                  ? `${usdBalance.toFixed(2)} USD`
-                  : `${eurBalance.toFixed(2)} EUR`}
-              </span>
-            </div>
           </div>
 
-          <div className="flex justify-end">
-            <Button
+          <div className="tpx-actions">
+            <button
               type="submit"
-              size="sm"
+              className="tpx-cta"
               disabled={
                 isPending ||
                 !rate ||
@@ -505,8 +522,8 @@ export default function WalletExchangeDialog({
               ) : (
                 <ArrowLeftRight className="h-4 w-4" />
               )}
-              Exchange
-            </Button>
+              {tr("exch.exchangeCta", { from: fromCurrency, to: toCurrency })}
+            </button>
           </div>
         </form>
 
