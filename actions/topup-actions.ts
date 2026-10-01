@@ -1619,22 +1619,22 @@ export async function quoteTopupFeePct(
   let advertiserId = String(acct.advertiser_id ?? "");
 
   if (!isAdmin) {
-    // Their own advertiser, in their own tenant. Nothing from the caller.
-    const { data: adv } = await supabase
-      .from("advertisers")
-      .select("id")
-      .eq("user_id", profile.user_id)
-      .eq("tenant_id", profile.tenant_id)
-      .maybeSingle();
-    if (!adv?.id) {
-      return { ok: false, error: "No advertiser for this account." };
-    }
-    if (String(acct.advertiser_id ?? "") !== String(adv.id)) {
+    // ── THE OWNER, OR A TEAM MEMBER WHO MAY FUND ───────────────────────
+    // Test 4, 01-10 (BLOKKER): T4-W had the Fund right on T4-A's account
+    // and the quote said "couldn't check", because this looked only for
+    // the caller's OWN advertiser -- which a team member does not have.
+    // The question is the one top_up_create_for_advertiser asks itself:
+    // _psm_can(advertiser, 'fund') -- the owner, or a member holding it.
+    const { data: can, error: canErr } = await supabase.rpc("_psm_can", {
+      p_advertiser: acct.advertiser_id,
+      p_perm: "fund",
+    });
+    if (canErr || can !== true) {
       // Same words as "not found": the service-role read must not tell a
       // customer that someone else's account id exists.
       return { ok: false, error: "That ad account was not found." };
     }
-    advertiserId = String(adv.id);
+    advertiserId = String(acct.advertiser_id ?? "");
   }
 
   if (!advertiserId) {
@@ -1647,8 +1647,11 @@ export async function quoteTopupFeePct(
   // and both top-up forms already refuse to submit on an unresolved
   // fee and say why.
   try {
+    // Authorised above for exactly this advertiser; the plan and perks
+    // are read on the server, because a team member cannot read the
+    // owner's plan rows with their own rights.
     const resolved = await resolveEffectiveFeePct(
-      supabase,
+      isAdmin ? supabase : await createAdminClient(),
       advertiserId,
       Number(acct.fee) || 0,
       accountId,
