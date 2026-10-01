@@ -656,12 +656,17 @@ export default function AccountsTable() {
           extra record's worth of screen, on the one page where you want to
           see records. The CSV label collapses to its icon on a phone: it is
           the secondary action and its icon is unambiguous. */}
-      <div className="phead phead-actions">
-        <div className="ptxt">
+      {/* De eigenaar, 01-10: "CSV kan gewoon tekst CSV, dan kunnen die twee
+          knoppen mooi rechtsboven" -- naast de titel, ook op een telefoon. */}
+      <div
+        className="phead phead-actions"
+        style={{ display: "flex", flexWrap: "nowrap", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}
+      >
+        <div className="ptxt" style={{ minWidth: 0 }}>
           <h1>Ad Accounts</h1>
           <p>Assign accounts and set fees.</p>
         </div>
-        <div className="pacts">
+        <div className="pacts" style={{ flexShrink: 0, display: "flex", gap: 8 }}>
           <button
             className="btn ghost"
             onClick={handleDownload}
@@ -674,7 +679,7 @@ export default function AccountsTable() {
             ) : (
               <FileDown />
             )}
-            <span className="blab">Download CSV</span>
+            <span>CSV</span>
           </button>
           <CreateAccountDialog>
             <button className="btn grad" aria-label="Create new account">

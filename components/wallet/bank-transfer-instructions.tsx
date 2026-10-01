@@ -4,7 +4,6 @@ import { useT } from "@/hooks/use-t";
 import { copyText } from "@/lib/copy-text";
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -99,87 +98,77 @@ export function BankTransferInstructions({
     );
   }
 
+  // ── ONE CARD FOR WHO, TILES FOR THE REST ──────────────────────────
+  // De eigenaar, 01-10: "kijk hoeveel witruimte verticaal ... zo kaal en
+  // lelijk". The sheet was one row per value, full width, each with an
+  // uppercase heading above it -- eight rows and three headings before
+  // the reference, on a 375px screen two full scrolls.
+  //
+  // Now: the two things typed into every banking app (who, and the
+  // account number / IBAN) sit on one dark card at the top, large; the
+  // rest are half-width tiles, two to a row. Long values (an address)
+  // take the full row. Every value that can be copied still has its own
+  // always-visible copy button -- that has not changed.
+  type Item = { label: string; value: string; copyable?: boolean; group?: string };
+  const all: Item[] = override
+    ? (
+        [
+          ["Beneficiary Name", override.beneficiary, true],
+          ["Account number / IBAN", override.account_no, true],
+          ["SWIFT / BIC", override.swift_bic, true],
+          ["Bank name", override.bank_name, false],
+          ["Routing number", override.routing_no, true],
+          ["Bank address", override.bank_address, false],
+          ["Note", override.notes, false],
+        ] as const
+      )
+        // Only what was filled in: an empty row reads as "leave blank".
+        .filter(([, value]) => !!value)
+        .map(([label, value, copyable]) => ({ label, value: String(value), copyable }))
+    : detail.sections.flatMap((s, i) =>
+        s.items.map((it) => ({ ...it, group: i === 0 ? undefined : s.title })),
+      );
+
+  const isHero = (it: Item) =>
+    !it.group && it.copyable && /holder|beneficiary name|account number|iban/i.test(it.label);
+  const hero = all.filter(isHero).slice(0, 3);
+  const rest = all.filter((it) => !hero.includes(it));
+
+  // Keep the section headings that carry meaning ("US transfers" vs
+  // "International") as one small line above their tiles; drop the rest.
+  const groups: { title?: string; items: Item[] }[] = [];
+  for (const it of rest) {
+    const last = groups[groups.length - 1];
+    if (last && last.title === it.group) last.items.push(it);
+    else groups.push({ title: it.group, items: [it] });
+  }
+  const meaningful = (t?: string) => !!t && /transfer|international|us /i.test(t);
+
   return (
-    /* ── ONE SHEET OF BANK DETAILS, NOT A STACK OF LABELS ─────────────
-       This was a column of floating label/value pairs with a copy icon
-       that only appeared on hover, three uppercase micro-headings and a
-       yellow warning box at the end — a form to be filled rather than a
-       thing to be read off and typed into a banking app.
-
-       It is now one bordered sheet, the way a bank prints its own
-       details: hairline-separated rows, the label small and quiet on the
-       left, the value the thing your eye lands on, and the copy control
-       always visible because that is the whole reason anyone opens this
-       step. An account number, an IBAN and a BIC are set in the mono
-       face, so a 6 and an 8 and a B and an 8 are distinguishable —
-       which is the difference between a transfer arriving and a week of
-       tracing it. */
-    <div className="space-y-3">
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        {detail.description}
-      </p>
-
-      <div className="overflow-hidden rounded-xl border bg-[color:var(--panel,#fff)] shadow-[0_1px_2px_-1px_rgba(20,30,80,.14)]">
-        {override ? (
-          <div>
-            <p className="border-b px-3.5 pb-1.5 pt-2.5 text-[10px] font-bold uppercase leading-none tracking-[.1em] text-muted-foreground/75">
-              {override.label || tr("label.bank.bankDetails")}
-            </p>
-            <div className="divide-y">
-              {(
-                [
-                  ["Beneficiary Name", override.beneficiary, true],
-                  ["Account number / IBAN", override.account_no, true],
-                  ["SWIFT / BIC", override.swift_bic, true],
-                  ["Bank name", override.bank_name, false],
-                  ["Routing number", override.routing_no, true],
-                  ["Bank address", override.bank_address, false],
-                  ["Note", override.notes, false],
-                ] as const
-              )
-                // Only what was actually filled in. An empty row on a
-                // sheet of bank details reads as "leave this blank",
-                // which is not what a missing value means.
-                .filter(([, value]) => !!value)
-                .map(([label, value, copyable]) => (
-                  <InstructionItem
-                    key={label}
-                    label={label}
-                    value={String(value)}
-                    copyable={copyable}
-                  />
-                ))}
-            </div>
-          </div>
-        ) : null}
-        {!override &&
-          detail.sections.map((section, idx) => (
-          <div key={idx}>
-            {/* A heading, not a ribbon. A filled band across the sheet
-                for every group turned three short lists into six visual
-                objects; a small label on the sheet's own ground, with a
-                rule under it, groups them without competing with the
-                values. */}
-            <p className="border-b px-3.5 pb-1.5 pt-2.5 text-[10px] font-bold uppercase leading-none tracking-[.1em] text-muted-foreground/75">
-              {section.title}
-            </p>
-            <div className="divide-y">
-              {section.items.map((item) => (
-                <InstructionItem
-                  key={item.label}
-                  label={item.label}
-                  value={item.value}
-                  copyable={item.copyable}
-                />
-              ))}
-            </div>
-          </div>
+    <div className="flex flex-col gap-3">
+      <div className="tpx-bank">
+        <div className="tpx-bank-top">
+          <em>{override?.label || tr("label.bank.bankDetails")}</em>
+          <span>{transferCurrency}</span>
+        </div>
+        <p className="tpx-bank-desc">{detail.description}</p>
+        {hero.map((it) => (
+          <CopyRow key={it.label} item={it} variant="hero" />
         ))}
       </div>
 
-      {/* The one sentence that stops a deposit being rejected, said once
-          and quietly. A full-width yellow panel at the end of the block
-          reads as an error on a screen where nothing has gone wrong. */}
+      {groups.map((g, gi) => (
+        <div key={gi}>
+          {meaningful(g.title) ? <p className="tpx-sec" style={{ margin: "4px 0 6px" }}>{g.title}</p> : null}
+          <div className="tpx-tiles">
+            {g.items.map((it) => (
+              <CopyRow key={it.label} item={it} variant="tile" />
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {/* The one sentence that stops a deposit being rejected. */}
       <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
         <span
           aria-hidden
@@ -191,34 +180,23 @@ export function BankTransferInstructions({
 }
 
 /** Values that have to be read character by character. */
-const MONO_LABELS = /iban|bic|swift|account number|routing|sort code|reference/i;
+const MONO_LABELS = /iban|bic|swift|account number|routing|sort code|reference|branch code/i;
 
-function InstructionItem({
-  label,
-  value,
-  copyable = false,
+function CopyRow({
+  item,
+  variant,
 }: {
-  label: string;
-  value: string;
-  copyable?: boolean;
+  item: { label: string; value: string; copyable?: boolean };
+  variant: "hero" | "tile";
 }) {
   const { t: tr } = useT();
   const [copied, setCopied] = useState(false);
+  const { label, value, copyable } = item;
 
   // ── DO NOT SAY "COPIED" WITHOUT CHECKING ───────────────────────────
-  //
-  // writeText returns a promise and it rejects routinely - mobile Safari
-  // outside a user gesture, an unfocused document, a PWA, an insecure
-  // context, a denied permission. This neither awaited it nor caught it,
-  // so the tick and the toast fired unconditionally.
-  //
-  // These are the beneficiary name, the IBAN, the account number and the
-  // SWIFT for a real bank transfer. Being told an IBAN copied when it did
-  // not means pasting whatever was on the clipboard before into a
-  // payment.
-  //
-  // The correct pattern is in the same flow, on the reference copy in
-  // wallet-topup-dialog, and says the same thing in its own comment.
+  // writeText rejects routinely (mobile Safari outside a gesture, a PWA,
+  // a denied permission). Being told an IBAN copied when it did not
+  // means pasting whatever was on the clipboard before into a payment.
   const handleCopy = async () => {
     const cleanValue = value.split("\n(")[0];
     try {
@@ -235,55 +213,34 @@ function InstructionItem({
     }
   };
 
-  return (
-    /* ── THE VALUE GETS THE WHOLE ROW ──────────────────────────────────
-       The label sat in a 104px column beside the value, which left an
-       IBAN about 180px to live in — so BE86967511906550 broke across
-       two lines, mid-number. An IBAN that wraps is an IBAN somebody
-       copies wrong. The label goes above it now and the value spans the
-       sheet, so every one of these fits on one line at phone width. */
-    /* py-2 and a 32px button, so neither the padding nor the control
-       drives the row height — the two lines of text do. With a 36px
-       button spanning both rows and items-center, the rows stretched to
-       the button and left a band of dead space under every value. */
-    <div className="relative grid grid-cols-[1fr_auto] items-center gap-x-2 px-3.5 py-2">
-      <span className="col-start-1 text-[10px] font-semibold uppercase leading-none tracking-[.08em] text-muted-foreground/75">
-        {label}
-      </span>
-      <span
-        className={cn(
-          "col-start-1 mt-1 min-w-0 whitespace-pre-wrap break-words text-[15px] font-semibold leading-[1.25] text-foreground",
-          MONO_LABELS.test(label) &&
-            "font-mono text-[14.5px] tracking-[-.01em] tabular-nums",
-        )}
-      >
-        {value}
-      </span>
-      {copyable && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          /* ALWAYS VISIBLE. This was opacity-0 until hover on large
-             screens — on the one control the whole step exists for, and
-             on a phone there is no hover at all, so it depended on the
-             icon being rendered invisible and tapped anyway. */
-          className={cn(
-            "col-start-2 row-span-2 -mr-1 h-8 w-8 shrink-0 self-center transition-colors",
-            copied
-              ? "text-emerald-600"
-              : "text-muted-foreground/70 hover:text-foreground",
-          )}
-          onClick={handleCopy}
-          aria-label={tr("bank.copy", { label: String(label) })}
-        >
-          {copied ? (
-            <Check className="h-4 w-4" />
-          ) : (
-            <Copy className="h-4 w-4" />
-          )}
-        </Button>
-      )}
+  const wide = variant === "tile" && (value.length > 26 || value.includes("\n"));
+  const body = (
+    <div>
+      <span className="tpx-lbl">{label}</span>
+      <span className={cn("tpx-val", MONO_LABELS.test(label) && "tpx-mono")}>{value}</span>
+    </div>
+  );
+  const button = copyable ? (
+    <button
+      type="button"
+      className="tpx-copy"
+      data-done={copied}
+      onClick={handleCopy}
+      aria-label={tr("bank.copy", { label: String(label) })}
+    >
+      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+    </button>
+  ) : null;
+
+  return variant === "hero" ? (
+    <div className="tpx-bank-row">
+      {body}
+      {button}
+    </div>
+  ) : (
+    <div className="tpx-tile" data-wide={wide}>
+      {body}
+      {button}
     </div>
   );
 }

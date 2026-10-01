@@ -8,8 +8,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 // Alleen de bankGROEPEN (turlit/zanel), nooit de typeslugs: dit bestand
 // laadt in de browser van de klant. Lekcontrole 01-10, L2.
 import {
@@ -26,13 +24,6 @@ import {
   topupAgainMessage,
   topupAgainNeedsConfirm,
 } from "@/lib/pure-topup-again";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import * as z from "zod";
 import {
@@ -52,9 +43,21 @@ import {
   Loader2,
   CheckCircle2,
   ArrowLeft,
+  ArrowRight,
+  AlertTriangle,
+  Check,
   Copy,
   FileImage,
+  Info,
+  Landmark,
+  UploadCloud,
 } from "lucide-react";
+import {
+  ChoiceCard,
+  TopupStepper,
+  TopupStyles,
+  currencySymbol,
+} from "@/components/topups/topup-ui";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { useFormDraft } from "@/hooks/use-form-draft";
@@ -367,6 +370,7 @@ export default function WalletTopupDialog({
   // The name of the file they picked, so the control can say what is attached
   // instead of leaving that to the browser's own "Geen bestand gekozen".
   const [slipName, setSlipName] = useState<string | null>(null);
+  const [slipDrag, setSlipDrag] = useState(false);
   const [filedReference, setFiledReference] = useState<string | null>(null);
 
   // ── A CLAIM ALREADY WAITING, AND THE CODE IT CARRIES ──────────────
@@ -928,7 +932,8 @@ export default function WalletTopupDialog({
           definite height and the viewport h-full resolves. The per-step
           actions are still INSIDE that scroller - they are reachable now
           rather than pinned, which is the part that mattered. */}
-      <DialogContent className="flex max-h-[90dvh] flex-col overflow-hidden sm:max-w-md">
+      <DialogContent className="tpx flex max-h-[92dvh] flex-col overflow-hidden sm:max-w-[480px]">
+        <TopupStyles />
         <DialogHeader className="shrink-0">
           <DialogTitle>
             {step === STEPS.SUCCESS
@@ -954,159 +959,122 @@ export default function WalletTopupDialog({
             dialog, not the page behind it. */}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2">
           <div className="px-1 py-2">
+            {step !== STEPS.SUCCESS && (
+              <TopupStepper
+                step={step}
+                labels={[tr("wtop.stepWallet"), tr("wtop.stepBank"), tr("wtop.stepSlip")]}
+              />
+            )}
             {/* STEP 1: SELECTION */}
+            {/* ── CARDS, NOT A DROPDOWN AND A ROW OF CHIPS ────────────────
+                De eigenaar, 01-10: "kan dit herdesign echt wow pro super
+                strak ... grids cards". Two wallets is a choice you can see
+                at once, so it is two cards; four transfer currencies are
+                four tiles. Nothing about what a choice DOES changed: the
+                wallet switch still drops a slip uploaded for the other
+                wallet, and says so. */}
             {step === STEPS.SELECTION && (
-              <div className="space-y-6">
-                <div className="space-y-3">
-                  <Label>{tr("label.wtop.walletToFund")}</Label>
+              <div className="tpx-stack">
+                <div>
+                  <p className="tpx-sec">{tr("label.wtop.walletToFund")}</p>
                   {/* ── A SLIP BELONGS TO THE CLAIM IT WAS UPLOADED FOR ──
-                      Both guards against "a EUR slip filed against a
-                      USD claim" are keyed to the dialog OPENING and
-                      CLOSING, and their comments name that incident
-                      three times. The path back from step 3 -- the
-                      "Change" link -- is inside the dialog, so it
-                      passed both: upload a EUR slip, press Change,
-                      switch the wallet to USD, continue, submit. The
-                      RPC gets p_currency USD with the euro slip still
-                      attached, and the only thing that changed on
-                      screen was the symbol in front of the box.
-
-                      Switching the wallet makes the old slip the wrong
-                      document, so it goes -- and is said out loud,
-                      because a silently emptied upload is how somebody
-                      submits without one. */}
-                  <Select
-                    value={currency}
-                    onValueChange={(val: CurrencyCode) => {
-                      if (val === currency) return;
-                      setCurrency(val);
-                      if (paymentSlipUrl || slipName) {
-                        setPaymentSlipUrl(null);
-                        setSlipName(null);
-                        setPaymentSlipError(null);
-                        toast.info(tr("wtop.addThePaymentSlipAgain"), {
-                          description: tr("wtop.youSwitchedToTheWallet", { val: String(val) }),
-                        });
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={tr("label.wtop.selectCurrency")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">{tr("wtop.usdUsDollarWallet")}</SelectItem>
-                      <SelectItem value="EUR">{tr("label.wtop.eurEuroWallet")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {tr("wtop.yourWalletIsCreditedIn", { currency: String(currency) })}</p>
+                      The "Change" link on step 3 comes back here. Switching
+                      the wallet makes an uploaded slip the wrong document,
+                      so it goes -- and is said out loud, because a silently
+                      emptied upload is how somebody submits without one. */}
+                  <div className="tpx-grid2">
+                    {(["EUR", "USD"] as const).map((val) => (
+                      <ChoiceCard
+                        key={val}
+                        on={currency === val}
+                        coin={currencySymbol(val)}
+                        title={val === "EUR" ? tr("wtop.walletEur") : tr("wtop.walletUsd")}
+                        sub={val === "EUR" ? tr("wtop.euro") : tr("wtop.usDollar")}
+                        onPick={() => {
+                          if (val === currency) return;
+                          setCurrency(val);
+                          if (paymentSlipUrl || slipName) {
+                            setPaymentSlipUrl(null);
+                            setSlipName(null);
+                            setPaymentSlipError(null);
+                            toast.info(tr("wtop.addThePaymentSlipAgain"), {
+                              description: tr("wtop.youSwitchedToTheWallet", { val: String(val) }),
+                            });
+                          }
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
 
-                {/* Only asked when there is genuinely something to choose.
-                    Every customer used to be shown all three beneficiary
-                    companies and asked to route their own payment — including
-                    a brand-new advertiser with no ad accounts at all, for whom
-                    there was nothing to decide and no reason to see the
-                    others. The destination follows from the accounts they
-                    hold, so it is worked out rather than asked. */}
-                {/* Said once, wherever the destination came from. */}
                 {/* ── WHICH OF THE THREE, AND accountsUnknown FIRST ──
-                    This branched on `accountTypeSlugs.length === 0`,
-                    and that list is [] in THREE different situations:
-                    a genuinely new customer, a read still in flight,
-                    and a read that failed. Two hundred lines up this
-                    file keeps those apart on purpose ("`accounts ?? []`
-                    is [] while the query is in flight AND when it has
-                    failed") and the one sentence the customer actually
-                    reads collapsed them.
-
-                    So an established Meta-EU-PSM-GH customer on a
-                    flaky connection was shown TURLIT's IBAN under the
-                    words "You don't have an ad account with us yet" —
-                    the sentence meant to make them hesitate instead
-                    confirmed the wrong bank, and nothing server-side
-                    looks at where they sent it. */}
+                    `accountTypeSlugs` is [] for a new customer, a read in
+                    flight AND a read that failed; the sentence keeps those
+                    apart so a flaky connection is never told "you don't
+                    have an ad account with us yet" over the wrong bank. */}
                 {routingUnknown && (
-                  <p className="text-xs text-muted-foreground">
-                    {accountsUnknown
-                      ? tr("wtop.weCouldnTCheckWhich")
-                      : accountTypeSlugs.length === 0
-                        ? tr("wtop.youDonTHaveAn")
-                        : tr("wtop.weCouldnTWorkThe")}
-                  </p>
+                  <div className="tpx-note">
+                    <Info />
+                    <span>
+                      {accountsUnknown
+                        ? tr("wtop.weCouldnTCheckWhich")
+                        : accountTypeSlugs.length === 0
+                          ? tr("wtop.youDonTHaveAn")
+                          : tr("wtop.weCouldnTWorkThe")}
+                    </span>
+                  </div>
                 )}
 
                 {/* The real fork: accounts in both families. Asked, not
-                    guessed -- and unlike a new customer they can answer
-                    it, because they were told which entity to pay when
-                    each account was set up. */}
+                    guessed -- they were told which entity to pay when each
+                    account was set up. */}
                 {twoFamilies && (
-                  <div className="space-y-2">
-                    <Label>{tr("wtop.whichOfOurAccountsAre")}</Label>
-                    <p className="text-xs text-muted-foreground">
+                  <div>
+                    <p className="tpx-sec">{tr("wtop.whichOfOurAccountsAre")}</p>
+                    <p className="tpx-hint" style={{ margin: "0 0 8px" }}>
                       {tr("wtop.yourAdAccountsAreSplit")}</p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="tpx-grid2">
                       {routed.map((g) => (
-                        <button
+                        <ChoiceCard
                           key={g}
-                          type="button"
-                          onClick={() => setBankGroup(g)}
-                          className={
-                            "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors " +
-                            (bankGroup === g
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "hover:bg-muted")
-                          }
-                        >
-                          {bankBeneficiary(g)}
-                        </button>
+                          on={bankGroup === g}
+                          coin={<Landmark className="h-5 w-5" />}
+                          title={bankBeneficiary(g)}
+                          onPick={() => setBankGroup(g)}
+                        />
                       ))}
                     </div>
                   </div>
                 )}
 
-
-                <div className="space-y-3">
-                  <Label>{tr("label.wtop.transferCurrency")}</Label>
-                  <div className="flex flex-wrap gap-2">
+                <div>
+                  <p className="tpx-sec">{tr("label.wtop.transferCurrency")}</p>
+                  <div className="tpx-grid4">
                     {availableTransferCurrencies.map((c) => (
                       <button
                         key={c}
                         type="button"
+                        className="tpx-card tpx-cur"
+                        data-on={transferCurrency === c}
+                        aria-pressed={transferCurrency === c}
                         onClick={() => setTransferCurrency(c)}
-                        className={
-                          "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors " +
-                          (transferCurrency === c
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-muted bg-popover hover:bg-accent hover:text-accent-foreground")
-                        }
                       >
-                        {c}
+                        <span className="sym">{currencySymbol(c)}</span>
+                        <span className="code">{c}</span>
                       </button>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="tpx-hint">
                     {tr("wtop.receives", { v: String(bankBeneficiary(bankGroup)), v2: String(availableTransferCurrencies.join(" / ")), v3: String(transferCurrency !== currency
                       ? ` You'll pay in ${transferCurrency}; your ${currency} wallet is credited from the slip.`
                       : "") })}</p>
                 </div>
 
                 {/* ── SAY THE MINIMUM BEFORE THEY SEND THE MONEY ────────
-                    It existed only as a zod message on step 3 — AFTER the
-                    IBAN, and after a primary button that says "I have made
-                    the transfer". So somebody past their first paid invoice
-                    opened this, got the account details, wired EUR 50,
-                    pressed that button, typed 50, pressed Submit, and read
-                    "Minimum Amount: 300" with the money already gone and no
-                    way to file the claim. The server half of that trap was
-                    fixed; the order of the screen re-created it. */}
-                {/* ── THE SAME FLOOR STEP 2 STATES ──────────────────────
-                    This said "Transfer at least EUR 300" using the WALLET
-                    currency, which is the exact trap step 2 carries a
-                    comment about: send GBP 300 against a EUR 300 floor
-                    and you are a fifth short. Step 1 is where the
-                    customer decides, so it is the worse place to get it
-                    wrong. Same conversion, rounded up the same way. */}
+                    In the TRANSFER currency, rounded up -- send GBP 300
+                    against a EUR 300 floor and you are a fifth short -- and
+                    when that differs from the wallet, the wallet figure too,
+                    because that is the number the box on step 3 asks for. */}
                 {minTopupAmount > 0 &&
                   (() => {
                     const inTransfer =
@@ -1123,88 +1091,63 @@ export default function WalletTopupDialog({
                       : minTopupAmount;
                     const cur = inTransfer ? transferCurrency : currency;
                     return (
-                      <p className="text-sm font-medium">
-                        {tr("label.wtop.transferAtLeast")}{" "}
-                        <strong>
-                          {cur} {shown.toLocaleString("en-US")}
-                        </strong>
-                        {tr("wtop.aSmallerAmountCannotBe")}{/* ── AND WHAT THAT IS IN THE WALLET ─────────
-                            The box on step 3 asks for the WALLET
-                            figure, and this line quotes the TRANSFER
-                            one. A EUR-wallet customer paying in HKD
-                            was told "Transfer at least HKD 2,540"
-                            twice and then handed a box asking what to
-                            credit to their EUR wallet — typing the
-                            number they had just been shown files a
-                            claim about eight times the transfer.
-                            Naming both figures costs one clause and
-                            removes the whole trap. */}
-                        {cur !== currency && (
-                          <>
-                            {" "}
-                            {tr("label.wtop.thatIs")}{" "}
-                            <strong>
-                              {currency}{" "}
-                              {minTopupAmount.toLocaleString("en-US")}
-                            </strong>{" "}
-                            {tr("wtop.creditedTheFigureWeAsk")}</>
-                        )}
-                      </p>
+                      <div className="tpx-note">
+                        <Info />
+                        <span>
+                          {tr("label.wtop.transferAtLeast")}{" "}
+                          <strong>
+                            {cur} {shown.toLocaleString("en-US")}
+                          </strong>
+                          {tr("wtop.aSmallerAmountCannotBe")}
+                          {cur !== currency && (
+                            <>
+                              {" "}
+                              {tr("label.wtop.thatIs")}{" "}
+                              <strong>
+                                {currency}{" "}
+                                {minTopupAmount.toLocaleString("en-US")}
+                              </strong>{" "}
+                              {tr("wtop.creditedTheFigureWeAsk")}</>
+                          )}
+                        </span>
+                      </div>
                     );
                   })()}
 
-                <Button className="w-full mt-4" onClick={handleNextStep}>
-                  {tr("label.wtop.continue")}</Button>
+                <div className="tpx-actions">
+                  <button type="button" className="tpx-cta" onClick={handleNextStep}>
+                    {tr("label.wtop.continue")}
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             )}
 
             {/* STEP 2: BANK DETAILS */}
             {step === STEPS.BANK_DETAILS && (
-              <div className="space-y-6">
-                <div className="rounded-lg border bg-muted/20 p-4">
-                  <BankTransferInstructions
-                    group={bankGroup}
-                    transferCurrency={transferCurrency}
-                    override={null}
-                  />
-                </div>
-
-
-                {/* Client code first, then the reference — so a bank
-                    statement shows whose money it is before anything has been
-                    matched. lib/payment-reference.ts also teaches the Wise
-                    matcher this shape; without that the longest-digit-run
-                    rule would read a six-digit client code as the reference
-                    and send every prefixed payment to manual review. */}
-                {/* Copyable. This is a number someone has to retype into a
-                    banking app, character for character, and getting it wrong
-                    is what sends their payment to manual review. Selecting it
-                    by hand on a phone means a long-press and two drag
-                    handles, usually catching the sentence above it too. */}
-                {/* A FAILED READ IS NOT "NOTHING IS WAITING". Without
-                    this the amber panel simply did not render, and the
-                    customer wired money against the NEXT reference while
-                    an open claim carried a different one -- the exact
-                    outcome this block exists to prevent. */}
+              <div className="tpx-stack" style={{ gap: 14 }}>
+                {/* A FAILED READ IS NOT "NOTHING IS WAITING". Without this
+                    the customer wires money against the NEXT reference
+                    while an open claim carries a different one. */}
                 {openTopupsError ? (
-                  <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-left dark:border-amber-500/40 dark:bg-amber-500/10">
-                    <p className="text-sm font-semibold">
-                      {tr("wtop.weCouldnTCheckFor")}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {tr("wtop.ifYouHaveAlreadyFiled")}</p>
+                  <div className="tpx-note" data-tone="warn">
+                    <AlertTriangle />
+                    <span>
+                      <strong>{tr("wtop.weCouldnTCheckFor")}</strong>{" "}
+                      {tr("wtop.ifYouHaveAlreadyFiled")}
+                    </span>
                   </div>
                 ) : null}
                 {openTopup ? (
-                  <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-left dark:border-amber-500/40 dark:bg-amber-500/10">
-                    <p className="text-sm font-semibold">
-                      {tr("wtop.youAlreadyHaveATop")}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                  <div className="tpx-note" data-tone="warn" style={{ flexDirection: "column", gap: 6 }}>
+                    <strong>{tr("wtop.youAlreadyHaveATop")}</strong>
+                    <span>
                       {tr("wtop.filedIfYouHaveNot", { v: String(formatCurrency(
                         Number(openTopup.amount) || 0,
                         (openTopup.currency ?? "EUR").toUpperCase() === "USD"
                           ? "USD"
                           : "EUR",
-                      )), v2: String(new Date(openTopup.created_at).toLocaleDateString()) })}</p>
+                      )), v2: String(new Date(openTopup.created_at).toLocaleDateString()) })}</span>
                     <button
                       type="button"
                       onClick={() => copyReference(
@@ -1212,7 +1155,8 @@ export default function WalletTopupDialog({
                           ? null
                           : String(openTopup.reference_no),
                       )}
-                      className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-lg border bg-background px-3 py-2.5 font-mono text-lg font-bold tracking-wide transition hover:border-ring"
+                      className="tpx-ref-code tpx-mono"
+                      style={{ background: "#fff", fontSize: 18, marginTop: 4 }}
                     >
                       {formatPaymentReference(
                         clientCode,
@@ -1220,62 +1164,54 @@ export default function WalletTopupDialog({
                           ? null
                           : String(openTopup.reference_no),
                       )}
-                      <Copy className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <Copy />
                     </button>
                   </div>
                 ) : null}
-                <div className="rounded-xl border bg-muted/20 p-4">
-                  <p className="text-sm text-muted-foreground">
+
+                <BankTransferInstructions
+                  group={bankGroup}
+                  transferCurrency={transferCurrency}
+                  override={null}
+                />
+
+                {/* Client code first, then the reference -- a bank
+                    statement shows whose money it is before anything has
+                    been matched. Copyable: it is retyped into a banking
+                    app character by character. */}
+                {/* ── AN EMPTY BOX CAPTIONED "Tap to copy" ──────────
+                    When there is no reference the flow is gated below and
+                    this says why, instead of an empty box whose tap does
+                    nothing -- an unreferenced deposit is one nothing can
+                    match. */}
+                <div className="tpx-ref">
+                  <p>
                     {openTopup
                       ? tr("wtop.forANewTransferUse")
                       : tr("wtop.putThisReferenceInThe")}
                   </p>
-                  {/* ── AN EMPTY BOX CAPTIONED "Tap to copy" ──────────
-                      referenceNo is `wallet?.reference_no ?? null` and
-                      nothing gated the flow on it, so when it was null
-                      this rendered an EMPTY box with a copy icon; the
-                      tap hit `if (!ref) return;` and did nothing,
-                      silently. The bank details above it are complete
-                      and correct, so the customer wires the money with
-                      no reference at all -- and an unreferenced deposit
-                      is one nothing can match. 238 of the 258 deposits
-                      on this database already cannot be matched
-                      automatically; this is one way that happens. */}
                   {formatPaymentReference(clientCode, referenceNo) ? (
                     <>
                       <button
                         type="button"
                         onClick={() => copyReference()}
-                        className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-lg border bg-background px-3 py-3 font-mono text-xl font-bold tracking-wide transition hover:border-ring hover:bg-accent/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        className="tpx-ref-code tpx-mono"
                         aria-label={tr("wtop.copyReference", { v: String(formatPaymentReference(clientCode, referenceNo)) })}
                       >
-                        {/* No icon. The reference IS the button, and the
-                            line under it already says what pressing it
-                            does. An icon beside a 20-character code just
-                            puts the target somewhere other than the thing
-                            you are looking at. */}
                         {formatPaymentReference(clientCode, referenceNo)}
+                        {refCopied ? <Check style={{ color: "#22C08A" }} /> : <Copy />}
                       </button>
-                      <p className="mt-2 text-center text-xs text-muted-foreground">
-                        {refCopied ? tr("wtop.copied") : tr("wtop.tapToCopy")}
-                      </p>
+                      <small>{refCopied ? tr("wtop.copied") : tr("wtop.tapToCopy")}</small>
                     </>
                   ) : (
-                    <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-center text-sm font-medium text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+                    <p className="tpx-note" data-tone="warn" style={{ marginTop: 10 }}>
                       {tr("wtop.weCouldNotProduceA")}</p>
                   )}
                 </div>
 
-                {/* The last moment before the money leaves their bank. */}
                 {/* ── THE FLOOR, IN THE MONEY THEY ARE ABOUT TO SEND ──
-                    One figure, in the currency on the screen. This said
-                    "At least EUR 300" while the customer was looking at
-                    a British account and a GBP IBAN — send GBP 300
-                    against a EUR 300 floor and you are a fifth short and
-                    the deposit is refused. Then it said both, which is
-                    two numbers to reconcile on the last screen before
-                    the money leaves their bank. The wallet currency is
-                    not their problem here; what to type into the bank is. */}
+                    One figure, in the transfer currency, rounded UP: a
+                    floor rounded down arrives a cent under the minimum. */}
                 {minTopupAmount > 0 &&
                   (() => {
                     const inTransfer =
@@ -1287,33 +1223,29 @@ export default function WalletTopupDialog({
                             transferCurrency,
                             rate,
                           );
-                    // Round UP. A floor rounded down is a transfer that
-                    // arrives a cent under the minimum.
                     const shown = inTransfer
                       ? Math.ceil(inTransfer)
                       : minTopupAmount;
                     const cur = inTransfer ? transferCurrency : currency;
                     return (
-                      <p className="pt-2 text-sm font-medium">
-                        {tr("wtop.atLeastAnythingLessCannot", { cur: String(cur), v: String(shown.toLocaleString("en-US")) })}</p>
+                      <div className="tpx-note">
+                        <Info />
+                        <span>{tr("wtop.atLeastAnythingLessCannot", { cur: String(cur), v: String(shown.toLocaleString("en-US")) })}</span>
+                      </div>
                     );
                   })()}
 
-                <div className="flex gap-3 pt-2">
-                  <Button variant="outline" onClick={handlePrevStep}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    {tr("btn.back")}</Button>
-                  {/* ── AND THE GATE, NOT ONLY THE WARNING ──────────
-                      The amber panel above says "Do NOT send the money
-                      yet" and then this button sat live three lines
-                      under it. A customer who read it as advice walked
-                      straight on, uploaded a slip, and filed a
-                      wallet_topups row whose reference_no is NULL --
-                      exactly the unmatchable deposit the warning exists
-                      to prevent, and 238 of the 258 deposits on this
-                      database are already in that state. */}
-                  <Button
-                    className="flex-1"
+                {/* ── AND THE GATE, NOT ONLY THE WARNING ──────────
+                    No reference, no "I have made the transfer": a claim
+                    filed without one is exactly the unmatchable deposit
+                    the warning above exists to prevent. */}
+                <div className="tpx-actions">
+                  <button type="button" className="tpx-ghost" onClick={handlePrevStep}>
+                    <ArrowLeft className="h-4 w-4" />
+                    {tr("btn.back")}</button>
+                  <button
+                    type="button"
+                    className="tpx-cta"
                     onClick={handleNextStep}
                     disabled={!formatPaymentReference(clientCode, referenceNo)}
                     title={
@@ -1322,7 +1254,7 @@ export default function WalletTopupDialog({
                         : tr("wtop.weHaveNoReferenceFor")
                     }
                   >
-                    {tr("wtop.iHaveMadeTheTransfer")}</Button>
+                    {tr("wtop.iHaveMadeTheTransfer")}</button>
                 </div>
               </div>
             )}
@@ -1330,65 +1262,49 @@ export default function WalletTopupDialog({
             {/* STEP 3: FORM SUBMISSION */}
             {step === STEPS.SUBMISSION && (
               <form
-                className="space-y-6"
+                className="tpx-stack"
+                style={{ gap: 14 }}
                 onSubmit={handleSubmit(handleSubmitForm)}
               >
-                {/* Summary of choices */}
-                <div className="rounded-md bg-muted/40 p-3 text-sm flex justify-between items-center border">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
-                      {tr("label.wtop.transferringTo")}</span>
-                    <span className="font-medium">
-                      {bankBeneficiary(bankGroup)} ({transferCurrency})
-                    </span>
+                <div className="tpx-sum">
+                  <span className="tpx-coin">{currencySymbol(currency)}</span>
+                  <div>
+                    <span className="tpx-lbl">{tr("label.wtop.transferringTo")}</span>
+                    <b>
+                      {bankBeneficiary(bankGroup)} · {transferCurrency} → {currency === "EUR" ? tr("wtop.walletEur") : tr("wtop.walletUsd")}
+                    </b>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 text-xs text-primary underline"
-                    onClick={() => setStep(STEPS.SELECTION)}
+                  <button
                     type="button"
+                    className="tpx-link"
+                    onClick={() => setStep(STEPS.SELECTION)}
                   >
-                    {tr("label.wtop.change")}</Button>
+                    {tr("label.wtop.change")}</button>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="grid gap-2">
-                    {/* ── ASK FOR THE FIGURE THAT IS ACTUALLY WRITTEN ──
-                        This said "How much did you transfer?" with the
-                        WALLET symbol in front of the box, under a line
-                        reading "Transferring to TURLIT LLC (GBP)". The
-                        helper then said both things at once: "this is
-                        what we will credit to your EUR wallet" AND
-                        "enter the exact amount you sent". Somebody who
-                        wires GBP 2,150 and does what the sentence tells
-                        them files a claim for EUR 2,150 — about a fifth
-                        out, on every transfer in a currency that is not
-                        the wallet's.
-
-                        The RPC takes (p_amount, p_currency) where
-                        p_currency IS the wallet currency, so the number
-                        in this box is, and can only be, the wallet
-                        credit. The question has to be that. What to send
-                        is the line underneath, which already converts. */}
-                    <Label htmlFor="amount">
-                      {tr("wtop.howMuchShouldWeCredit", { currency: String(currency) })}</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
-                        {currency === "USD" ? "$" : "€"}
-                      </span>
-                      <Input
-                        id="amount"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        className="pl-7"
-                        // Typing replaces what is there, never appends.
-                        onFocus={(e) => e.currentTarget.select()}
-                        {...register("amount", { valueAsNumber: true })}
-                      />
-                    </div>
+                {/* ── ASK FOR THE FIGURE THAT IS ACTUALLY WRITTEN ──
+                    The RPC takes (p_amount, p_currency) where p_currency IS
+                    the wallet currency, so the number in this box is, and
+                    can only be, the wallet credit. What to SEND is the line
+                    underneath, which converts. */}
+                <div className="tpx-amount">
+                  <label htmlFor="amount">
+                    {tr("wtop.howMuchShouldWeCredit", { currency: String(currency) })}</label>
+                  <div className="tpx-amount-in">
+                    <span>{currency === "USD" ? "$" : "€"}</span>
+                    <input
+                      id="amount"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      // Typing replaces what is there, never appends.
+                      onFocus={(e) => e.currentTarget.select()}
+                      {...register("amount", { valueAsNumber: true })}
+                    />
+                  </div>
+                  <div className="tpx-pills">
                     <AmountPills
                       currency={currency}
                       onPick={(v) =>
@@ -1398,62 +1314,56 @@ export default function WalletTopupDialog({
                         })
                       }
                     />
-                    <p className="text-xs text-muted-foreground">
-                      {transferCurrency === currency
-                        ? tr("wtop.thisIsWhatWeCredit")
-                        : tr("wtop.thisIsWhatWeCredit2", { transferCurrency: String(transferCurrency) })}
-                    </p>
-                    {errors.amount && (
-                      <p className="text-sm text-destructive">
-                        {errors.amount.message}
-                      </p>
-                    )}
-                    {transferCurrency !== currency &&
-                      (() => {
-                        const converted = convertWalletToTransfer(
-                          currentAmount,
-                          currency,
-                          transferCurrency,
-                          rate,
-                        );
-                        // ── A MISSING FIGURE IS NOT NO FIGURE ─────
-                        //
-                        // This returned null and the line vanished, so
-                        // a customer who picked a GBP transfer against
-                        // a EUR wallet was handed a GBP IBAN and no
-                        // amount at all -- and the minimum beside it
-                        // falls back to the WALLET's currency label, so
-                        // the only two numbers on the screen were both
-                        // in the wrong currency. Say it instead.
-                        if (converted === null) {
-                          return (
-                            <p className="text-xs text-amber-600">
-                              {tr("wtop.weCanTWorkOut", { transferCurrency: String(transferCurrency), v: String(ratesError
-                                ? " — we couldn't read today's rate"
-                                : " — there is no rate published for it"), currency: String(currency), v2: String(formatCurrency(currentAmount || 0, currency)) })}</p>
-                          );
-                        }
-                        return (
-                          <p className="text-xs text-muted-foreground">
-                            {tr("wtop.transfer")}{" "}
-                            <span className="font-semibold text-foreground">
-                              {formatCurrency(converted, transferCurrency)}
-                            </span>{" "}
-                            to {bankBeneficiary(bankGroup)} (
-                            {transferCurrency}{tr("wtop.your")}{" "}{currency} {" "}{tr("wtop.walletIsCredited")}{" "}{formatCurrency(currentAmount || 0, currency)}{" "}
-                            {tr("wtop.fromTheSlip")}</p>
-                        );
-                      })()}
                   </div>
+                  {errors.amount && (
+                    <p className="tpx-err">{errors.amount.message}</p>
+                  )}
+                  <p className="tpx-hint">
+                    {transferCurrency === currency
+                      ? tr("wtop.thisIsWhatWeCredit")
+                      : tr("wtop.thisIsWhatWeCredit2", { transferCurrency: String(transferCurrency) })}
+                  </p>
                 </div>
 
+                {transferCurrency !== currency &&
+                  (() => {
+                    const converted = convertWalletToTransfer(
+                      currentAmount,
+                      currency,
+                      transferCurrency,
+                      rate,
+                    );
+                    // ── A MISSING FIGURE IS NOT NO FIGURE ─────
+                    // Without a rate there is no transfer amount to show,
+                    // and saying so beats two numbers in the wrong currency.
+                    if (converted === null) {
+                      return (
+                        <div className="tpx-note" data-tone="warn">
+                          <AlertTriangle />
+                          <span>
+                            {tr("wtop.weCanTWorkOut", { transferCurrency: String(transferCurrency), v: String(ratesError
+                              ? " — we couldn't read today's rate"
+                              : " — there is no rate published for it"), currency: String(currency), v2: String(formatCurrency(currentAmount || 0, currency)) })}</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="tpx-note">
+                        <Info />
+                        <span>
+                          {tr("wtop.transfer")}{" "}
+                          <strong>{formatCurrency(converted, transferCurrency)}</strong>{" "}
+                          to {bankBeneficiary(bankGroup)} (
+                          {transferCurrency}{tr("wtop.your")}{" "}{currency} {" "}{tr("wtop.walletIsCredited")}{" "}{formatCurrency(currentAmount || 0, currency)}{" "}
+                          {tr("wtop.fromTheSlip")}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
                 {/* ── YOU HAVE ALREADY TOLD US ABOUT ONE ─────────────
-                    Sat on step 3, beside the amount, because that is
-                    where somebody is about to file the second one --
-                    not on step 1, which they walked past five minutes
-                    ago. The tick is deliberate: a sentence alone is
-                    read as decoration by the person who is worried
-                    enough to be filing twice. */}
+                    Beside the amount, because that is where somebody is
+                    about to file the second one. The tick is deliberate. */}
                 {againMessage ? (
                   <div
                     className={`rounded-xl border p-4 text-left ${
@@ -1481,110 +1391,109 @@ export default function WalletTopupDialog({
                   </div>
                 ) : null}
 
-                {/* Slip required for every topup now */}
-                {(
-                  <div className="space-y-3">
-                    <Label htmlFor="payment_slip">{tr("label.wtop.paymentSlip")}</Label>
-                    {/* A browser's own file control renders as the operating
-                        system's grey button plus "Geen bestand gekozen" in
-                        whatever language the browser happens to be in — the
-                        one control on this screen that looks like it came
-                        from somewhere else. The input stays (it does the
-                        work, and it stays reachable by keyboard); the label
-                        in front of it is what people see and press. */}
-                    <Input
-                      id="payment_slip"
-                      type="file"
-                      accept="image/*,application/pdf"
-                      onChange={handlePaymentSlipChange}
-                      disabled={isUploadingSlip}
-                      className="sr-only"
-                    />
-                    <label
-                      htmlFor="payment_slip"
-                      className={`flex cursor-pointer items-center gap-3 rounded-lg border border-dashed px-3.5 py-3 text-sm transition ${
-                        isUploadingSlip
-                          ? "pointer-events-none opacity-60"
-                          : "hover:border-ring hover:bg-accent/40"
-                      }`}
-                    >
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-                        <FileImage className="h-4 w-4" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block font-medium">
-                          {slipName ? tr("label.wtop.replaceFile") : tr("label.wtop.chooseAFile")}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {slipName ?? tr("wtop.aScreenshotOrPdfOf")}
-                        </span>
-                      </span>
-                    </label>
-                    {isUploadingSlip && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-2">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        {tr("wtop.uploadingPaymentSlip")}</p>
-                    )}
-                    {paymentSlipError && (
-                      <p className="text-sm text-destructive">
-                        {paymentSlipError}
-                      </p>
-                    )}
-                    {paymentSlipUrl && (
-                      <div className="rounded-md border bg-muted/20 p-3">
-                        {/* The name is already on the picker directly
-                            above this card. Printing it again turned one
-                            file into two lines that disagreed with each
-                            other — "slip-test.png" and, an inch below,
-                            "SLIP-TEST.PNG", because this header is
-                            uppercased. A header says what the card is. */}
-                        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          <FileImage className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">{tr("label.wtop.attachedSlip")}</span>
-                        </div>
-                        {paymentSlipPreview === "image" && previewSrc ? (
-                          /* Checkerboard, not white. A slip photographed
-                             against paper, or a screenshot with a
-                             transparent background, is white on white — the
-                             preview then looks broken when it is working
-                             perfectly, and the one thing this preview exists
-                             to answer is "did the right file attach?". */
-                          // eslint-disable-next-line @next/next/no-img-element -- user-uploaded slip of unknown dimensions in a preview modal
-                          <img
-                            src={previewSrc}
-                            alt={tr("wtop.paymentSlipPreview")}
-                            className="w-full max-h-56 object-contain rounded-md"
-                            style={{
-                              backgroundColor: "#eef1f7",
-                              backgroundImage:
-                                "linear-gradient(45deg,#dfe4ee 25%,transparent 25%,transparent 75%,#dfe4ee 75%),linear-gradient(45deg,#dfe4ee 25%,transparent 25%,transparent 75%,#dfe4ee 75%)",
-                              backgroundSize: "16px 16px",
-                              backgroundPosition: "0 0, 8px 8px",
-                            }}
-                          />
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            {paymentSlipPreview === "image"
-                              ? tr("wtop.attachedAPreviewOnlyShows")
-                              : tr("wtop.noPreviewForThisFile")}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    variant="outline"
-                    type="button"
-                    onClick={handlePrevStep}
+                {/* Slip required for every topup. The real file input
+                    stays (keyboard, and it does the work); the drop zone
+                    is what people see, press -- or drop a file on. */}
+                <div className="flex flex-col gap-2">
+                  <p className="tpx-sec" style={{ margin: 0 }}>{tr("label.wtop.paymentSlip")}</p>
+                  <input
+                    id="payment_slip"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={handlePaymentSlipChange}
+                    disabled={isUploadingSlip}
+                    className="sr-only"
+                  />
+                  <label
+                    htmlFor="payment_slip"
+                    className="tpx-drop"
+                    data-busy={isUploadingSlip}
+                    data-drag={slipDrag}
+                    data-done={!!paymentSlipUrl && !isUploadingSlip}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (!slipDrag) setSlipDrag(true);
+                    }}
+                    onDragLeave={() => setSlipDrag(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setSlipDrag(false);
+                      if (isUploadingSlip || !e.dataTransfer.files?.length) return;
+                      void handlePaymentSlipChange({
+                        target: { files: e.dataTransfer.files, value: "" },
+                        currentTarget: { files: e.dataTransfer.files, value: "" },
+                      } as unknown as ChangeEvent<HTMLInputElement>);
+                    }}
                   >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    {tr("btn.back")}</Button>
-                  <Button
+                    <span className="tpx-drop-ic">
+                      {isUploadingSlip ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : paymentSlipUrl ? (
+                        <Check className="h-5 w-5" strokeWidth={3} />
+                      ) : (
+                        <UploadCloud className="h-5 w-5" />
+                      )}
+                    </span>
+                    {paymentSlipUrl && !isUploadingSlip ? (
+                      <>
+                        <div>
+                          <b>{tr("wtop.slipAttached")}</b>
+                          <small>{slipName}</small>
+                        </div>
+                        <em>{tr("label.wtop.replaceFile")}</em>
+                      </>
+                    ) : (
+                      <>
+                        <b>
+                          {isUploadingSlip
+                            ? tr("wtop.uploadingPaymentSlip")
+                            : tr("label.wtop.chooseAFile")}
+                        </b>
+                        <small>{slipName ?? tr("wtop.dropOrTap")}</small>
+                      </>
+                    )}
+                  </label>
+                  {paymentSlipError && (
+                    <p className="tpx-err">{paymentSlipError}</p>
+                  )}
+                  {paymentSlipUrl && (
+                    paymentSlipPreview === "image" && previewSrc ? (
+                      /* Checkerboard, not white: a slip on paper or a
+                         transparent screenshot would be white on white,
+                         and this preview exists to answer "did the right
+                         file attach?". */
+                      <div className="tpx-preview">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded slip of unknown dimensions in a preview modal */}
+                        <img
+                          src={previewSrc}
+                          alt={tr("wtop.paymentSlipPreview")}
+                          style={{
+                            backgroundColor: "#eef1f7",
+                            backgroundImage:
+                              "linear-gradient(45deg,#dfe4ee 25%,transparent 25%,transparent 75%,#dfe4ee 75%),linear-gradient(45deg,#dfe4ee 25%,transparent 25%,transparent 75%,#dfe4ee 75%)",
+                            backgroundSize: "16px 16px",
+                            backgroundPosition: "0 0, 8px 8px",
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <p className="tpx-hint" style={{ margin: 0 }}>
+                        <FileImage className="mr-1 inline h-3.5 w-3.5" />
+                        {paymentSlipPreview === "image"
+                          ? tr("wtop.attachedAPreviewOnlyShows")
+                          : tr("wtop.noPreviewForThisFile")}
+                      </p>
+                    )
+                  )}
+                </div>
+
+                <div className="tpx-actions">
+                  <button type="button" className="tpx-ghost" onClick={handlePrevStep}>
+                    <ArrowLeft className="h-4 w-4" />
+                    {tr("btn.back")}</button>
+                  <button
                     type="submit"
-                    className="flex-1"
+                    className="tpx-cta"
                     disabled={
                       isPending ||
                       !walletId ||
@@ -1592,18 +1501,12 @@ export default function WalletTopupDialog({
                       isUploadingSlip
                     }
                   >
-                    {isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    {tr("label.wtop.submitRequest")}</Button>
+                    {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {tr("label.wtop.submitRequest")}</button>
                 </div>
-                {/* A button that cannot be pressed has to say why. Without
-                    this line somebody who has ALREADY transferred the money
-                    sits in front of a grey button with no idea what it
-                    wants -- and the slip is exactly what we need to match
-                    their payment. */}
+                {/* A button that cannot be pressed has to say why. */}
                 {!isPending && submitBlockedReason ? (
-                  <p className="text-xs text-muted-foreground text-center pt-2">
+                  <p className="tpx-hint" style={{ textAlign: "center", margin: 0 }}>
                     {submitBlockedReason}
                   </p>
                 ) : null}

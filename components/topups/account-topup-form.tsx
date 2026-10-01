@@ -7,7 +7,7 @@ import useUsdToEur from "@/hooks/use-usd-to-eur";
 import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
 import { Wallet } from "@/lib/types/wallet";
-import { cn, formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { isAccountLocked } from "@/lib/pure-account-status";
 import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,16 +16,14 @@ import { AlertCircle, DollarSign, Euro, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, Resolver, useForm } from "react-hook-form";
 import * as z from "zod";
-import InputField from "../form/input-field";
 import SelectField from "../form/select-field";
-import { Button } from "../ui/button";
 import { Field, FieldDescription, FieldError, FieldLabel } from "../ui/field";
-import { Label } from "../ui/label";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Skeleton } from "../ui/skeleton";
 import { useCreateAccountTopup } from "./use-create-account-topup";
 import { quoteTopupFeePct } from "@/actions/topup-actions";
 import AmountPills from "@/components/ui/amount-pills";
+import { TopupStyles, currencySymbol } from "./topup-ui";
 import {
   AD_ACCOUNT_CUSTOMER_COLUMNS,
   AD_ACCOUNT_CORE_COLUMNS,
@@ -85,7 +83,7 @@ export default function AccountTopupForm({
    */
   onNeedTopUp?: () => void;
 }) {
-  const { t: tr } = useT();
+  const { t: tr, tx } = useT();
   const { profile } = useAppContext();
   const [selectedAccount, setSelectedAccount] = useState<AccountRecord | null>(
     account ?? null,
@@ -475,8 +473,9 @@ export default function AccountTopupForm({
   return (
     <form
       onSubmit={handleSubmit((values) => setConfirming(values))}
-      className="flex min-h-0 flex-1 flex-col"
+      className="tpx flex min-h-0 flex-1 flex-col"
     >
+      <TopupStyles />
       {/* dvh, and smaller. 90vh is measured against the viewport with the
           browser toolbar HIDDEN, so this inner scroller could be taller
           than the max-h-[92dvh] sheet containing it — two nested scrollers,
@@ -531,6 +530,7 @@ export default function AccountTopupForm({
                         label={choice.label}
                         balance={choice.balance}
                         icon={choice.icon}
+                        on={field.value === choice.value}
                         disabled={!hasWallet}
                       />
                     ))}
@@ -579,30 +579,58 @@ export default function AccountTopupForm({
               label instead: always aligned, nothing to position, and
               the same shape as the withdrawal dialog. */}
           <div>
-            <InputField
-              name="amount"
-              id="topup-amount"
-              // ── SAY WHICH AMOUNT ────────────────────────────────
-              // The fee comes OUT of this figure, not on top of it, and
-              // a box labelled just "Amount" over a summary that lists
-              // the fee separately reads as though the two add up. They
-              // do not: this IS the total.
-              label={tr("atop.amountToTakeFromYour", { selectedCurrency: String(selectedCurrency) })}
+            {/* ── ONE BIG FIGURE, IN A CARD ─────────────────────────
+                De eigenaar, 01-10: the two top-up screens are the most used
+                in the app, so the number being moved is the biggest thing on
+                them. The currency symbol sits in the same row as the digits,
+                so it can never again be centred on the wrong box. */}
+            <Controller
               control={control}
-              type="number"
-              // Click a money box and you are typing a NEW amount, never
-              // appending to what was there. Without this a 0 sitting in
-              // the field turns a typed 50 into 050.
-              onFocus={(e) => e.currentTarget.select()}
-              min={0}
-              max={hasWallet ? selectedBalance : undefined}
-              className="tabular-nums"
+              name="amount"
               disabled={!hasWallet}
-              // 0.01, not 0.1. A step of a tenth makes the browser refuse any exact
-                // cent amount — 100.25 fails the step check and the form will not
-                // submit, with no message that says why.
-                step={0.01}
-              description={amountDescription}
+              render={({ field, fieldState }) => (
+                <div className="tpx-amount">
+                  <label htmlFor="topup-amount">
+                    {tr("atop.amountToTakeFromYour", { selectedCurrency: String(selectedCurrency) })}
+                  </label>
+                  <div className="tpx-amount-in">
+                    <span>{currencySymbol(selectedCurrency)}</span>
+                    <input
+                      {...field}
+                      value={field.value ?? ""}
+                      id="topup-amount"
+                      type="number"
+                      inputMode="decimal"
+                      step={0.01}
+                      min={0}
+                      max={hasWallet ? selectedBalance : undefined}
+                      placeholder="0.00"
+                      aria-invalid={fieldState.invalid}
+                      onFocus={(e) => e.currentTarget.select()}
+                    />
+                  </div>
+                  {/* The amounts people actually move, one tap. A pill
+                      above the wallet balance is greyed, not hidden. */}
+                  {hasWallet && selectedBalance > 0 ? (
+                    <div className="tpx-pills">
+                      <AmountPills
+                        currency={selectedCurrency}
+                        max={selectedBalance}
+                        onPick={(v) =>
+                          setValue("amount", v, {
+                            shouldValidate: true,
+                            shouldDirty: true,
+                          })
+                        }
+                      />
+                    </div>
+                  ) : null}
+                  {fieldState.invalid ? (
+                    <p className="tpx-err">{tx(fieldState.error?.message ?? "")}</p>
+                  ) : null}
+                  <p className="tpx-hint">{tx(amountDescription)}</p>
+                </div>
+              )}
             />
             {/* ── EEN LEGE WALLET IS EEN AFSLAG, GEEN MEDEDELING ──
                 De zin onder het bedragveld zegt "top it up before
@@ -612,26 +640,10 @@ export default function AccountTopupForm({
             {walletIsEmpty && onNeedTopUp ? (
               <button
                 type="button"
-                className="underline underline-offset-2 text-xs font-semibold mt-1 self-start"
+                className="tpx-link mt-1"
                 onClick={onNeedTopUp}
               >
                 {tr("atop.topUpYourWallet", { selectedCurrency: String(selectedCurrency) })}</button>
-            ) : null}
-            {/* The amounts people actually move, one tap. A pill above
-                the wallet balance is greyed rather than hidden: a row
-                that changes length as the balance moves is harder to
-                aim at, and "greyed" says why it cannot be pressed. */}
-            {hasWallet && selectedBalance > 0 ? (
-              <AmountPills
-                currency={selectedCurrency}
-                max={selectedBalance}
-                onPick={(v) =>
-                  setValue("amount", v, {
-                    shouldValidate: true,
-                    shouldDirty: true,
-                  })
-                }
-              />
             ) : null}
           </div>
 
@@ -691,10 +703,10 @@ export default function AccountTopupForm({
       {/* Full width under the thumb on a phone, right-aligned on a
           desktop -- and always the same distance from the content
           above it, which it was not. */}
-      <div className="mt-3 shrink-0 border-t pt-3 sm:flex sm:justify-end">
-        <Button
+      <div className="tpx-actions mt-3 shrink-0 pt-1">
+        <button
           type="submit"
-          className="w-full sm:w-auto"
+          className="tpx-cta"
           disabled={
             isPending ||
             !hasWallet ||
@@ -730,9 +742,9 @@ export default function AccountTopupForm({
           }
         >
           {(isPending || feeQuote.isLoading) && (
-            <Loader2 className="animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           )}
-          {tr("atop.topUpThisAccount")}</Button>
+          {tr("atop.topUpThisAccount")}</button>
       </div>
 
       <ConfirmModal
@@ -826,6 +838,7 @@ function CurrencyChoice({
   label,
   balance,
   icon,
+  on,
   disabled,
 }: {
   id: string;
@@ -833,6 +846,7 @@ function CurrencyChoice({
   label: string;
   balance: number | null;
   icon: React.ReactNode;
+  on?: boolean;
   disabled?: boolean;
 }) {
   const { t: tr } = useT();
@@ -844,31 +858,25 @@ function CurrencyChoice({
         className="peer sr-only"
         disabled={disabled}
       />
-      <Label
+      <label
         htmlFor={id}
-        className={cn(
-          "flex flex-col gap-2 rounded-md border-2 border-muted bg-popover p-4 transition-colors",
-          "hover:bg-accent hover:text-accent-foreground",
-          "peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary",
-          disabled && "cursor-not-allowed opacity-60 hover:bg-popover",
-        )}
+        className="tpx-card"
+        data-on={!!on}
+        aria-disabled={disabled || undefined}
+        style={{ display: "flex", alignItems: "center", gap: 12 }}
       >
-        <span className="inline-flex items-center gap-2 font-semibold">
-          {icon}
-          {label}
+        <span className="tpx-coin">{icon}</span>
+        <span style={{ minWidth: 0 }}>
+          <b style={{ marginTop: 0 }}>{label}</b>
+          <small>
+            {/* ── A DASH, NOT A ZERO ──────────────────────────────────
+                The balance is 0 while the read runs AND when it failed;
+                a dash says "not known", a zero says "you have nothing". */}
+            {tr("atop.available")}{" "}
+            {balance === null ? "—" : formatCurrency(balance, value)}
+          </small>
         </span>
-        <span className="text-xs text-muted-foreground">
-          {/* ── A DASH, NOT A ZERO ──────────────────────────────────
-              `parseAmount(wallet?.usd_balance)` is 0 while the read is
-              running AND when it failed, so this card stated
-              "Available: EUR 0.00" as fact -- with the red "Unable to
-              load wallet balance" panel rendering directly underneath
-              it, which is a screen telling a customer two different
-              things about their own money at once. */}
-          {tr("atop.available")}{" "}
-          {balance === null ? "—" : formatCurrency(balance, value)}
-        </span>
-      </Label>
+      </label>
     </div>
   );
 }
@@ -921,121 +929,54 @@ function BalanceSummary({
   // obviously the balance minus the gross.
   const netInWallet = feePending ? null : amount;
 
-  const Row = ({
-    label,
-    value,
-    hint,
-    tone,
-  }: {
-    label: React.ReactNode;
-    value: React.ReactNode;
-    hint?: React.ReactNode;
-    tone?: "muted" | "danger" | "strong";
-  }) => (
-    // grid, not flex: with justify-between a long value squeezed the
-    // label until "Wallet afterwards" read "Wallet".
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right">
-        <span
-          className={cn(
-            "font-medium tabular-nums",
-            tone === "danger" && "font-semibold text-destructive",
-            tone === "strong" && "font-semibold",
-          )}
-        >
-          {value}
-        </span>
-        {hint ? (
-          <span className="block text-[0.72rem] font-normal text-muted-foreground">
-            {hint}
-          </span>
-        ) : null}
+  const line = (
+    label: React.ReactNode,
+    value: React.ReactNode,
+    tone?: "strong" | "danger",
+    hint?: React.ReactNode,
+  ) => (
+    <div className="tpx-receipt-row" data-tone={tone}>
+      <span>{label}</span>
+      <span>
+        {value}
+        {hint ? <small>{hint}</small> : null}
       </span>
     </div>
   );
 
+  // ── IN THE ACCOUNT'S OWN MONEY ────────────────────────────────────
+  // What lands is the headline, in the account's currency -- never a
+  // dollar conversion (the supplier settles in dollars, and the supplier
+  // is the one thing a customer must never be shown).
   return (
-    <div className="rounded-xl border bg-muted/30 p-4">
-      <p className="mb-3 text-[0.68rem] font-semibold uppercase tracking-wider text-muted-foreground">
-        {tr("label.atop.whatThisCosts")}</p>
-      <div className="space-y-2.5">
-        <Row
-          label={tr("label.atop.outOfYourWallet")}
-          value={formatCurrency(gross, currency)}
-          tone="strong"
-        />
-        <Row
-          label={
-            feePending
-              ? tr("atop.topUpFeeIncluded")
-              : tr("atop.topUpFeeIncluded2", { feepct: String(fee_pct) })
-          }
-          value={
-            feePending
-              ? feeFailed
-                ? "couldn't check"
-                : "checking…"
-              : `− ${formatCurrency(fee_amount, currency)}`
-          }
-        />
-        <div className="h-px bg-border" />
-        {/* ── IN THE ACCOUNT'S OWN MONEY ────────────────────────────
-            A EUR ad account is credited in euros. This headlined the
-            dollar conversion and put the euro figure in the hint, so a
-            customer funding a euro account from a euro wallet was shown
-            "$111.19" as the thing that lands — a number that appears
-            nowhere in the account's life, and one the admin queue then
-            contradicted with "$97.00".
-
-            top_up_create_for_advertiser takes the fee in the payment
-            currency and credits the net in it. That IS what lands. The
-            dollar value is kept underneath, because the supplier side
-            is quoted in dollars and an admin reading over a shoulder
-            will want it — but it is no longer the headline, and it is
-            not shown at all when the account is already in dollars. */}
-          {/* ── NO DOLLAR FIGURE ON A EURO ACCOUNT ───────────────────
-              This printed "about $111.19 at 0.872361 EUR per USD" under
-              "Lands on the account €97.00" -- on a card that says, two
-              rows up, Currency EUR, and next to a "Funded to date"
-              figure in euros. The screen contradicted itself about the
-              customer's own money.
-
-              An ad account has ONE currency for its life. The dollar
-              figure exists because the SUPPLIER settles in dollars, and
-              the supplier is the one thing a customer must never be
-              shown -- not by name and not by its settlement currency.
-              It is also unverifiable: rates move, so it will not match
-              whatever the platform shows later.
-
-              The RATE still matters and the guard below still refuses
-              when it cannot be read; the customer just is not handed a
-              number in a currency their account does not have. */}
-        <Row
-          label={tr("atop.landsOnTheAccount")}
-          value={
-            netInWallet === null
-              ? "—"
-              : formatCurrency(netInWallet, currency)
-          }
-          hint={null}
-          tone="strong"
-        />
-        <div className="h-px bg-border" />
-        <Row
-          label={tr("label.atop.walletNow")}
-          value={formatCurrency(balance, currency)}
-        />
-        <Row
-          label={tr("label.atop.walletAfterwards")}
-          value={formatCurrency(remaining, currency)}
-          tone={remaining < 0 ? "danger" : "strong"}
-          hint={
-            remaining < 0
-              ? tr("atop.moreThanYouHoldTop")
-              : null
-          }
-        />
+    <div className="tpx-receipt">
+      <div className="tpx-receipt-hero">
+        <div>
+          <em>{tr("atop.landsOnTheAccount")}</em>
+          <b>{netInWallet === null ? "—" : formatCurrency(netInWallet, currency)}</b>
+        </div>
+        <span>{tr("label.atop.whatThisCosts")}</span>
+      </div>
+      <div style={{ padding: "4px 0" }}>
+        {line(tr("label.atop.outOfYourWallet"), formatCurrency(gross, currency), "strong")}
+        {line(
+          feePending
+            ? tr("atop.topUpFeeIncluded")
+            : tr("atop.topUpFeeIncluded2", { feepct: String(fee_pct) }),
+          feePending
+            ? feeFailed
+              ? "couldn't check"
+              : "checking…"
+            : `− ${formatCurrency(fee_amount, currency)}`,
+        )}
+        <hr />
+        {line(tr("label.atop.walletNow"), formatCurrency(balance, currency))}
+        {line(
+          tr("label.atop.walletAfterwards"),
+          formatCurrency(remaining, currency),
+          remaining < 0 ? "danger" : "strong",
+          remaining < 0 ? tr("atop.moreThanYouHoldTop") : null,
+        )}
       </div>
     </div>
   );
