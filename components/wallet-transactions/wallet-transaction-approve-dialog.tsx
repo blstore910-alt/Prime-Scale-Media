@@ -7,7 +7,6 @@ import { useMatchedDeposits } from "@/hooks/use-matched-deposits";
 import { useOutstandingPrecharges } from "@/hooks/use-outstanding-precharges";
 import { formatPaymentReference } from "@/lib/payment-reference";
 import { currencySymbol } from "@/lib/pure-invoice-currency";
-import { getSignedPaymentSlipUrl } from "@/actions/payment-slip-actions";
 import { useEffect, useState } from "react";
 
 // ── THE SLIP ON THE SCREEN THAT CREDITS ─────────────────────────────
@@ -22,10 +21,17 @@ function SlipThumb({ path }: { path: string | null | undefined }) {
     setUrl(null);
     setFailed(false);
     if (!path) return;
-    getSignedPaymentSlipUrl(path)
+    // A plain fetch, not the server action: actions queue one at a time
+    // behind the rest of the page (~20 s in Test 4). Same checks.
+    fetch("/api/payment-slip-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    })
+      .then((r) => r.json() as Promise<{ ok: boolean; data?: { url: string } }>)
       .then((res) => {
         if (!cancelled) {
-          if (res.ok) setUrl(res.data.url);
+          if (res.ok && res.data) setUrl(res.data.url);
           else setFailed(true);
         }
       })
