@@ -68,6 +68,14 @@ function parsePct(v: string): number | null {
   return n;
 }
 
+
+/** Een kleur per platform, voor de rand van de kaart. */
+const PLATFORM_KLEUR: Record<string, string> = {
+  meta: "#5B8DFF",
+  google: "#22c55e",
+  tiktok: "#ec4899",
+};
+
 export default function AdAccountTypesCard() {
   const { profile } = useAppContext();
   const queryClient = useQueryClient();
@@ -343,7 +351,7 @@ export default function AdAccountTypesCard() {
              becomes a small card with its fields labelled; from sm up it is
              the same table it always was. */
           <div className="grid gap-3 sm:overflow-x-auto">
-            <div className="hidden sm:grid grid-cols-[minmax(130px,1fr)_100px_78px_52px_52px] gap-2 min-w-[470px] text-xs text-muted-foreground pb-1 border-b">
+            <div className="hidden">
               <span>Type name</span>
               <span>Platform</span>
               <span className="text-right">Fee %</span>
@@ -368,10 +376,16 @@ export default function AdAccountTypesCard() {
             {rows.map((row, idx) => (
               <div
                 key={row.id}
-                className="grid grid-cols-2 items-center gap-x-3 gap-y-2 rounded-lg border p-3 sm:grid-cols-[minmax(130px,1fr)_100px_78px_52px_52px] sm:min-w-[470px] sm:gap-2 sm:rounded-none sm:border-0 sm:p-0"
+                // ── EEN KAART PER TYPE ───────────────────────────────
+                // De eigenaar, 01-10: "zeer onduidelijk wat wat is door geen
+                // kleuren en titels". Nu een kaart met een rand in de kleur
+                // van het platform, altijd zichtbare labels, en het
+                // leveranciersdeel als eigen geel blok.
+                className={`grid grid-cols-2 items-end gap-x-3 gap-y-3 rounded-xl border border-l-4 bg-card p-4 shadow-sm sm:grid-cols-[minmax(160px,1fr)_130px_120px_auto_auto] ${row.is_active ? "" : "opacity-70"}`}
+                style={{ borderLeftColor: PLATFORM_KLEUR[row.platform_group] ?? "#94a3b8" }}
               >
                 <label className="col-span-2 grid gap-1 sm:col-span-1">
-                  <span className="text-xs text-muted-foreground sm:hidden">
+                  <span className="text-xs font-semibold text-muted-foreground">
                     Type name
                   </span>
                   <Input
@@ -381,7 +395,7 @@ export default function AdAccountTypesCard() {
                   />
                 </label>
                 <label className="grid gap-1">
-                  <span className="text-xs text-muted-foreground sm:hidden">
+                  <span className="text-xs font-semibold text-muted-foreground">
                     Platform
                   </span>
                 <select
@@ -401,8 +415,8 @@ export default function AdAccountTypesCard() {
                 </select>
                 </label>
                 <label className="grid gap-1">
-                  <span className="text-xs text-muted-foreground sm:hidden">
-                    Fee %
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    Customer pays %
                   </span>
                   <Input
                     type="number"
@@ -425,7 +439,7 @@ export default function AdAccountTypesCard() {
                     }
                     className="h-4 w-4"
                   />
-                  <span className="text-xs text-muted-foreground sm:hidden">
+                  <span className="text-xs font-semibold text-muted-foreground">
                     API auto-topup
                   </span>
                 </label>
@@ -439,7 +453,7 @@ export default function AdAccountTypesCard() {
                     }
                     className="h-4 w-4"
                   />
-                  <span className="text-xs text-muted-foreground sm:hidden">
+                  <span className="text-xs font-semibold text-muted-foreground">
                     Active
                   </span>
                 </label>
@@ -456,7 +470,25 @@ export default function AdAccountTypesCard() {
                     ADMIN-ONLY. The supplier's name never appears on an
                     advertiser or affiliate surface, in the UI or in the
                     JSON behind it. */}
-                <div className="col-span-2 grid gap-2 sm:col-span-5 sm:grid-cols-[minmax(130px,1fr)_2fr_92px] sm:pb-2">
+                <div className="col-span-2 grid gap-2 rounded-lg border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-900 dark:bg-amber-950/20 sm:col-span-5 sm:grid-cols-[minmax(130px,1fr)_2fr_110px]">
+                  <div className="col-span-full flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                      Supplier · admin only
+                    </span>
+                    {(() => {
+                      const fee = Number(row.fee_str);
+                      const wij = Number(row.supplier_fee_str);
+                      if (row.fee_str.trim() === "" || row.supplier_fee_str.trim() === "" || !Number.isFinite(fee) || !Number.isFinite(wij)) {
+                        return <span className="text-[11px] font-semibold text-muted-foreground">margin unknown — set We pay %</span>;
+                      }
+                      const m = Math.round((fee - wij) * 100) / 100;
+                      return (
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${m > 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                          margin {m}%
+                        </span>
+                      );
+                    })()}
+                  </div>
                   {/* ── WHEN WE CANNOT READ THESE, WE CANNOT WRITE THEM ──
                       saveAll omits all three keys while supplierBlind is
                       true -- correctly, because writing a value we could

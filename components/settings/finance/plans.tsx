@@ -352,11 +352,14 @@ export default function PlansCard() {
   // Below sm each plan is a small card with its fields labelled; from sm up
   // it is the same six-column grid, with the floor that stops the name
   // column collapsing to 0px.
-  const TRACKS =
-    "sm:grid-cols-[minmax(130px,1fr)_84px_84px_96px_64px_64px_60px_48px]";
+  // ── EEN KAART PER PLAN ─────────────────────────────────────────
+  // De eigenaar, 01-10: "veel ui fouten" -- in de smalle tabel viel het
+  // eurotgeken onder de pijl van de keuzelijst. Nu een kaart per plan
+  // met een rand in de kleur van de soort (tier blauw, community paars),
+  // vier velden per regel, en altijd zichtbare labels.
   const cols =
-    `grid grid-cols-2 items-start gap-x-3 gap-y-2 rounded-lg border p-3 ${TRACKS} sm:min-w-[700px] sm:items-center sm:gap-2 sm:rounded-none sm:border-0 sm:p-0`;
-  const lab = "text-xs text-muted-foreground sm:hidden";
+    "grid grid-cols-2 items-end gap-x-3 gap-y-3 rounded-xl border border-l-4 bg-card p-4 shadow-sm sm:grid-cols-4";
+  const lab = "text-xs font-semibold text-muted-foreground";
 
   return (
     <Card>
@@ -380,7 +383,7 @@ export default function PlansCard() {
           <p className="text-destructive">{(error as Error)?.message}</p>
         ) : (
           <div className="grid gap-3 sm:overflow-x-auto">
-            <div className="hidden sm:grid grid-cols-[minmax(130px,1fr)_84px_84px_96px_64px_64px_60px_48px] gap-2 items-center min-w-[700px] text-xs text-muted-foreground border-b pb-1">
+            <div className="hidden">
               <span>Name</span>
               <span>Kind</span>
               <span className="text-right">Monthly</span>
@@ -406,8 +409,12 @@ export default function PlansCard() {
               </p>
             ) : null}
             {rows.map((r, i) => (
-              <div key={r.id} className={cols}>
-                <label className="col-span-2 grid gap-1 sm:col-span-1">
+              <div
+                key={r.id}
+                className={`${cols} ${r.is_active ? "" : "opacity-70"}`}
+                style={{ borderLeftColor: r.kind === "community" ? "#8B5CF6" : "#5B8DFF" }}
+              >
+                <label className="col-span-2 grid gap-1">
                   <span className={lab}>Name</span>
                   <Input
                     value={r.name}
