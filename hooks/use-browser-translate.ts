@@ -70,6 +70,28 @@ export const RTL_LANGUAGES = new Set(["ar", "fa", "he", "ur"]);
 
 const api = () => (globalThis as unknown as { Translator?: TranslatorApi }).Translator;
 
+// ── SNELLER (de eigenaar, 01-10: "het is maar een klein beetje tekst,
+// moet 10x sneller") ──
+//   * onthouden per taal in de browser: de tweede keer direct, zonder
+//     download en zonder opnieuw vertalen;
+//   * zes zinnen tegelijk in plaats van één voor één;
+//   * de volgorde van de aanroeper: de titels eerst.
+const CACHE = (key: string, code: string) => `${key}.v1.${code}`;
+function leesCache(key: string, code: string): Record<string, string> {
+  try {
+    return JSON.parse(window.localStorage.getItem(CACHE(key, code)) ?? "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+function schrijfCache(key: string, code: string, m: Record<string, string>) {
+  try {
+    window.localStorage.setItem(CACHE(key, code), JSON.stringify(m));
+  } catch {
+    /* vol of geblokkeerd: dan de volgende keer opnieuw */
+  }
+}
+
 /**
  * @param texts   alle Engelse zinnen die vertaald moeten worden
  * @param handmatig talen die de pagina zelf heeft (bv. "en", "nl") -- die
@@ -97,6 +119,16 @@ export function useBrowserTranslate(texts: string[], storageKey: string, handmat
   }, [storageKey]);
 
   const vertaal = async (ik: number, code: string) => {
+    const teksten = Array.from(new Set(tekstenRef.current.filter(Boolean)));
+    const uit: Record<string, string> = leesCache(storageKey, code);
+    const nodig = teksten.filter((x) => !(x in uit));
+    if (!nodig.length) {
+      // Alles al eens vertaald: meteen, zonder download.
+      setVertaald(uit);
+      setStand("done");
+      return;
+    }
+    if (Object.keys(uit).length) setVertaald({ ...uit });
     const t = api();
     if (!t) return;
     try {
@@ -129,19 +161,19 @@ export function useBrowserTranslate(texts: string[], storageKey: string, handmat
         }),
       ]);
       setDownload(100);
-      const teksten = Array.from(new Set(tekstenRef.current.filter(Boolean)));
-      const uit: Record<string, string> = {};
-      for (let i = 0; i < teksten.length; i++) {
+      const TEGELIJK = 6;
+      for (let i = 0; i < nodig.length; i += TEGELIJK) {
         if (ik !== loop.current) return;
-        uit[teksten[i]] = await v.translate(teksten[i]);
-        if (i % 8 === 0) {
-          setVoortgang(Math.max(1, Math.round(((i + 1) / teksten.length) * 100)));
-          setVertaald({ ...uit });
-        }
+        const stuk = nodig.slice(i, i + TEGELIJK);
+        const klaar = await Promise.all(stuk.map((x) => v.translate(x).catch(() => x)));
+        stuk.forEach((x, j) => (uit[x] = klaar[j]));
+        setVoortgang(Math.max(1, Math.round((Math.min(i + TEGELIJK, nodig.length) / nodig.length) * 100)));
+        setVertaald({ ...uit });
       }
       if (ik === loop.current) {
         setVertaald(uit);
         setStand("done");
+        schrijfCache(storageKey, code, uit);
       }
     } catch {
       if (ik === loop.current) setStand("unsupported");
@@ -155,6 +187,15 @@ export function useBrowserTranslate(texts: string[], storageKey: string, handmat
     if (handmatig.includes(lang)) {
       setStand("idle");
       return;
+    }
+    {
+      const bekend = leesCache(storageKey, lang);
+      const alles = tekstenRef.current.filter(Boolean);
+      if (alles.length && alles.every((x) => x in bekend)) {
+        setVertaald(bekend);
+        setStand("done");
+        return;
+      }
     }
     const t = api();
     if (!t) {

@@ -209,7 +209,12 @@ export default function CustomerGuideView({
   // De eigenaar, 01-10: "bij customer moet er ook zo'n language selector
   // bij get help". Engels en Nederlands staan erin (NL volgt de taal van
   // de app); elke andere taal vertaalt de browser.
-  const teksten = guide.sections.flatMap((x) => [x.title, x.intro, ...x.steps, ...(x.notes ?? []).flatMap((n) => [n.label, n.text])]);
+  // De titels eerst: die staan dicht op het scherm, dus die ziet de lezer
+  // meteen in zijn taal.
+  const teksten = [
+    ...guide.sections.map((x) => x.title),
+    ...guide.sections.flatMap((x) => [x.intro, ...x.steps, ...(x.notes ?? []).flatMap((n) => [n.label, n.text])]),
+  ];
   const vt = useBrowserTranslate(teksten, "psm.help.lang", ["en", "nl"]);
   const keuze = vt.lang === "en" && locale === "nl" ? "nl" : vt.lang;
   const bronTaal: Locale = keuze === "nl" ? "nl" : "en";
