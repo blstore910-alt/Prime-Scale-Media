@@ -330,8 +330,8 @@ export const HB_CHAPTERS: HbChapter[] = [
       ],
     },
     watch: {
-      en: ["Customers can NOT take money out of their wallet to their bank. Only from an ad account back to the wallet."],
-      nl: ["Klanten kunnen GEEN geld van hun wallet naar hun bank halen. Alleen van een ad account terug naar de wallet."],
+      en: ["Customers can NOT take money from their wallet to their bank themselves — only from an ad account back to the wallet. When a customer leaves for good, an admin can request a refund of the wallet (Money › Withdrawals › Refunds) and an owner approves it."],
+      nl: ["Klanten kunnen ZELF geen geld van hun wallet naar hun bank halen — alleen van een ad account terug naar de wallet. Vertrekt een klant definitief, dan kan een admin een terugbetaling van de wallet aanvragen (Money › Withdrawals › Refunds) en keurt een eigenaar die goed."],
     },
   },
   {
