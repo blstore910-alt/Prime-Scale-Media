@@ -9,10 +9,10 @@ import { AdAccount } from "@/lib/types/account";
 import { Wallet } from "@/lib/types/wallet";
 import { formatCurrency } from "@/lib/utils";
 import { isAccountLocked } from "@/lib/pure-account-status";
-import ConfirmModal, { ConfirmFact } from "@/components/ui/confirm-modal";
+import ConfirmModal from "@/components/ui/confirm-modal";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, DollarSign, Euro, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowRight, DollarSign, Euro, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, Resolver, useForm } from "react-hook-form";
 import * as z from "zod";
@@ -764,6 +764,7 @@ export default function AccountTopupForm({
         onOpenChange={(next) => {
           if (!next) setConfirming(null);
         }}
+        bare
         title={tr("atop.moveThisMoneyToThe")}
         lead={tr("atop.itLeavesYourWalletNow")}
         cta={tr("label.atop.yesTopItUp")}
@@ -793,43 +794,45 @@ export default function AccountTopupForm({
           })
         }
       >
-        <ConfirmFact
-          label="Ad account"
-          value={selectedAccount?.name ?? "—"}
-        />
-        <ConfirmFact
-          label={tr("label.atop.outOfYourWallet")}
-          value={formatCurrency(parseAmount(amount), selectedCurrency)}
-          strong
-        />
-        {fee > 0 && (
-          <ConfirmFact
-            label={`Top-up fee (${fee}%)`}
-            value={formatCurrency(
-              feeAmount,
-              selectedCurrency,
+        {/* De eigenaar, 01-10: "alle ad acc en wallet topups moet wow".
+            The same figures -- out of the wallet, the fee, what lands, the
+            wallet afterwards -- as the wallet-to-account pair, the dark
+            card being the ad account that receives it. One currency
+            throughout, the account's own (see the summary row). */}
+        <div className="tpx">
+          <div className="tpx-xc">
+            <div className="tpx-xc-box">
+              <small>{tr("label.atop.outOfYourWallet")}</small>
+              <b>{formatCurrency(parseAmount(amount), selectedCurrency)}</b>
+            </div>
+            <span className="tpx-route-arrow"><ArrowRight className="h-4 w-4" /></span>
+            <div className="tpx-xc-box tpx-xc-get">
+              <small>{selectedAccount?.name ?? tr("atop.landsOnTheAccount")}</small>
+              <b>{formatCurrency(netAfterFee, selectedCurrency)}</b>
+            </div>
+          </div>
+          <div className="tpx-receipt" style={{ marginTop: 10 }}>
+            <div className="tpx-receipt-row">
+              <span>{tr("label.atop.outOfYourWallet")}</span>
+              <span>{formatCurrency(parseAmount(amount), selectedCurrency)}</span>
+            </div>
+            {fee > 0 && (
+              <div className="tpx-receipt-row">
+                <span>{`Top-up fee (${fee}%)`}</span>
+                <span>− {formatCurrency(feeAmount, selectedCurrency)}</span>
+              </div>
             )}
-          />
-        )}
-        {/* The account's own currency, same as the summary. The three
-            figures on this confirmation are then all in one money and
-            the sum can be checked by eye: gross − fee = what lands. */}
-        <ConfirmFact
-          label={tr("atop.landsOnTheAccount")}
-          // One currency, the account's own. See the note on the
-          // summary row: a dollar figure on a euro account contradicts
-          // the same screen and leaks the supplier's settlement
-          // currency.
-          value={formatCurrency(
-            netAfterFee,
-            selectedCurrency,
-          )}
-          strong
-        />
-        <ConfirmFact
-          label={tr("label.atop.walletAfterwards")}
-          value={formatCurrency(remainingBalance, selectedCurrency)}
-        />
+            <hr />
+            <div className="tpx-receipt-row" data-tone="strong">
+              <span>{tr("atop.landsOnTheAccount")}</span>
+              <span>{formatCurrency(netAfterFee, selectedCurrency)}</span>
+            </div>
+            <div className="tpx-receipt-row">
+              <span>{tr("label.atop.walletAfterwards")}</span>
+              <span>{formatCurrency(remainingBalance, selectedCurrency)}</span>
+            </div>
+          </div>
+        </div>
         {/* Said out loud rather than hidden. If the rate could not be
             resolved, the figures above came from the ad account's own
             column, which is not what a customer on a plan is charged —

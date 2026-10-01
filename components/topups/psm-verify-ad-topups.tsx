@@ -405,7 +405,7 @@ export default function PsmVerifyAdTopups() {
                     Verify across the top, the rest on one row. */}
                 <div
                   className="actrow tupacts"
-                  style={{ marginTop: 10, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}
+                  style={{ marginTop: 10, gridTemplateColumns: pend ? "repeat(2, minmax(0, 1fr))" : "1fr" }}
                 >
                   {pend && (
                     <>
