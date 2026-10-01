@@ -33,6 +33,7 @@ import {
 } from "@/components/admin/manual-customer";
 import { useT } from "@/hooks/use-t";
 import { LANGUAGES, RTL_LANGUAGES, useBrowserTranslate } from "@/hooks/use-browser-translate";
+import { GUIDE_LANGS, GUIDE_TRANSLATIONS, type GuideLang } from "@/lib/guide-translations";
 import type { Locale } from "@/lib/i18n";
 import { GUIDE_HEAD_NL, GUIDE_NL } from "./customer-guide-nl";
 
@@ -109,6 +110,7 @@ const CSS = `
 }
 /* De taalkaart: dezelfde donkere kaart als het handboek van de
    medewerkers (de eigenaar, 01-10: "bij admin was het 10x mooier"). */
+.cguide .cg-lead{margin:0 0 14px;font-size:.88rem;line-height:1.5;color:var(--muted,#5b6378)}
 .cguide .cg-lang{position:relative;overflow:hidden;display:grid;gap:10px;margin:0 0 14px;
   padding:14px 16px;border-radius:16px;color:#fff;
   background:linear-gradient(120deg,#0a0f2e,#1b2160);
@@ -215,10 +217,14 @@ export default function CustomerGuideView({
     ...guide.sections.map((x) => x.title),
     ...guide.sections.flatMap((x) => [x.intro, ...x.steps, ...(x.notes ?? []).flatMap((n) => [n.label, n.text])]),
   ];
-  const vt = useBrowserTranslate(teksten, "psm.help.lang", ["en", "nl"]);
+  // EN, NL en de vier vooraf vertaalde talen doet de browser NIET: die
+  // staan er al, direct, ook op de telefoon en in de app.
+  const vt = useBrowserTranslate(teksten, "psm.help.lang", ["en", "nl", ...GUIDE_LANGS]);
   const keuze = vt.lang === "en" && locale === "nl" ? "nl" : vt.lang;
   const bronTaal: Locale = keuze === "nl" ? "nl" : "en";
-  const tt = keuze === "en" || keuze === "nl" ? (x: string) => x : vt.tt;
+  const vast = (GUIDE_LANGS as readonly string[]).includes(keuze) ? GUIDE_TRANSLATIONS[keuze as GuideLang] : null;
+  const tt = vast ? (x: string) => vast[x] ?? x : keuze === "en" || keuze === "nl" ? (x: string) => x : vt.tt;
+  const viaBrowser = keuze !== "en" && keuze !== "nl" && !vast;
 
   return (
     <div className="cguide" lang={keuze} dir={RTL_LANGUAGES.has(keuze) ? "rtl" : "ltr"}>
@@ -236,21 +242,22 @@ export default function CustomerGuideView({
             </select>
           </label>
         </div>
-        {vt.stand === "busy" ? (
+        {vt.stand === "busy" && viaBrowser ? (
           <span className="cg-lang-st">
             <Loader2 aria-hidden="true" />
             {vt.voortgang === 0
               ? `Downloading ${vt.label} (only the first time)… ${vt.download}%`
               : `Translating to ${vt.label}… ${vt.voortgang}%`}
           </span>
-        ) : vt.stand === "needsClick" && keuze !== "en" && keuze !== "nl" ? (
+        ) : vt.stand === "needsClick" && viaBrowser ? (
           <button type="button" className="cg-lang-btn" onClick={vt.opnieuw}>
             <Languages aria-hidden="true" /> Translate into {vt.label}
           </button>
-        ) : vt.stand === "unsupported" && keuze !== "en" && keuze !== "nl" ? (
-          <span className="cg-lang-st">{"Your browser can't translate this itself — right-click and choose Translate."}</span>
+        ) : vt.stand === "unsupported" && viaBrowser ? (
+          <span className="cg-lang-st">{"This language is translated by Chrome on a computer. On this device, choose English, Nederlands, Deutsch, Français, Español or Português."}</span>
         ) : null}
       </div>
+      <p className="cg-lead">{tt(customerGuideHeading(audience, bronTaal).lead)}</p>
       {guide.sections.map((s) => (
         <Hoofdstuk
           key={s.id}

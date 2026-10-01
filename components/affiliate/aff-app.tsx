@@ -55,7 +55,6 @@ import PsmAvatar from "@/components/ui/psm-avatar";
 import { downloadCsv } from "@/lib/download-blob";
 import { isCustomerVisibleType } from "@/lib/notification-catalog";
 import CustomerGuideView, {
-  customerGuideHeading,
 } from "@/components/guide/customer-guide";
 
 // Support inbox for the "contact us" actions. Change here if it differs.
@@ -2104,10 +2103,8 @@ export default function AffiliateApp() {
                     zitten er allemaal in; "wat zijn tiers", het ene dat
                     alleen hier stond, is naar het hoofdstuk over wat je
                     verdient verhuisd. */}
-                <p className="cap" style={{ marginTop: 6 }}>
-                  {customerGuideHeading("affiliate", affLocale).lead}
-                </p>
-                <div style={{ marginTop: 14 }}>
+                {/* De inleiding staat nu IN de klanthulp (taalkiezer). */}
+                <div style={{ marginTop: 10 }}>
                   <CustomerGuideView audience="affiliate" />
                 </div>
               </div>

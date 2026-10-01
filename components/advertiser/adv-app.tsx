@@ -16,7 +16,6 @@ import { customerPlatformName } from "@/lib/pure-platform-badge";
 import { groupsForRole } from "@/lib/notification-catalog";
 import { talkToUsLine } from "@/lib/whatsapp";
 import CustomerGuideView, {
-  customerGuideHeading,
 } from "@/components/guide/customer-guide";
 import PartnerDirectory from "@/components/partners/partner-directory";
 import LanguageSwitcher from "@/components/i18n/language-switcher";
@@ -8217,10 +8216,9 @@ export default function AdvertiserApp() {
                     Alle drie de antwoorden zitten erin; het ene feit dat
                     alleen de FAQ had -- "meestal binnen een werkdag live"
                     -- is naar het hoofdstuk over ad-accounts verhuisd. */}
-                <p className="cap" style={{ marginTop: 6 }}>
-                  {customerGuideHeading("advertiser", locale).lead}
-                </p>
-                <div style={{ marginTop: 14 }}>
+                {/* De inleiding staat nu IN de klanthulp, zodat hij de
+                    taalkiezer volgt. */}
+                <div style={{ marginTop: 10 }}>
                   <CustomerGuideView audience="advertiser" />
                 </div>
               </div>
