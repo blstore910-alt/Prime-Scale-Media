@@ -264,8 +264,12 @@ export default function InviteSignUpForm({
       // click away. The layout redirects them there anyway on the
       // next navigation, so this only decides whether their first
       // screen is the blocked one or the one that unblocks it.
+      // A TEAM invitation has no company of its own to fill in: the
+      // member sees the inviting advertiser's account (Test 4, 01-10).
+      const isTeam = !!(invite as { team_advertiser_id?: string | null })
+        ?.team_advertiser_id;
       router.push(
-        String(invite?.role ?? "").toLowerCase() === "advertiser"
+        String(invite?.role ?? "").toLowerCase() === "advertiser" && !isTeam
           ? "/complete-profile"
           : "/dashboard",
       );

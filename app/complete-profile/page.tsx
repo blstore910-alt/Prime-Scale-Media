@@ -106,6 +106,20 @@ export default async function CompleteProfilePage({
     ? profile.advertiser[0]
     : profile.advertiser;
 
+  // ── A TEAM MEMBER HAS NO COMPANY TO FILL IN ─────────────────────
+  // Test 4, 01-10: T4-V joined T4-A's team and landed here, on "we
+  // can't open your account". A team member has no advertisers row of
+  // their own -- they see someone else's -- so the missing row is not
+  // a broken signup. Membership (subject_members) means: the dashboard.
+  if (!advertiser) {
+    const { data: membership } = await supabase
+      .from("subject_members")
+      .select("id")
+      .eq("user_id", profile.user_id)
+      .limit(1);
+    if ((membership ?? []).length > 0) redirect("/dashboard");
+  }
+
   if (!advertiser) {
     // ── NOT A BARE DIV ────────────────────────────────────────────────
     //
