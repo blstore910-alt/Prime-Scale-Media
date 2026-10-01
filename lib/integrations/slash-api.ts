@@ -8,6 +8,32 @@
 // via Slash gebeurt pas als de eigenaar dat apart zegt -- dezelfde
 // regel als bij de RockAds-storting.
 //
+// ── DE JUISTE PADEN (01-10, van Slash zelf) ───────────────────────
+//
+// Slash support, 01-10: "GET /account -- list accounts", "GET
+// /account/{accountId}", en de saldo-endpoint. Gecontroleerd in hun
+// API-referentie: ENKELVOUD, en het saldo heet /balance:
+//
+//   GET /account                      -> { items: [{ id, type, status, balances: [...] }] }
+//   GET /account/{accountId}/balance  -> { balances: [{ type, available: { amountCents }, posted }] }
+//
+// Dit bestand riep /accounts en /accounts/{id}/balances aan -- twee keer
+// meervoud -- en eiste een valuta op de rekening. Die heeft Slash niet:
+// geen enkel veld. Dus werd elke rekening weggefilterd en zei het paneel
+// "Slash returned no accounts". De oude paden blijven als terugval.
+//
+// ── WELK SALDO IS VAN ONS ─────────────────────────────────────────
+//
+// Een debit-rekening geeft "debit". Een charge card geeft er twee:
+// "cash" (ons geld) en "credit" (de kredietruimte van de kaart -- NIET
+// ons geld). "credit" telt dus niet mee in wat we hebben.
+//
+// ── DE VALUTA ─────────────────────────────────────────────────────
+//
+// Slash is een Amerikaanse bank en zet geen valuta op een rekening.
+// Staat er toch een, dan wint die; anders USD (SLASH_CURRENCY
+// overschrijft dat als het ooit anders blijkt).
+//
 // ── TWEE VERZOEKEN, EN WAAROM DAT MOET ────────────────────────────
 //
 // De saldo-endpoint geeft GEEN valuta terug:
@@ -87,13 +113,13 @@ function num(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** De rekeningen, met hun valuta. Twee paden, want de docs noemen
- *  `/accounts` en het antwoordvoorbeeld `/v2/accounts`. */
+/** De rekeningen, met hun valuta. Eerst het pad uit de docs (/account),
+ *  dan de oude gokken als terugval. */
 async function accounts(
   key: string,
 ): Promise<{ rows: { id: string; currency: string }[]; error: string | null }> {
   let lastError: string | null = null;
-  for (const path of ["/accounts", "/v2/accounts"]) {
+  for (const path of ["/account", "/accounts", "/v2/accounts"]) {
     const { body, error } = await get(path, key);
     if (error) {
       lastError = error;
@@ -108,7 +134,7 @@ async function accounts(
         const a = r as { id?: unknown; currency?: unknown; status?: unknown };
         return {
           id: String(a.id ?? ""),
-          currency: String(a.currency ?? "").toUpperCase(),
+          currency: String(a.currency ?? process.env.SLASH_CURRENCY ?? "USD").toUpperCase(),
           status: String(a.status ?? ""),
         };
       })
@@ -143,10 +169,9 @@ export async function fetchSlashBalances(): Promise<{
   const byCur = new Map<string, number>();
   const failed: string[] = [];
   for (const acc of rows) {
-    const { body, error: bErr } = await get(
-      `/accounts/${encodeURIComponent(acc.id)}/balances`,
-      key,
-    );
+    const id = encodeURIComponent(acc.id);
+    let { body, error: bErr } = await get(`/account/${id}/balance`, key);
+    if (bErr) ({ body, error: bErr } = await get(`/accounts/${id}/balances`, key));
     if (bErr) {
       failed.push(acc.currency);
       continue;
@@ -154,7 +179,13 @@ export async function fetchSlashBalances(): Promise<{
     const list = (body as { balances?: unknown[] } | null)?.balances;
     if (!Array.isArray(list)) continue;
     for (const b of list) {
-      const x = b as { available?: { amountCents?: unknown }; posted?: { amountCents?: unknown } };
+      const x = b as {
+        type?: unknown;
+        available?: { amountCents?: unknown };
+        posted?: { amountCents?: unknown };
+      };
+      // De kredietruimte van een kaart is geen geld dat we hebben.
+      if (String(x.type ?? "").toLowerCase() === "credit") continue;
       const cents = num(x.available?.amountCents) ?? num(x.posted?.amountCents);
       if (cents === null) continue;
       byCur.set(acc.currency, (byCur.get(acc.currency) ?? 0) + cents / 100);
