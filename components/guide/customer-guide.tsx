@@ -24,16 +24,25 @@
 // een admin aan de telefoon voorleest en wat de klant hier leest
 // hetzelfde is en hetzelfde blijft.
 
-import { useState } from "react";
-import { ChevronDown, Languages, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronDown, Languages } from "lucide-react";
 import {
   CUSTOMER_GUIDES,
   type Note,
   type Section,
 } from "@/components/admin/manual-customer";
 import { useT } from "@/hooks/use-t";
-import { LANGUAGES, RTL_LANGUAGES, useBrowserTranslate } from "@/hooks/use-browser-translate";
 import { GUIDE_LANGS, GUIDE_TRANSLATIONS, type GuideLang } from "@/lib/guide-translations";
+
+const OPSLAG = "psm.help.lang";
+const HELP_TALEN = [
+  { code: "en", label: "English" },
+  { code: "nl", label: "Nederlands" },
+  { code: "de", label: "Deutsch" },
+  { code: "fr", label: "Français" },
+  { code: "es", label: "Español" },
+  { code: "pt", label: "Português" },
+];
 import type { Locale } from "@/lib/i18n";
 import { GUIDE_HEAD_NL, GUIDE_NL } from "./customer-guide-nl";
 
@@ -110,7 +119,8 @@ const CSS = `
 }
 /* De taalkaart: dezelfde donkere kaart als het handboek van de
    medewerkers (de eigenaar, 01-10: "bij admin was het 10x mooier"). */
-.cguide .cg-lead{margin:0 0 14px;font-size:.88rem;line-height:1.5;color:var(--muted,#5b6378)}
+.cguide .cg-lead{margin:0 0 14px;font-size:.88rem;line-height:1.5;color:#475069;font-weight:500}
+@media (prefers-color-scheme:dark){.cguide .cg-lead{color:#c9d1e6}}
 .cguide .cg-lang{position:relative;overflow:hidden;display:grid;gap:10px;margin:0 0 14px;
   padding:14px 16px;border-radius:16px;color:#fff;
   background:linear-gradient(120deg,#0a0f2e,#1b2160);
@@ -207,34 +217,44 @@ export default function CustomerGuideView({
   // op een telefoon weer de muur tekst die dit moest vermijden.
   const [open, setOpen] = useState<string | null>(null);
 
-  // ── EEN TAALKIEZER, ZOALS IN HET HANDBOEK VAN DE MEDEWERKERS ──────
-  // De eigenaar, 01-10: "bij customer moet er ook zo'n language selector
-  // bij get help". Engels en Nederlands staan erin (NL volgt de taal van
-  // de app); elke andere taal vertaalt de browser.
-  // De titels eerst: die staan dicht op het scherm, dus die ziet de lezer
-  // meteen in zijn taal.
-  const teksten = [
-    ...guide.sections.map((x) => x.title),
-    ...guide.sections.flatMap((x) => [x.intro, ...x.steps, ...(x.notes ?? []).flatMap((n) => [n.label, n.text])]),
-  ];
-  // EN, NL en de vier vooraf vertaalde talen doet de browser NIET: die
-  // staan er al, direct, ook op de telefoon en in de app.
-  const vt = useBrowserTranslate(teksten, "psm.help.lang", ["en", "nl", ...GUIDE_LANGS]);
-  const keuze = vt.lang === "en" && locale === "nl" ? "nl" : vt.lang;
+  // ── ZES TALEN, DIE ALTIJD WERKEN ───────────────────────────────────
+  // De eigenaar, 01-10: "dan mag dat hele vertaal-ding weg als het niet
+  // werkt in de PWA". Geen vertaling in de browser meer: alleen EN, NL en
+  // de vier vooraf vertaalde talen (lib/guide-translations.ts). Direct,
+  // op elk apparaat, ook in de app op de telefoon. NL volgt de taal van
+  // de app tot iemand zelf kiest.
+  const [gekozen, setGekozen] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const s0 = window.localStorage.getItem(OPSLAG);
+      if (s0 && HELP_TALEN.some((t) => t.code === s0)) setGekozen(s0);
+    } catch {
+      /* geen opslag */
+    }
+  }, []);
+  const keuze = gekozen ?? (locale === "nl" ? "nl" : "en");
+  const kies = (code: string) => {
+    setGekozen(code);
+    try {
+      window.localStorage.setItem(OPSLAG, code);
+    } catch {
+      /* niet onthouden is ook goed */
+    }
+  };
   const bronTaal: Locale = keuze === "nl" ? "nl" : "en";
   const vast = (GUIDE_LANGS as readonly string[]).includes(keuze) ? GUIDE_TRANSLATIONS[keuze as GuideLang] : null;
-  const tt = vast ? (x: string) => vast[x] ?? x : keuze === "en" || keuze === "nl" ? (x: string) => x : vt.tt;
-  const viaBrowser = keuze !== "en" && keuze !== "nl" && !vast;
+  const tt = vast ? (x: string) => vast[x] ?? x : (x: string) => x;
+
 
   return (
-    <div className="cguide" lang={keuze} dir={RTL_LANGUAGES.has(keuze) ? "rtl" : "ltr"}>
+    <div className="cguide" lang={keuze}>
       <style>{CSS}</style>
       <div className="cg-lang">
         <div className="cg-lang-row">
           <label className="cg-lang-pick">
             <Languages aria-hidden="true" />
-            <select value={keuze} onChange={(e) => vt.kies(e.target.value)} aria-label="Language">
-              {LANGUAGES.map((l) => (
+            <select value={keuze} onChange={(e) => kies(e.target.value)} aria-label="Language">
+              {HELP_TALEN.map((l) => (
                 <option key={l.code} value={l.code}>
                   {l.label}
                 </option>
@@ -242,20 +262,6 @@ export default function CustomerGuideView({
             </select>
           </label>
         </div>
-        {vt.stand === "busy" && viaBrowser ? (
-          <span className="cg-lang-st">
-            <Loader2 aria-hidden="true" />
-            {vt.voortgang === 0
-              ? `Downloading ${vt.label} (only the first time)… ${vt.download}%`
-              : `Translating to ${vt.label}… ${vt.voortgang}%`}
-          </span>
-        ) : vt.stand === "needsClick" && viaBrowser ? (
-          <button type="button" className="cg-lang-btn" onClick={vt.opnieuw}>
-            <Languages aria-hidden="true" /> Translate into {vt.label}
-          </button>
-        ) : vt.stand === "unsupported" && viaBrowser ? (
-          <span className="cg-lang-st">{"This language is translated by Chrome on a computer. On this device, choose English, Nederlands, Deutsch, Français, Español or Português."}</span>
-        ) : null}
       </div>
       <p className="cg-lead">{tt(customerGuideHeading(audience, bronTaal).lead)}</p>
       {guide.sections.map((s) => (
