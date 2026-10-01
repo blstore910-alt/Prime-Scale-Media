@@ -17,9 +17,11 @@ import { resolveAdminContext } from "./_shared";
 import { createAdminClient } from "@/lib/supabase/server";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { amsterdamYmd } from "@/lib/pure-backup";
+import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 import type { DayBalance, LedgerLine, LineKind } from "@/lib/pure-supplier-ledger";
 
-const SOORTEN: LineKind[] = ["deposit", "customer_topup", "fee", "dst", "adjustment"];
+const SOORTEN: LineKind[] = ["deposit", "customer_topup", "fee", "dst", "adjustment", "adjustment_out"];
+const CORRECTIES: LineKind[] = ["adjustment", "adjustment_out"];
 
 const dagVan = (iso: string) => {
   const { y, m, day } = amsterdamYmd(new Date(iso));
@@ -35,6 +37,8 @@ export type SupplierLedgerData = {
   lines: LedgerLine[];
   balances: DayBalance[];
   plakNodig: boolean;
+  /** Mag deze gebruiker correcties goedkeuren? Alleen een eigenaar. */
+  canDecide: boolean;
 };
 
 /** De leveranciers waar handmatig voor geboekt wordt: alles met een
@@ -73,16 +77,27 @@ export async function getSupplierLedger(
   const per = await handmatigeLeveranciers(db, tenantId);
   const suppliers = Array.from(per.keys()).sort();
   const naam = (supplier && per.has(supplier) ? supplier : suppliers[0]) ?? "";
-  if (!naam) return { ok: true, data: { supplier: "", suppliers, lines: [], balances: [], plakNodig: false } };
+  const canDecide = await isTenantOwner(db, tenantId, res0.ctx.profile.user_id, res0.ctx.profile.id);
+  if (!naam) return { ok: true, data: { supplier: "", suppliers, lines: [], balances: [], plakNodig: false, canDecide } };
 
   let plakNodig = false;
-  const { data: lijn, error: lErr } = await db
-    .from("supplier_ledger_lines")
-    .select("id, day, kind, amount, client_ref, note")
-    .eq("tenant_id", tenantId)
-    .eq("supplier", naam)
-    .order("day", { ascending: true })
-    .order("created_at", { ascending: true });
+  // Plak 186 voegt status, het wisselgat en de beslisser toe. Zonder die
+  // plak opnieuw met de kolommen van 185: dan is alles "goedgekeurd".
+  const leesRegels = (kol: string) =>
+    db
+      .from("supplier_ledger_lines")
+      .select(kol)
+      .eq("tenant_id", tenantId)
+      .eq("supplier", naam)
+      .order("day", { ascending: true })
+      .order("created_at", { ascending: true });
+  let { data: lijn, error: lErr } = await leesRegels(
+    "id, day, kind, amount, client_ref, note, status, reject_reason, sent_amount, sent_currency",
+  );
+  if (lErr && ontbreekt(lErr)) {
+    plakNodig = true;
+    ({ data: lijn, error: lErr } = await leesRegels("id, day, kind, amount, client_ref, note"));
+  }
   if (lErr && !ontbreekt(lErr)) return { ok: false, error: safeErrorMessage(lErr) };
   if (lErr) plakNodig = true;
 
@@ -94,13 +109,17 @@ export async function getSupplierLedger(
   if (bErr && !ontbreekt(bErr)) return { ok: false, error: safeErrorMessage(bErr) };
   if (bErr) plakNodig = true;
 
-  const lines: LedgerLine[] = ((lijn ?? []) as {
+  const lines: LedgerLine[] = ((lijn ?? []) as unknown as {
     id: string;
     day: string;
     kind: LineKind;
     amount: number | string;
     client_ref: string | null;
     note: string | null;
+    status?: "approved" | "pending" | "rejected" | null;
+    reject_reason?: string | null;
+    sent_amount?: number | string | null;
+    sent_currency?: "EUR" | "USD" | null;
   }[]).map((l) => ({
     id: l.id,
     day: String(l.day).slice(0, 10),
@@ -108,7 +127,11 @@ export async function getSupplierLedger(
     amount: Number(l.amount),
     clientRef: l.client_ref,
     note: l.note,
-    source: "manual",
+    source: "manual" as const,
+    status: l.status ?? "approved",
+    rejectReason: l.reject_reason ?? null,
+    sentAmount: l.sent_amount != null ? Number(l.sent_amount) : null,
+    sentCurrency: l.sent_currency ?? null,
   }));
 
   // De top-ups uit de app zelf, op accounts van deze leverancier.
@@ -170,7 +193,7 @@ export async function getSupplierLedger(
   const balances: DayBalance[] = ((bal ?? []) as { day: string; actual_end: number | string; note: string | null }[]).map(
     (b) => ({ day: String(b.day).slice(0, 10), actualEnd: Number(b.actual_end), note: b.note }),
   );
-  return { ok: true, data: { supplier: naam, suppliers, lines, balances, plakNodig } };
+  return { ok: true, data: { supplier: naam, suppliers, lines, balances, plakNodig, canDecide } };
 }
 
 export async function addSupplierLine(input: {
@@ -180,7 +203,10 @@ export async function addSupplierLine(input: {
   amount: number | string;
   clientRef?: string | null;
   note?: string | null;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+  /** Bij een storting: wat wij stuurden (bv. 4000 EUR). */
+  sentAmount?: number | string | null;
+  sentCurrency?: string | null;
+}): Promise<{ ok: true; data: { pending: boolean } } | { ok: false; error: string }> {
   const res0 = await resolveAdminContext();
   if (!res0.ok) return { ok: false, error: res0.error };
   const tenantId = res0.ctx.profile.tenant_id as string;
@@ -193,7 +219,22 @@ export async function addSupplierLine(input: {
   if (!SOORTEN.includes(kind)) return { ok: false, error: "Pick what this line is." };
   if (!(amount > 0)) return { ok: false, error: "The amount has to be above zero." };
   const db = await createAdminClient();
-  const { error } = await db.from("supplier_ledger_lines").insert({
+
+  // ── EEN CORRECTIE VAN EEN ADMIN WACHT OP EEN EIGENAAR ──────────
+  // De eigenaar, 01-10: "admins moeten correctie kunnen AANVRAGEN".
+  // Een correctie verandert het saldo zonder dat er geld bewoog; dat
+  // beslist een eigenaar. Een eigenaar zelf boekt hem meteen.
+  const eigenaar = await isTenantOwner(db, tenantId, res0.ctx.profile.user_id, res0.ctx.profile.id);
+  const pending = CORRECTIES.includes(kind) && !eigenaar;
+  if (CORRECTIES.includes(kind) && !String(input?.note ?? "").trim()) {
+    return { ok: false, error: "Say why -- a correction needs a reason." };
+  }
+
+  const sentAmount = input?.sentAmount != null && String(input.sentAmount).trim() !== "" ? Math.round(Number(input.sentAmount) * 100) / 100 : null;
+  const sentCurrency = sentAmount ? (String(input?.sentCurrency ?? "").toUpperCase() === "EUR" ? "EUR" : "USD") : null;
+  if (sentAmount !== null && !(sentAmount > 0)) return { ok: false, error: "What we sent has to be above zero." };
+
+  const basis = {
     tenant_id: tenantId,
     supplier,
     day,
@@ -203,8 +244,51 @@ export async function addSupplierLine(input: {
     client_ref: String(input?.clientRef ?? "").trim().slice(0, 40) || null,
     note: String(input?.note ?? "").trim().slice(0, 300) || null,
     created_by: res0.ctx.profile.id,
-  });
+  };
+  const extra = {
+    status: pending ? "pending" : "approved",
+    requested_by: res0.ctx.profile.id,
+    ...(kind === "deposit" && sentAmount ? { sent_amount: sentAmount, sent_currency: sentCurrency } : {}),
+  };
+  let { error } = await db.from("supplier_ledger_lines").insert({ ...basis, ...extra });
+  if (error && ontbreekt(error)) {
+    // Zonder plak 186 bestaat "wachten" niet. Een correctie van een admin
+    // dan NIET meteen boeken -- dat zou precies de goedkeuring overslaan.
+    if (pending || kind === "adjustment_out") return { ok: false, error: "Corrections need plak 186 first." };
+    ({ error } = await db.from("supplier_ledger_lines").insert(basis));
+  }
   if (error) return { ok: false, error: ontbreekt(error) ? "Run plak 185 first." : safeErrorMessage(error) };
+  return { ok: true, data: { pending } };
+}
+
+/** Een eigenaar keurt een wachtende correctie goed of wijst hem af. */
+export async function decideSupplierLine(input: {
+  id: string;
+  approve: boolean;
+  reason?: string | null;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res0 = await resolveAdminContext();
+  if (!res0.ok) return { ok: false, error: res0.error };
+  const tenantId = res0.ctx.profile.tenant_id as string;
+  const db = await createAdminClient();
+  const eigenaar = await isTenantOwner(db, tenantId, res0.ctx.profile.user_id, res0.ctx.profile.id);
+  if (!eigenaar) return { ok: false, error: "Only an owner can decide a correction." };
+  const reden = String(input?.reason ?? "").trim().slice(0, 300);
+  if (!input?.approve && !reden) return { ok: false, error: "Say why it is rejected." };
+  const { data, error } = await db
+    .from("supplier_ledger_lines")
+    .update({
+      status: input?.approve ? "approved" : "rejected",
+      decided_by: res0.ctx.profile.id,
+      decided_at: new Date().toISOString(),
+      reject_reason: input?.approve ? null : reden,
+    })
+    .eq("id", String(input?.id ?? ""))
+    .eq("tenant_id", tenantId)
+    .eq("status", "pending")
+    .select("id");
+  if (error) return { ok: false, error: safeErrorMessage(error) };
+  if (!(data ?? []).length) return { ok: false, error: "That correction is no longer waiting." };
   return { ok: true };
 }
 

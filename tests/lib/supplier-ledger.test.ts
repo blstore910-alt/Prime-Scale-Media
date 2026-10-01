@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { buildLedgerDays, latestBalance } from "../../lib/pure-supplier-ledger";
+import { buildLedgerDays, depositGap, latestBalance } from "../../lib/pure-supplier-ledger";
 
 // Overgenomen uit het spreadsheet van de eigenaar (29-09-26): begin
 // $4,414.83, vier klant-top-ups, $20.34 fees, echt eind $2,447.69 --
@@ -64,4 +64,28 @@ test("de volgende dag begint bij het ECHTE eind als dat er is", () => {
 
 test("geen regels, geen saldo", () => {
   assert.equal(latestBalance(buildLedgerDays([], [])), null);
+});
+
+test("een wachtende of afgewezen correctie telt niet mee; een goedgekeurde wel", () => {
+  const d = buildLedgerDays(
+    [
+      { id: "a", day: "2026-10-01", kind: "deposit", amount: 1000 },
+      { id: "b", day: "2026-10-01", kind: "adjustment_out", amount: 50, status: "pending" },
+      { id: "c", day: "2026-10-01", kind: "adjustment", amount: 20, status: "rejected" },
+      { id: "d", day: "2026-10-01", kind: "adjustment_out", amount: 5 },
+    ],
+    [],
+  );
+  assert.equal(d[0].adjustments, -5);
+  assert.equal(d[0].expectedEnd, 995);
+  assert.equal(d[0].lines.length, 4);
+});
+
+test("het wisselgat: zij gaven 1.1266, wij rekenen 1.13 -- \$13.44 in hun voordeel", () => {
+  const g = depositGap(
+    { id: "a", day: "2026-10-01", kind: "deposit", amount: 4506.56, sentAmount: 4000, sentCurrency: "EUR" },
+    1.13,
+  );
+  assert.deepEqual(g, { theirRate: 1.1266, gapUsd: -13.44 });
+  assert.equal(depositGap({ id: "b", day: "2026-10-01", kind: "deposit", amount: 100 }, 1.13), null);
 });

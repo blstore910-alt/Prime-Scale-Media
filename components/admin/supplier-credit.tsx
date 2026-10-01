@@ -272,7 +272,8 @@ function fmt(amount: number, currency: string): string {
 
    Komt die sleutel er ooit, dan hoort hij hier weer bij -- en dan zegt
    de rij eronder vanzelf wat hij houdt. */
-const SUPPLIER_ORDER = ["RockAds", "Falkyn", "Wise"];
+// De eigenaar, 01-10: "tijdens laden mag Bestads en Slash er ook bij".
+const SUPPLIER_ORDER = ["RockAds", "Falkyn", "Bestads", "Wise", "Slash"];
 const CURRENCIES_WHILE_LOADING = ["EUR", "USD"];
 
 /** "synced just now" / "synced at 14:52" / "synced 28 Sep 14:52" --
@@ -348,8 +349,11 @@ function SupplierRows({
   return (
     <>
       <tr
-        className={`${s.kind === "bank" ? "bank " : ""}${hasDetail ? "click " : ""}${open ? "open" : ""}`}
-        onClick={hasDetail ? onToggle : undefined}
+        // Bestads heeft geen API: een klik opent het dagboek waar het saldo
+        // wordt bijgehouden (plak 185). De eigenaar, 01-10: "waar kunnen we
+        // die balans van Bestads bijhouden".
+        className={`${s.kind === "bank" ? "bank " : ""}${hasDetail || s.supplier === "Bestads" ? "click " : ""}${open ? "open" : ""}`}
+        onClick={hasDetail ? onToggle : s.supplier === "Bestads" ? () => { window.location.href = "/supplier-ledger"; } : undefined}
         // Op een telefoon is .sc-when verborgen om breedte te winnen,
         // dus de synctijd moet ergens anders te vinden zijn. Hier, op
         // de rij, waar je hem zoekt.

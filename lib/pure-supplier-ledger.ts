@@ -13,7 +13,7 @@
 // Puur en in centen gerekend: geen afronding die over dertig dagen een
 // dollar wordt.
 
-export type LineKind = "deposit" | "customer_topup" | "fee" | "dst" | "adjustment";
+export type LineKind = "deposit" | "customer_topup" | "fee" | "dst" | "adjustment" | "adjustment_out";
 
 export type LedgerLine = {
   id: string;
@@ -24,6 +24,14 @@ export type LedgerLine = {
   note?: string | null;
   /** "app" = een top-up uit de app zelf, niet handmatig ingevoerd. */
   source?: "manual" | "app";
+  /** Plak 186. Een correctie van een admin wacht op een eigenaar en
+   *  telt tot dan niet mee; een afgewezen regel nooit. */
+  status?: "approved" | "pending" | "rejected";
+  rejectReason?: string | null;
+  /** Bij een storting: wat WIJ stuurden (bv. EUR 4000), naast amount =
+   *  wat zij in USD bijschreven. */
+  sentAmount?: number | null;
+  sentCurrency?: "EUR" | "USD" | null;
 };
 
 export type DayBalance = { day: string; actualEnd: number; note?: string | null };
@@ -57,13 +65,16 @@ export function buildLedgerDays(lines: LedgerLine[], balances: DayBalance[]): Le
   let vorigeEind = 0; // in centen
   for (const day of dagen) {
     const dl = lines.filter((l) => l.day === day);
-    const som = (k: LineKind) => dl.filter((l) => l.kind === k).reduce((s, l) => s + c(l.amount), 0);
+    // Alleen goedgekeurde regels tellen; een wachtende correctie staat er
+    // wel, maar verandert het saldo nog niet.
+    const telt = dl.filter((l) => (l.status ?? "approved") === "approved");
+    const som = (k: LineKind) => telt.filter((l) => l.kind === k).reduce((s, l) => s + c(l.amount), 0);
     const deposits = som("deposit");
     const topups = som("customer_topup");
     const fees = som("fee");
     const dst = som("dst");
-    // Een correctie is plus: een minbedrag voer je in als een andere soort.
-    const adjustments = som("adjustment");
+    // adjustment is naar boven, adjustment_out naar beneden.
+    const adjustments = som("adjustment") - som("adjustment_out");
     const start = vorigeEind;
     const expected = start + deposits - topups - fees - dst + adjustments;
     const b = echt.get(day);
@@ -88,6 +99,15 @@ export function buildLedgerDays(lines: LedgerLine[], balances: DayBalance[]): Le
     vorigeEind = actual ?? expected;
   }
   return uit;
+}
+
+/** Het wisselgat van een storting in euro's: wat zij bijschreven tegen
+ *  wat het tegen onze koers had moeten zijn. Positief = in ons voordeel. */
+export function depositGap(l: LedgerLine, eurToUsd: number | null): { theirRate: number; gapUsd: number | null } | null {
+  if (l.kind !== "deposit" || l.sentCurrency !== "EUR" || !l.sentAmount || !(l.sentAmount > 0)) return null;
+  const theirRate = Math.round((l.amount / l.sentAmount) * 10000) / 10000;
+  const gapUsd = eurToUsd && eurToUsd > 0 ? e(c(l.amount) - c(l.sentAmount * eurToUsd)) : null;
+  return { theirRate, gapUsd };
 }
 
 /** Het meest recente saldo voor "What we hold": het laatste echte eind,

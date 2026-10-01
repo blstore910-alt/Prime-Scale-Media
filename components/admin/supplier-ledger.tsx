@@ -16,11 +16,13 @@ import { toast } from "sonner";
 import { Loader2, Plus, Trash2, ChevronDown } from "lucide-react";
 import {
   addSupplierLine,
+  decideSupplierLine,
   deleteSupplierLine,
   getSupplierLedger,
   setSupplierDayBalance,
 } from "@/actions/supplier-ledger-actions";
-import { buildLedgerDays, latestBalance, type LedgerDay } from "@/lib/pure-supplier-ledger";
+import { buildLedgerDays, depositGap, latestBalance, type LedgerDay } from "@/lib/pure-supplier-ledger";
+import { useUsdToEur } from "@/hooks/use-usd-to-eur";
 import { amsterdamYmd } from "@/lib/pure-backup";
 
 const SOORT_LABEL: Record<string, string> = {
@@ -28,7 +30,8 @@ const SOORT_LABEL: Record<string, string> = {
   customer_topup: "− Customer top-up",
   fee: "− Fee",
   dst: "− DST",
-  adjustment: "± Correction (+)",
+  adjustment: "+ Correction (up)",
+  adjustment_out: "− Correction (down)",
 };
 
 const usd = (n: number | null) =>
@@ -61,6 +64,9 @@ export default function SupplierLedger() {
 
   const days = useMemo(() => (q.data ? buildLedgerDays(q.data.lines, q.data.balances) : []), [q.data]);
   const latest = latestBalance(days);
+  // EUR per USD; voor het wisselgat van een storting in euro's.
+  const { rate: usdToEur } = useUsdToEur();
+  const eurToUsd = usdToEur && usdToEur > 0 ? 1 / usdToEur : null;
   const naam = q.data?.supplier ?? "";
   const vernieuw = () => void qc.invalidateQueries({ queryKey: ["supplier-ledger"] });
 
@@ -173,6 +179,8 @@ export default function SupplierLedger() {
                 open={open === d.day}
                 onToggle={() => setOpen(open === d.day ? null : d.day)}
                 onChanged={vernieuw}
+                canDecide={!!q.data?.canDecide}
+                eurToUsd={eurToUsd}
               />
             ))}
           </div>
@@ -188,13 +196,19 @@ function Dag({
   open,
   onToggle,
   onChanged,
+  canDecide,
+  eurToUsd,
 }: {
   d: LedgerDay;
   supplier: string;
   open: boolean;
   onToggle: () => void;
   onChanged: () => void;
+  canDecide: boolean;
+  eurToUsd: number | null;
 }) {
+  const [sent, setSent] = useState("");
+  const [sentCur, setSentCur] = useState("EUR");
   const [kind, setKind] = useState("customer_topup");
   const [amount, setAmount] = useState("");
   const [ref, setRef] = useState("");
@@ -203,14 +217,25 @@ function Dag({
 
   const add = useMutation({
     mutationFn: async () => {
-      const r = await addSupplierLine({ supplier, day: d.day, kind, amount, clientRef: ref, note });
+      const r = await addSupplierLine({
+        supplier,
+        day: d.day,
+        kind,
+        amount,
+        clientRef: ref,
+        note,
+        sentAmount: kind === "deposit" ? sent : null,
+        sentCurrency: kind === "deposit" ? sentCur : null,
+      });
       if (!r.ok) throw new Error(r.error);
+      return r.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setAmount("");
       setRef("");
       setNote("");
-      toast.success("Line added");
+      setSent("");
+      toast.success(data.pending ? "Correction sent to an owner for approval" : "Line added");
       onChanged();
     },
     onError: (e) => toast.error((e as Error).message),
@@ -223,6 +248,23 @@ function Dag({
     onSuccess: () => onChanged(),
     onError: (e) => toast.error((e as Error).message),
   });
+  const beslis = useMutation({
+    mutationFn: async (v: { id: string; approve: boolean }) => {
+      let reason: string | null = null;
+      if (!v.approve) {
+        reason = window.prompt("Why is this correction rejected?") ?? "";
+        if (!reason.trim()) throw new Error("A rejection needs a reason.");
+      }
+      const r = await decideSupplierLine({ id: v.id, approve: v.approve, reason });
+      if (!r.ok) throw new Error(r.error);
+    },
+    onSuccess: () => {
+      toast.success("Decided");
+      onChanged();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
   const bal = useMutation({
     mutationFn: async () => {
       const r = await setSupplierDayBalance({ supplier, day: d.day, actualEnd: actual });
@@ -279,9 +321,49 @@ function Dag({
                     {l.source === "app" ? (
                       <span className="ml-1 rounded bg-slate-200 px-1 text-[10px] font-bold dark:bg-slate-700">app</span>
                     ) : null}
+                    {l.status === "pending" ? (
+                      <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] font-bold text-amber-800">waiting for owner</span>
+                    ) : null}
+                    {l.status === "rejected" ? (
+                      <span className="ml-1 rounded bg-red-100 px-1 text-[10px] font-bold text-red-700" title={l.rejectReason ?? ""}>
+                        rejected{l.rejectReason ? `: ${l.rejectReason}` : ""}
+                      </span>
+                    ) : null}
+                    {(() => {
+                      const g = depositGap(l, eurToUsd);
+                      if (!g) return null;
+                      return (
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                          Sent €{l.sentAmount?.toLocaleString("en-US", { minimumFractionDigits: 2 })} · their rate {g.theirRate}
+                          {g.gapUsd !== null ? (
+                            <b className={g.gapUsd < 0 ? "text-red-600" : "text-emerald-600"}>
+                              {" "}· gap {g.gapUsd > 0 ? "+" : ""}{usd(g.gapUsd)} vs our rate
+                            </b>
+                          ) : null}
+                        </span>
+                      );
+                    })()}
                   </span>
                   <span className="flex items-center gap-2">
                     <b>{usd(l.amount)}</b>
+                    {canDecide && l.status === "pending" ? (
+                      <>
+                        <button
+                          disabled={beslis.isPending}
+                          onClick={() => beslis.mutate({ id: l.id, approve: true })}
+                          className="rounded bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          disabled={beslis.isPending}
+                          onClick={() => beslis.mutate({ id: l.id, approve: false })}
+                          className="rounded border px-2 py-0.5 text-[11px] font-bold text-red-600"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    ) : null}
                     {l.source !== "app" ? (
                       <button
                         aria-label="Remove line"
@@ -325,6 +407,31 @@ function Dag({
                   className="h-9 rounded-md border bg-transparent px-2 text-sm"
                 />
               </div>
+              {kind === "deposit" ? (
+                <div className="grid grid-cols-[1fr_90px] gap-2">
+                  <input
+                    value={sent}
+                    onChange={(e) => setSent(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="What we sent (optional)"
+                    className="h-9 rounded-md border bg-transparent px-2 text-sm"
+                  />
+                  <select value={sentCur} onChange={(e) => setSentCur(e.target.value)} className="h-9 rounded-md border bg-transparent px-2 text-sm">
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                  </select>
+                </div>
+              ) : null}
+              {kind === "deposit" ? (
+                <p className="text-[11px] text-muted-foreground">
+                  Amount $ = what they credited. Fill what we sent in euros to see their rate and the gap.
+                </p>
+              ) : null}
+              {kind === "adjustment" || kind === "adjustment_out" ? (
+                <p className="text-[11px] text-muted-foreground">
+                  A correction needs a reason. From an admin it waits for an owner before it counts.
+                </p>
+              ) : null}
               <input
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
