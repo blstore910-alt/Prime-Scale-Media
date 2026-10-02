@@ -11,7 +11,7 @@ import { Sheet, SheetClose, SheetContent, SheetTitle } from "@/components/ui/she
 import useUpdateAdvertiser from "@/components/advertiser/use-update-advertiser";
 import { dmSans, jakarta } from "@/lib/fonts";
 import { DATE_TIME_FORMAT } from "@/lib/constants";
-import { AlertCircle, Loader2, Mail, Pencil, X } from "lucide-react";
+import { AlertCircle, Eye, Loader2, Mail, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import useUpdateUserProfile from "./use-update-user";
 import UserAccounts from "./user-accounts";
@@ -71,6 +71,8 @@ const SHEET_CSS = `
   border:0;background:none;padding:0;cursor:pointer;border-radius:6px;color:var(--faint)}
 .udsheet .uds-mail-btn svg{width:13px;height:13px}
 .udsheet .uds-mail-btn:hover{background:var(--primary-tint);color:var(--primary-600)}
+.udsheet .uds-viewas{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:6px 11px;border-radius:999px;background:#1c1917;color:#fff;font-size:12px;font-weight:800;text-decoration:none}
+.udsheet .uds-viewas svg{width:14px;height:14px;color:#f59e0b}
 @media (hover:none){.udsheet .uds-mail-btn{color:var(--txt-2)}}
 .udsheet .uds-dot{color:var(--line-2);flex:0 0 auto}
 .udsheet .uds-cd{font-family:ui-monospace,Menlo,monospace;color:var(--txt-2)}
@@ -442,6 +444,20 @@ export default function UserDetailsSheet({
                 </button>
               ) : null}
             </div>
+            {/* VIEW AS CUSTOMER -- owners only (the page checks again).
+                Their own screens, read-only, every screen logged. A new
+                tab, so this sheet and the admin app stay where they are. */}
+            {isSuperAdmin && clientCode && /^PSM[0-9]+$/i.test(clientCode) ? (
+              <a
+                className="uds-viewas"
+                href={`/view-as/${encodeURIComponent(clientCode)}`}
+                target="_blank"
+                rel="noopener"
+              >
+                <Eye aria-hidden />
+                View as customer
+              </a>
+            ) : null}
           </div>
           {saving && (
             <Loader2 className="uds-spin" style={{ width: 18, height: 18, color: "var(--faint)" }} />
