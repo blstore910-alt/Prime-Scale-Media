@@ -158,8 +158,8 @@ export function FeesStatsCard({
         {/* De eigenaar, 02-10: "duidelijk topup fee ... hoeveel profit
             voor ons". This IS the profit line: the fee kept on each
             completed ad-account top-up, before any supplier cost. */}
-        <p className="text-[13px] font-bold text-emerald-600">
-          Our fee on {formatNumber(data.totals.count)} ad-account top-up
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          Kept on {formatNumber(data.totals.count)} ad-account top-up
           {data.totals.count === 1 ? "" : "s"}
         </p>
       </CardHeader>

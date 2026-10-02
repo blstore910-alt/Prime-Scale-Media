@@ -153,15 +153,20 @@ function Tile({
           )}
         </CardTitle>
         {amounts && earned && (earned.usd > 0 || earned.eur > 0) ? (
-          <p className="text-[13px] font-bold text-emerald-600 tabular-nums">
-            {earned.label}{" "}
-            {[
-              earned.usd > 0 ? formatCurrency(earned.usd, "USD") : null,
-              earned.eur > 0 ? formatCurrency(earned.eur, "EUR") : null,
-            ]
-              .filter(Boolean)
-              .join(" / ")}
-          </p>
+          <div>
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold leading-none text-emerald-700 ring-1 ring-inset ring-emerald-200 tabular-nums dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30"
+              title={earned.label}
+            >
+              <span className="opacity-70">Profit</span>
+              {[
+                earned.usd > 0 ? formatCurrency(earned.usd, "USD") : null,
+                earned.eur > 0 ? formatCurrency(earned.eur, "EUR") : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </div>
         ) : null}
       </CardHeader>
       <CardContent className="pt-0 px-4">
@@ -229,7 +234,7 @@ export function WalletExchangesStatsCard({
       label="Exchanges"
       title="Converted between wallet currencies, measured on the side that left"
       earned={{
-        label: "We earned (0.6%):",
+        label: "Our 0.6% exchange fee",
         usd: data?.exchanges.fee_usd ?? 0,
         eur: data?.exchanges.fee_eur ?? 0,
       }}
