@@ -531,10 +531,10 @@ eigenaar nodig is).
 | R1 | T4-B | EN | werkt | bedrijfsgegevens via /complete-profile -> dashboard | companies: T4B Prime USD Ltd, +31612345678, NL009876543B01 | — |
 | R1 | T4-C | EN | werkt | bedrijfsgegevens -> dashboard | companies: T4C Launch Test B.V., +31612345679 | — |
 | R1 | T4-N | EN | werkt | bedrijfsgegevens -> dashboard | companies: T4N NSA Test B.V. | — |
-| R1 | T4-F | EN | half | aangemeld als affiliate | PSM0028 | open: dashboard lopen (R9) |
+| R1 | T4-F | EN | werkt | aangemeld als affiliate; dashboard, Referrals, Wallet, Alerts, Settings gelopen (R9, R20, R21) | PSM0028 | — |
 | R1 | T4-R | EN | werkt | link van T4-F (/auth/sign-up?t=prime-scale-media&ref=PSM0028): 'Invited by a partner · Referral code PSM0028' -> e-mailbevestiging -> dashboard met 'Get started'. Bedrijfsgegevens opgeslagen | PSM0031; referral_links pending -> active; companies 1 | zonder uitnodiging GEEN plan: beheer moest Launch toewijzen + activeren |
 | R1 | T4-V | EN | werkt | teamuitnodiging -> aanmelden -> dashboard (na fix 0642aa8b) | subject_members viewer | zie R11 |
-| R1 | T4-U | EN | half | aangemeld als affiliate | PSM0027 | open: R10 |
+| R1 | T4-U | EN | werkt | aangemeld als affiliate; later ook adverteerder (R10) | PSM0027 | — |
 | R1 | T4-0 | EN | werkt | zonder plan: Billing zegt het een keer; aanvragen geblokkeerd | PSM0029, geen plan, bedrijf 1 | geen plan != gratis plan (6921ffca, plak 196) |
 | R1 | T4-W | EN | werkt | teamuitnodiging -> aanmelden -> meteen dashboard | subject_members viewer -> [exchange, fund] | zie R11 |
 | R2 | T4-B (snelle check) | NL | | | | |
@@ -564,7 +564,7 @@ eigenaar nodig is).
 | R14 | beheer | EN | deels | wallet top-ups: verify (EUR 500, EUR 150) + weigeren met reden (EUR 877,14, klant ziet 'Why?'); ad top-ups: verify (EUR 95, met 'funded at Rockads' + 'customer told') + weigeren met reden (EUR 9,50); aanvragen: goedgekeurd (Meta) + geweigerd met reden (TikTok: $56 terug, USD 66.94 -> 122.94, ad_account_request_reject_refund); terugboekingen: goedgekeurd (EUR 20, met 'balans zelf gecontroleerd'); referrals: goedgekeurd (T4-R); ook-adverteren: geweigerd met reden (T4-F) | ad top-up #14 rejected + reden; wallet T4-A 225.00 -> 235.00 (refund_wallet_on_topup_rejected); melding topup_rejected | audit_events sinds 01-10 19:00: elke beslissing met de juiste persoon (Lasse: 3x wallet_topups, 2x top_ups, terugboeking, referral, abonnement; T4-W: exchange + top-up onder eigen naam). Open: terugboeking weigeren, uitbetaling, verwijderverzoeken |
 | R15 | eigenaar | EN | deels | dashboard: What we hold RockAds €2.210,31/$5.357,70, Falkyn €973,68/$3.500, Bestads $3.500, Wise €4.271,19/$2.454,89, Slash $2.669,95; samen €7.455,18 + $17.482,54 = €23.000,74 (x 0,889205 klopt). Vandaag: wallet in €500, ad topups €95, fees €5, exchanges €110, subs €75 -- precies wat Test 4 deed. Queues: 1 aanvraag, 1 ad top-up, 1 affiliate. /exchanges: zie R4 | n.v.t. (leveranciers-saldi) | open: RockAds-reconciliatie, account koppelen, plannen beheren |
 | R16 | eigenaar | | | | | |
-| R17 | de nacht | | | | | |
+| R17 | de nacht (01->02-10) | | werkt | backup 01:30: mail ontvangen (eigenaar); koers elke 15 min de hele nacht (Wise); billing 03:00: niets verschuldigd (eerste facturen al bij aanmelden, volgende verlenging 20-10), dus geen nieuwe facturen en geen dubbele | ochtend + rondje: 0 FOUT; restore-drill regel 6 (wallets die niet bij hun ledger passen) = 0; geen dubbele factuurnummers | open: Drive-pdf's (R16, zodra Drive gekoppeld is); BACKUP_EMAIL_TO zonder baris0546 (eigenaar, Vercel) |
 | R18 | doorlopend | | | | | |
 | R19 | beheertools | EN | | | | |
 | R20 | lekcontrole | EN | deels | affiliate (T4-F): 29 geladen JS-bundels, 0 treffers op RockAds/SeamX/Falkyn/Bestads/Muxue/Gradyn/hk-meta/eu-meta/meta-hk/meta-eu/supplier/slash; schermtekst Home, Referrals, Wallet, Alerts, Settings schoon. Adverteerder T4-A: accounts tonen alleen 'Meta', geen type (zie R6) | data-kant niet gelopen: het scanscript leest de sessie uit de cookie en dat is geweigerd -- de klantregels op ad_accounts zijn dicht (plak 198) | open: zelfde scan als adverteerder (T4-B), mails/pdf |
