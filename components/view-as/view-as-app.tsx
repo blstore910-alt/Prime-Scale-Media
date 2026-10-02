@@ -22,6 +22,16 @@ let installed = false;
 function installGuard() {
   if (installed || typeof window === "undefined") return;
   installed = true;
+  // The toast is for something the OWNER did. Reads keyed on the caller
+  // (a server action, affiliate_referral_stats) are stopped on load too,
+  // and a "Read-only" toast before anybody pressed anything reads as a
+  // fault. So: only within a few seconds of a click or a key.
+  let lastInput = 0;
+  const mark = () => {
+    lastInput = Date.now();
+  };
+  window.addEventListener("pointerdown", mark, true);
+  window.addEventListener("keydown", mark, true);
   const original = window.fetch.bind(window);
   window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
     if (isViewAsPath(window.location.pathname)) {
@@ -32,7 +42,7 @@ function installGuard() {
         // exactly what was stopped: window.__viewAsBlocked
         const w = window as unknown as { __viewAsBlocked?: string[] };
         (w.__viewAsBlocked ??= []).push(`${method.toUpperCase()} ${url.split("?")[0]}`);
-        toast.error(VIEW_AS_REFUSAL, { id: "view-as-refused" });
+        if (Date.now() - lastInput < 3000) toast.error(VIEW_AS_REFUSAL, { id: "view-as-refused" });
         return Promise.resolve(
           new Response(JSON.stringify({ error: VIEW_AS_REFUSAL, message: VIEW_AS_REFUSAL }), {
             // 423, not 403: supabase-js treats a 401/403/404 on logout as
