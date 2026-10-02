@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Ic } from "./adv-icons";
 import {
   isCompanyComplete,
-  missingCompanyFields,
+  missingCompanyKeys,
 } from "@/lib/pure-company-complete";
 
 // Presentation + localStorage only. No business-table writes here; every
@@ -181,7 +181,9 @@ export default function OnboardingChecklist({
   // and nothing unlocked. Second time this pair disagreed; it is one
   // function now.
   const companyDone = isCompanyComplete(company as never);
-  const companyMissing = missingCompanyFields(company as never);
+  // Keys, not the English words: the NL screen named the missing fields
+  // in English inside a Dutch sentence (Test 4, R2).
+  const companyMissing = missingCompanyKeys(company as never).map((k) => tr(k));
 
   const steps: Step[] = [
     {
@@ -194,8 +196,8 @@ export default function OnboardingChecklist({
       // different form.
       desc:
         companyMissing.length && companyMissing.length <= 2
-          ? `Still needed: ${companyMissing.join(" and ")}.`
-          : "Add your legal name, VAT ID and country so we can invoice you.",
+          ? tr("onb.stillNeeded", { fields: companyMissing.join(tr("onb.and")) })
+          : tr("onb.companyDesc"),
       icon: "i-building",
       cta: tr("label.onb.addDetails"),
       // NOT "settings". The settings card saves `companies` only —
@@ -209,7 +211,7 @@ export default function OnboardingChecklist({
     {
       id: "topup",
       title: tr("label.onb.topUpYourWallet"),
-      desc: "Fund your wallet by bank transfer to start spending.",
+      desc: tr("onb.topupDesc"),
       icon: "i-wallet",
       cta: "Top up",
       view: "wallet",
@@ -221,7 +223,7 @@ export default function OnboardingChecklist({
       title: tr("req.requestAnAdAccount"),
       // No hours quoted. A number on screen is a promise, and this one is
       // not ours to make — it depends on the platform, not on us.
-      desc: "We set it up for you on our verified Business Manager.",
+      desc: tr("onb.accountDesc"),
       icon: "i-ad",
       cta: tr("label.onb.request"),
       view: "accounts",
@@ -230,7 +232,7 @@ export default function OnboardingChecklist({
     {
       id: "affiliate",
       title: tr("onb.earnAsAnAffiliate"),
-      desc: "Refer other advertisers and earn commission on what they pay.",
+      desc: tr("onb.affiliateDesc"),
       icon: "i-gift",
       cta: tr("label.onb.learnMore"),
       view: "referrals",
