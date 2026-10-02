@@ -19,6 +19,9 @@ type Props = {
   eurBalance: number;
   usdBalance: number;
   accountsCount: number;
+  /** No "Earn as an affiliate" offer: they already are one (Test 4,
+   *  T4-U after "advertise too"), or their plan has the program off. */
+  hideAffiliateOffer?: boolean;
   /**
    * Has a wallet top-up EVER completed for this advertiser?
    *
@@ -134,6 +137,7 @@ export default function OnboardingChecklist({
   usdBalance,
   accountsCount,
   hasToppedUp = false,
+  hideAffiliateOffer = false,
   loading = false,
   unavailable = false,
   onNavigate,
@@ -236,7 +240,8 @@ export default function OnboardingChecklist({
     },
   ];
 
-  const isDone = (s: Step) => s.auto || manual.includes(s.id);
+  const isDone = (s: Step) =>
+    s.auto || manual.includes(s.id) || (s.id === "affiliate" && hideAffiliateOffer);
   // What the list shows. The affiliate invitation leaves once it is ticked.
   const visible = steps.filter((s) => !(s.removeWhenDone && isDone(s)));
   // ── THE COUNT IS OF SETUP STEPS, NOT OF EVERYTHING ON THE LIST ────

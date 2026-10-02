@@ -4358,6 +4358,7 @@ export default function AdvertiserApp() {
               eurBalance={eurBal}
               usdBalance={usdBal}
               accountsCount={(accounts ?? []).length}
+              hideAffiliateOffer={isAffiliate || affiliateOff}
               onNavigate={(v) => {
                 // The company step points at /complete-profile, which is a
                 // ROUTE rather than one of this app's views — it is the only
