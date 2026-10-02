@@ -40,6 +40,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useAppContext } from "@/context/app-provider";
+import { formatCurrency } from "@/lib/utils-pure";
 import { createClient } from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateAdAccountRequest } from "@/hooks/use-create-ad-account-request";
@@ -1004,7 +1005,7 @@ export default function AdAccountRequestForm({
       >
         {/* Wallet impact — included-free vs the €50 (or USD-equiv) fee. */}
         <div
-          className={`mb-4 shrink-0 rounded-md border p-3 text-sm ${
+          className={`mb-4 shrink-0 rounded-2xl border px-4 py-3.5 text-sm ${
             isFree
               ? "border-emerald-500/40 bg-emerald-500/5"
               : feeEnough
@@ -1079,24 +1080,36 @@ export default function AdAccountRequestForm({
                 </>
               ) : (
                 <>
-                  <div className="font-medium">
-                    {tr("req.adAccountRequestFee", { feeSymbol: String(feeSymbol), feeAmount: String(feeAmount) })}</div>
-                  <div className="text-muted-foreground text-xs mt-0.5">
-                    {tr("req.chargedFromYourWalletWhen", { feeSymbol: String(feeSymbol), v: String(feeBalance.toFixed(2)), feeSymbol2: String(feeSymbol), v2: String((feeBalance - feeAmount).toFixed(2)) })}</div>
+                  {/* ── ONE GLANCE ──────────────────────────────────────
+                      De eigenaar, 02-10: "maak dit mooier, balance op 1
+                      line". The fee large on the right; the wallet before
+                      and after on one line under it; the shortfall, if
+                      any, as its own row with the way out. */}
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="font-semibold">{tr("req.requestFee")}</span>
+                    <span className="text-lg font-extrabold tabular-nums">
+                      {formatCurrency(feeAmount, selectedCurrency === "USD" ? "USD" : "EUR")}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-3 whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+                    <span>{selectedCurrency === "USD" ? "USD" : "EUR"} {tr("req.walletWord")}</span>
+                    <span>
+                      {formatCurrency(feeBalance, selectedCurrency === "USD" ? "USD" : "EUR")}
+                      {" → "}
+                      <b className={feeEnough ? "text-foreground" : "text-destructive"}>
+                        {formatCurrency(feeBalance - feeAmount, selectedCurrency === "USD" ? "USD" : "EUR")}
+                      </b>
+                    </span>
+                  </div>
                   {!feeEnough && (
-                    <div className="text-destructive text-xs mt-1 font-medium">
-                      {tr("req.notEnoughBalanceTopUp")}{/* ── EN DE WEG ERHEEN ────────────────────────
-                          De zin stond hier met een dode Send-knop
-                          eronder en verder niets. Opwaarderen kan
-                          alleen op een ander scherm, en dit is een
-                          modal -- dus de klant moest zelf bedenken dat
-                          hij hier weg moest, en durfde dat niet omdat
-                          hij dacht het formulier kwijt te raken. (Dat
-                          raakt hij niet: use-form-draft bewaart het.) */}
+                    <div className="mt-2.5 flex items-center justify-between gap-3 border-t border-destructive/20 pt-2.5 text-xs font-semibold text-destructive">
+                      <span>{tr("req.notEnoughShort")}</span>
+                      {/* The way out: topping up is on another screen, and
+                          this is a modal. The draft keeps the form. */}
                       {onNeedTopUp ? (
                         <button
                           type="button"
-                          className="underline underline-offset-2 ml-1 font-semibold"
+                          className="shrink-0 rounded-full bg-destructive px-3 py-1.5 text-[11px] font-bold text-white"
                           onClick={() => {
                             setOpen(false);
                             onNeedTopUp();
