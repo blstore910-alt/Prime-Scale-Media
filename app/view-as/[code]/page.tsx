@@ -28,9 +28,19 @@ export const dynamic = "force-dynamic";
 const PROFILE_SELECT =
   "*, tenant:tenants(*), advertiser:advertisers(id, user_id, tenant_id, profile_id, tenant_client_code, startup_fee, fee_status, airtable, created_at, updated_at)";
 
-export default async function ViewAsPage({ params }: { params: Promise<{ code: string }> }) {
+export default async function ViewAsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ code: string }>;
+  searchParams: Promise<{ view?: string | string[] }>;
+}) {
   const { user: owner, profile: ownerProfile } = await requireSuperAdmin("/dashboard?denied=owner");
   const { code: raw } = await params;
+  // The screen it OPENS on, not always "home": a link straight to
+  // ?view=settings was logged as home (measured 02-10).
+  const sp = await searchParams;
+  const firstView = (Array.isArray(sp.view) ? sp.view[0] : sp.view ?? "home").replace(/[^a-z0-9-]/gi, "").slice(0, 32) || "home";
   const code = parseViewAsCode(raw);
   if (!code) return <Refused text="That is not a client code (PSM followed by digits)." />;
 
@@ -69,7 +79,7 @@ export default async function ViewAsPage({ params }: { params: Promise<{ code: s
     table_name: "view_as",
     action: "INSERT",
     row_id: adv.id,
-    after_data: { event: "open", code, view: "home" },
+    after_data: { event: "open", code, view: firstView },
   });
   if (auditError) {
     console.error("[view-as] audit write:", safeErrorMessage(auditError));
