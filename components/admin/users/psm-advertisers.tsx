@@ -603,7 +603,7 @@ export default function PsmAdvertisers() {
           title="Download CSV"
         >
           {downloadingCSV ? <Loader2 className="animate-spin" /> : <FileDown />}
-          <span>Download CSV</span>
+          <span>CSV</span>
         </button>
       </div>
 

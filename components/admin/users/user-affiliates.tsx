@@ -167,7 +167,7 @@ export default function UserAffiliates({
         // field to that type means adding it here too, which is the
         // point: a new column cannot arrive by accident.
         .select(
-          "idx, id, created_at, referral_link_id, tenant_id, type, amount, currency, status, topup_id, subscription_id, subscription_invoice_id, affiliate_advertiser_tenant_client_code, affiliate_advertiser_email, affiliate_advertiser_name, referred_advertiser_tenant_client_code, referred_advertiser_email, referred_advertiser_name",
+          "id, created_at, referral_link_id, tenant_id, type, amount, currency, status, topup_id, subscription_id, subscription_invoice_id, affiliate_advertiser_tenant_client_code, affiliate_advertiser_email, affiliate_advertiser_name, referred_advertiser_tenant_client_code, referred_advertiser_email, referred_advertiser_name",
         )
         .eq("referral_link_id", referralLink!.id)
         .order("created_at", { ascending: false });
