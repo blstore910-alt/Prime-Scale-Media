@@ -334,8 +334,62 @@ export default function SupplierLedger() {
 
           {/* ── DE DAGCONTROLE ─────────────────────────────────────── */}
           {days.length ? (
-            <div className="overflow-x-auto rounded-2xl border bg-card">
+            <div className="rounded-2xl border bg-card">
               <div className="border-b px-4 py-3 text-sm font-extrabold">Daily check</div>
+              {/* ── OP DE TELEFOON: EEN KAART PER DAG ─────────────────────
+                  De eigenaar, 02-10: "daily check view niet handig op
+                  mobiel". Tien kolommen passen niet op 390 px; de tabel
+                  scrolde zijwaarts en Expected / Actual / Status -- waar
+                  het om gaat -- stonden buiten beeld. Per dag: de status
+                  bovenaan, begin -> verwacht -> echt, en alleen de
+                  bewegingen die er die dag waren. */}
+              <div className="divide-y md:hidden">
+                {[...days].reverse().map((d) => {
+                  const moves: [string, string, string][] = [
+                    ...(d.deposits ? [["+ Sent", usd(d.deposits), "text-emerald-600"] as [string, string, string]] : []),
+                    ...(d.topups ? [["− Top-ups", usd(d.topups), ""] as [string, string, string]] : []),
+                    ...(d.fees ? [["− Fees", usd(d.fees), ""] as [string, string, string]] : []),
+                    ...(d.dst ? [["− DST", usd(d.dst), ""] as [string, string, string]] : []),
+                    ...(d.adjustments ? [["± Correction", signed(d.adjustments), ""] as [string, string, string]] : []),
+                  ];
+                  return (
+                    <div key={d.day} className="px-4 py-3 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <b>{kortDag(d.day)}</b>
+                        <span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-bold ${STATUS[d.status].cls}`}>
+                          {d.status === "open" ? "Open" : STATUS[d.status].label}
+                          {d.status === "off" && d.difference !== null ? ` ${signed(d.difference)}` : ""}
+                        </span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-3 gap-2 rounded-xl bg-muted/40 px-3 py-2 tabular-nums">
+                        <div>
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Start</div>
+                          <div className="font-semibold">{usd(d.start)}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Expected</div>
+                          <div className="font-extrabold">{usd(d.expectedEnd)}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Actual</div>
+                          <div className="font-extrabold">{d.actualEnd !== null ? usd(d.actualEnd) : "—"}</div>
+                        </div>
+                      </div>
+                      {moves.length ? (
+                        <div className="mt-2 space-y-0.5 text-xs tabular-nums">
+                          {moves.map(([k, v, cls]) => (
+                            <div key={k} className="flex justify-between gap-3">
+                              <span className="text-muted-foreground">{k}</span>
+                              <span className={`font-semibold ${cls}`}>{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="bg-muted/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -373,6 +427,7 @@ export default function SupplierLedger() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           ) : null}
         </>
