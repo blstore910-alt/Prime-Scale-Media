@@ -528,7 +528,7 @@ eigenaar nodig is).
 | reis | account | taal | uitkomst | scherm | database | fix / open |
 |---|---|---|---|---|---|---|
 | R1 | T4-A | EN | werkt | uitnodiging -> aanmelden -> bedrijf -> dashboard | PSM0030, plan + bedrijf | mislukte aanmelding ruimt login op (42bf5fad); grens alleen zonder geldige uitnodiging (8a88d3a2) |
-| R1 | T4-B | EN | half | aangemeld; bedrijfsgegevens nog niet | PSM0024, plan, bedrijf 0 | open: onboarding in het paneel |
+| R1 | T4-B | EN | werkt | bedrijfsgegevens via /complete-profile -> dashboard | companies: T4B Prime USD Ltd, +31612345678, NL009876543B01 | — |
 | R1 | T4-C | EN | half | aangemeld; bedrijfsgegevens nog niet | PSM0025, plan, bedrijf 0 | open: onboarding |
 | R1 | T4-N | EN | half | aangemeld; bedrijfsgegevens nog niet | PSM0026, NSA-plan, bedrijf 0 | open: onboarding |
 | R1 | T4-F | EN | half | aangemeld als affiliate | PSM0028 | open: dashboard lopen (R9) |
@@ -540,11 +540,11 @@ eigenaar nodig is).
 | R2 | T4-B (snelle check) | NL | | | | |
 | R3 | T4-A EUR | EN | werkt | alle dialoogtakken (EUR/USD wallet x EUR/USD/GBP/HKD), herontwerp in 4 rondes; Verify door Lasse | wallet_topups 500 EUR completed; wallet EUR 0.00 -> 500.00; ledger 1 regel +500.00 (0.00 -> 500.00, actor); melding wallet_topup_completed | herontwerp topup (263db364 .. 14a7d9fa); kopieerknop in dialoog (7022c035); Other amount/Precharge naar Details (66d36cee). Open: reject-met-reden en Other amount (twee admins) nog te lopen |
 | R3 | T4-A USD → EUR-wallet | EN | werkt (indienen + weigeren met reden) | stap 1 bon: $1.000 × 0,88243363 = €882,43, fee €5,29, bijschrijving €877,14; stap 2 'maak precies $1.000 over' | wallet_topups 877.14 EUR pending, ref 0231606101, één keer | 0,6% bij andere valuta (119c9809). Geweigerd door Lasse met 'No payment found': status rejected + reden; wallet bleef 500.00, 1 ledgerregel; melding wallet_topup_rejected (877.14 + reden); klant ziet 'Rejected' + 'Why?' met precies die reden |
-| R3 | T4-B USD | EN | | | | |
+| R3 | T4-B USD | EN | werkt | vanaf de USD-kaart opent de dialoog op USD-wallet + USD (fix 119c9809). Takken naar USD-wallet: EUR 450 -> $503,62, GBP 400 -> $525,55, HKD 4.000 -> $506,72 (zelf nagerekend tegen de Wise-koers: gelijk op de cent; HKD-snelknoppen in HKD). Echt: $500 -> 'maak precies $500 over' -> slip -> Verify (slip binnen 3 s) | wallet_topups 500 USD completed; USD 0.00 -> 500.00 (_wallet_topup_balance_sync) | — |
 | R3 | T4-N HK | EN | | | | |
 | R4 | T4-A EUR -> USD | EN | werkt | cursor meteen in het vak; EUR 100 x 1,1243 = $112,43, fee $0,67, ontvangt $111,76; wallet voor/na klopt; koersregel 'bijgewerkt 22:15' | wallet EUR 400.00 / USD 111.76; ledger -100.00 EUR en +111.76 USD; wallet_exchanges 100 -> 111.76, fee 0.67, koers 0.889442 (Wise); /exchanges toont hem bovenaan | bevestiging opnieuw ontworpen (040bb7d9). Hinderlijk: /exchanges loopt op 455 px rechts buiten beeld. Open: T4-B USD -> EUR |
 | R5 | T4-A Meta + TikTok | EN | werkt | aanvragen geblokkeerd tot de abonnementsfactuur betaald is (klopt). Meta: 'inbegrepen, geen kosten, 1 van 1'. TikTok USD: '$56, $111,76 -> $55,76'. Alle drie de platformtakken tonen hun eigen velden. Beide zichtbaar ('$56.00 came off your wallet'). Beheer: Meta goedgekeurd als AA-PSM0030-EU-01 (Meta-EU-PSM-RA, 5%) | Meta: request_fee 0, plan_included, wallet bleef 325.00; TikTok: request_fee 56 USD, ledger -56.00 USD (111.76 -> 55.76, ad_account_request_create_paid); ad_accounts: eu-meta-psm EUR 5% active; Meta-aanvraag completed | — |
-| R5 | T4-B Google (2e inbegrepen) | EN | | | | |
+| R5 | T4-B Google | EN | werkt | 'Included in your plan — no fee, 2 of 2 left'; Google toont alleen USD; bevestiging 'Included in your plan' | ad_account_requests google-ads USD pending, request_fee 0, plan_included; wallets ongewijzigd ($225 / EUR 44,14) | — |
 | R5 | T4-C TikTok (extra, EUR 50) | EN | | | | |
 | R5 | T4-N Meta-HK | EN | | | | |
 | R5 | T4-0 geen plan | EN | | | | |
@@ -554,7 +554,7 @@ eigenaar nodig is).
 | R7 | T4-C handmatig plafond | EN | | | | |
 | R7 | T4-R clawback | EN | | | | |
 | R8 | T4-A EUR | EN | werkt | Billing: Flex EUR 75, 'Pay EUR 75.00 from wallet' -> bevestiging 'EUR 400 -> 325' -> 'This month is paid, next 1 Nov' | invoice 150: total 75.00, paid, paid_from wallet; ledger -75.00 (400 -> 325, invoice_pay_from_wallet); subscription active | titel was 'Renew your plan?' bij de eerste betaling -> 'Pay your plan?' (9ee0d9c7) |
-| R8 | T4-B USD | EN | | | | |
+| R8 | T4-B USD | EN | werkt | 'Pay your plan?' Prime $225, USD wallet $500 -> $275 | invoice 151 $225 USD paid from wallet; ledger -225.00 USD (500 -> 275, invoice_pay_from_wallet) | — |
 | R8 | T4-0 geen plan | EN | | | | |
 | R9 | T4-F + T4-R | EN | deels | beheer: 'Affiliates waiting for you (2)' -> T4R 'signed up through T4F' -> Approve toont '20% van top-up-winst · 50% van elke betaalde factuur'. Abonnement Launch EUR 150 aangemaakt + geactiveerd. T4-R: top-up EUR 150 (geen minimum voor de eerste planbetaling, geen fee-regel bij EUR->EUR) -> geverifieerd (slip in de bevestiging, laadt na ~20 s) -> 'Pay your plan?' EUR 150 -> 0 | invoice 155 EUR 150 paid (wallet); referral_commissions: subscription_pct 75.00 EUR (50% van 150.00), unpaid, PSM0028 | hinderlijk: slip-voorbeeld laadt traag (serveracties in de rij); abonnementskaart toont '01-10 -> 01-10'. T4-F: verdiensten EUR 75 (lifetime/maand), 3 meldingen kloppen (aangemeld / goedgekeurd / EUR 75 commissie van PSM0031); Wallet: EUR 75 owed, Starter, 'EUR 125.00 to go' en Request payout uit (minimum EUR 200); Referrals: Starter 1/4, 'EUR 925 more to Riser', link + T4R EUR 75. Open: uitbetaling boven het minimum + beheer betaalt uit/weigert (vergt meer commissie); Export niet aangeklikt (download) |
 | R10 | T4-F (weigeren) + T4-U (goedkeuren) | EN | werkt | weigeren op T4-F: 'Ask to advertise too' -> 'Request sent'; beheer 'Refuse this request?' met reden (verplicht) -> T4-F ziet 'Not this time: <reden>. You can ask again' + 'Ask again' | n.v.t. | T4-U: 'Ask to advertise too' -> beheer 'Let them advertise too?' -> 'Yes, turn it on' -> na herladen adverteerdersdashboard (Get started, wallets, No plan); link ref=PSM0027 + verdiensten onder Affiliate program. Fix: het dashboard bood T4-U 'Earn as an affiliate' aan alsof hij er geen was (472d3eff) |
