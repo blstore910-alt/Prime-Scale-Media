@@ -96,6 +96,12 @@ eigenaar moet dan zelf gaan uitzoeken WIE erin moet, en dat is precies
 het werk dat hij niet hoeft te doen. Elke keer dat een inlog nodig is:
 **het scherm, de rol en het e-mailadres, in één regel.**
 
+**Uitloggen en het e-mailadres invullen doet Claude zelf** (de eigenaar,
+02-10: "wanneer ik moet uitloggen doe dat altijd en vul de email alvast
+in"). Claude logt het paneel uit, opent het inlogscherm, vult het juiste
+e-mailadres in en zegt dan in één regel: scherm, rol, e-mailadres. De
+eigenaar typt alleen het wachtwoord en drukt op inloggen / Join.
+
 Nooit een wachtwoord — dat typt hij. Nooit een gok: het adres komt uit
 de database, niet uit het geheugen.
 
