@@ -30,6 +30,13 @@ const ALLOWED_POSTS = [
   /\/auth\/v1\/token$/,
   // A signed, time-limited URL to look at a slip. Reads.
   /^\/api\/payment-slip-url$/,
+  // The shared exchange-rate refresh. Fired quietly on load when the
+  // rate is older than 15 minutes; it touches the one global rate table,
+  // nothing of the customer, and blocking it put a "Read-only" toast on
+  // the screen before the owner had pressed anything.
+  /^\/api\/exchange-rates\/refresh$/,
+  // A crash report from the error boundary. Logs, changes nothing.
+  /^\/api\/log\/client-error$/,
   // The view log itself (one row per screen opened).
   /^\/api\/view-as\/log$/,
 ];

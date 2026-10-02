@@ -23,7 +23,7 @@ test("every kind of write is stopped", () => {
   assert.equal(isBlockedInViewMode("PUT", "/api/anything"), true);
   // an api route
   assert.equal(isBlockedInViewMode("POST", "/api/push/subscribe"), true);
-  assert.equal(isBlockedInViewMode("POST", "/api/exchange-rates/refresh"), true);
+  assert.equal(isBlockedInViewMode("POST", "/api/heartbeat"), true);
   // storage upload (a slip)
   assert.equal(isBlockedInViewMode("POST", `${SB}/storage/v1/object/payment-slips/x.png`), true);
 });
@@ -32,6 +32,8 @@ test("only the harmless POSTs pass", () => {
   assert.equal(isBlockedInViewMode("POST", `${SB}/auth/v1/token?grant_type=refresh_token`), false);
   assert.equal(isBlockedInViewMode("POST", "/api/payment-slip-url"), false);
   assert.equal(isBlockedInViewMode("POST", "/api/view-as/log"), false);
+  assert.equal(isBlockedInViewMode("POST", "/api/exchange-rates/refresh"), false);
+  assert.equal(isBlockedInViewMode("POST", "/api/log/client-error"), false);
   // not a prefix match: a lookalike path is still refused
   assert.equal(isBlockedInViewMode("POST", "/api/payment-slip-url/../push/notify"), true);
   assert.equal(isBlockedInViewMode("POST", "/api/view-as/log2"), true);

@@ -28,10 +28,18 @@ function installGuard() {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       const method = init?.method ?? (typeof input === "object" && "method" in input ? (input as Request).method : "GET");
       if (isBlockedInViewMode(method, url)) {
+        // Kept on window so a test (or the owner, in the console) can see
+        // exactly what was stopped: window.__viewAsBlocked
+        const w = window as unknown as { __viewAsBlocked?: string[] };
+        (w.__viewAsBlocked ??= []).push(`${method.toUpperCase()} ${url.split("?")[0]}`);
         toast.error(VIEW_AS_REFUSAL, { id: "view-as-refused" });
         return Promise.resolve(
           new Response(JSON.stringify({ error: VIEW_AS_REFUSAL, message: VIEW_AS_REFUSAL }), {
-            status: 403,
+            // 423, not 403: supabase-js treats a 401/403/404 on logout as
+            // "already signed out" and then clears the session -- the
+            // OWNER's session, since this is their browser. Any other
+            // status is returned as an error and the session stays.
+            status: 423,
             headers: { "content-type": "application/json" },
           }),
         );

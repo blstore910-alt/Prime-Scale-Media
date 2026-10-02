@@ -24,7 +24,12 @@ export default function useNotificationPreferences() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notification_preferences")
-        .select("type, push_enabled");
+        .select("type, push_enabled")
+        // Own rows by filter, not only by policy. Since plak 201 an
+        // OWNER may read every user's rows in the tenant (for View as
+        // customer); without this an owner's own switches would read
+        // everybody's mutes as theirs.
+        .eq("user_id", userId as string);
       if (error) throw error;
       return (data ?? []) as PrefRow[];
     },
