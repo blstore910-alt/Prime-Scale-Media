@@ -57,6 +57,10 @@ export const GUIDE_NL: Record<string, SectieNL> = {
         text: "De bankgegevens verschillen per valuta en per soort account. Gebruik de gegevens op dat top-upscherm, niet gegevens die je eerder hebt bewaard.",
       },
       {
+        label: "Andere valuta",
+        text: "Je mag een andere valuta sturen dan je wallet heeft, bijvoorbeeld USD naar je EUR-wallet. Wij rekenen om tegen de koers van die dag min 0,6% conversiefee, en het scherm toont het exacte bedrag dat we bijschrijven voordat je verstuurt. Geld tussen je eigen EUR- en USD-wallet zet je om met Exchange: zelfde koers, zelfde fee, meteen.",
+      },
+      {
         label: "Geen opname",
         text: "Geld in je wallet kan niet terug naar je bank. Je besteedt het aan ad accounts en facturen, en geld dat op een ad account staat kun je terugvragen naar je wallet.",
       },

@@ -87,6 +87,11 @@ export const ADVERTISER: Section[] = [
         text: "The bank details differ per currency and per account type. Use the ones on that top-up screen rather than details you saved earlier.",
       },
       {
+        label: "Another currency",
+        tone: "info",
+        text: "You can send a different currency than your wallet holds, for example USD into your EUR wallet. We convert it at that day's rate less a 0.6% conversion fee, and the screen shows the exact amount we credit before you send. To move money between your own EUR and USD wallets, use Exchange: same rate, same fee, done at once.",
+      },
+      {
         label: "No withdrawals",
         tone: "info",
         text: "Money in your wallet cannot be paid back out to your bank. It can be spent on ad accounts and invoices, and money sitting on an ad account can be requested back into your wallet.",
