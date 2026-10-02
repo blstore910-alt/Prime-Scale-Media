@@ -131,7 +131,7 @@ export function FeesStatsCard({
           <span className="ci g">
             <Percent />
           </span>
-          <span>Fees <span>({formatNumber(data.totals.count)})</span></span>
+          <span>Top-up fees <span>({formatNumber(data.totals.count)})</span></span>
         </CardDescription>
         <CardTitle className="text-2xl font-extrabold tracking-[-.02em] tabular-nums">
           {/* Alleen de valuta waar die periode iets in gebeurd is. Zie
@@ -155,6 +155,13 @@ export function FeesStatsCard({
                     ],
               )}
         </CardTitle>
+        {/* De eigenaar, 02-10: "duidelijk topup fee ... hoeveel profit
+            voor ons". This IS the profit line: the fee kept on each
+            completed ad-account top-up, before any supplier cost. */}
+        <p className="text-[13px] font-bold text-emerald-600">
+          Our fee on {formatNumber(data.totals.count)} ad-account top-up
+          {data.totals.count === 1 ? "" : "s"}
+        </p>
       </CardHeader>
 
       <CardContent className="pt-0 px-4">

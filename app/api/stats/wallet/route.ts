@@ -33,6 +33,8 @@ type ExchangeRow = {
   created_at: string;
   from_currency: string | null;
   from_amount: number | string | null;
+  to_currency?: string | null;
+  fee_amount?: number | string | null;
 };
 
 function resolveRange(request: NextRequest) {
@@ -143,7 +145,7 @@ export async function GET(request: NextRequest) {
       ? pageAllRows<ExchangeRow>((from, to) =>
           supabase
             .from("wallet_exchanges")
-            .select("created_at, from_currency, from_amount")
+            .select("created_at, from_currency, from_amount, to_currency, fee_amount")
             .in("wallet_id", walletIds)
             .gte("created_at", periodStart)
             .lt("created_at", periodEnd)
@@ -176,7 +178,7 @@ export async function GET(request: NextRequest) {
   // The exchange is measured on the side that LEFT, because that is the
   // amount the customer chose; what arrived is the same money after a
   // rate, and adding both would count one conversion twice.
-  const exchanges = { count: 0, eur: 0, usd: 0 };
+  const exchanges = { count: 0, eur: 0, usd: 0, feeEur: 0, feeUsd: 0 };
   for (const row of exchangesPaged.rows) {
     const currency = normalizeCurrency(row.from_currency);
     const amount = toNumber(row.from_amount);
@@ -184,6 +186,14 @@ export async function GET(request: NextRequest) {
     exchanges.count += 1;
     if (currency === "EUR") exchanges.eur += amount;
     else exchanges.usd += amount;
+    // ── WHAT WE KEPT ────────────────────────────────────────────────
+    // De eigenaar, 02-10: "duidelijk hoeveel profit voor ons". The
+    // 0.6% is taken on the side that ARRIVES, so it is in to_currency.
+    const fee = toNumber(row.fee_amount);
+    if (fee > 0) {
+      if (normalizeCurrency(row.to_currency ?? null) === "EUR") exchanges.feeEur += fee;
+      else exchanges.feeUsd += fee;
+    }
   }
 
   const round = (v: number) => Number(v.toFixed(2));
@@ -199,6 +209,8 @@ export async function GET(request: NextRequest) {
       count: exchanges.count,
       eur_amount: round(exchanges.eur),
       usd_amount: round(exchanges.usd),
+      fee_eur: round(exchanges.feeEur),
+      fee_usd: round(exchanges.feeUsd),
     },
   });
 }

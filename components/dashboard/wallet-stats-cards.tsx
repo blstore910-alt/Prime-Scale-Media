@@ -32,7 +32,14 @@ import { formatCurrency } from "@/lib/utils";
 type WalletStatsResponse = {
   range: { from: string; to: string };
   topups: { count: number; eur_amount: number; usd_amount: number };
-  exchanges: { count: number; eur_amount: number; usd_amount: number };
+  exchanges: {
+    count: number;
+    eur_amount: number;
+    usd_amount: number;
+    /** Our 0.6%, in the currency it was kept in (absent on an older API). */
+    fee_eur?: number;
+    fee_usd?: number;
+  };
 };
 
 function formatNumber(value: number) {
@@ -53,6 +60,7 @@ function Tile({
   isError,
   failedLabel,
   amounts = true,
+  earned,
 }: {
   label: string;
   title: string;
@@ -81,6 +89,8 @@ function Tile({
    * proud of, and it is the number a bonus can honestly hang on.
    */
   amounts?: boolean;
+  /** What WE kept from this, shown in green under the volume. */
+  earned?: { label: string; usd: number; eur: number };
 }) {
   const head = (
     <CardDescription className="psm-cardlbl">
@@ -142,6 +152,17 @@ function Tile({
             <span>{formatNumber(count)}</span>
           )}
         </CardTitle>
+        {amounts && earned && (earned.usd > 0 || earned.eur > 0) ? (
+          <p className="text-[13px] font-bold text-emerald-600 tabular-nums">
+            {earned.label}{" "}
+            {[
+              earned.usd > 0 ? formatCurrency(earned.usd, "USD") : null,
+              earned.eur > 0 ? formatCurrency(earned.eur, "EUR") : null,
+            ]
+              .filter(Boolean)
+              .join(" / ")}
+          </p>
+        ) : null}
       </CardHeader>
       <CardContent className="pt-0 px-4">
         <div className="flex h-[72px] flex-col justify-end gap-2 px-1 pb-1">
@@ -207,6 +228,11 @@ export function WalletExchangesStatsCard({
     <Tile
       label="Exchanges"
       title="Converted between wallet currencies, measured on the side that left"
+      earned={{
+        label: "We earned (0.6%):",
+        usd: data?.exchanges.fee_usd ?? 0,
+        eur: data?.exchanges.fee_eur ?? 0,
+      }}
       tint="p"
       icon={<ArrowLeftRight />}
       count={data?.exchanges.count ?? 0}
