@@ -67,12 +67,17 @@ export function normalizeSupplierUrl(raw: unknown): string | null {
  * so a link entered without a name still says something useful instead
  * of "Open ↗".
  */
+const SUPPLIER_DISPLAY: Record<string, string> = { muxue: "Bestads" };
+
 export function supplierPillLabel(
   supplierLabel: unknown,
   typeLabel: unknown,
 ): string {
   const supplier = String(supplierLabel ?? "").trim();
-  if (supplier) return supplier;
+  // The owner calls Muxue "Bestads" (that is the name on their dashboard
+  // and on /supplier-ledger). The stored label stays Muxue -- the ledger
+  // matches on it -- but every admin screen says the same name.
+  if (supplier) return SUPPLIER_DISPLAY[supplier.toLowerCase()] ?? supplier;
   const type = String(typeLabel ?? "").trim();
   return type || "supplier";
 }
