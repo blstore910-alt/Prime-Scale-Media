@@ -363,7 +363,7 @@ export const en = {
   "adv.weCouldnTReadYour5": "We couldn't read your company details, so saving now would overwrite them with this blank form. Reload first.",
   "adv.loadingYourCompanyDetails": "Loading your company details…",
   "label.adv.saveCompany": "Save company",
-  "adv.pickWhatSWorthA": "Pick what's worth a ping.",
+  "adv.pickWhatSWorthA": "Pick what pings your phone. Everything still shows under the bell.",
   "adv.applicationReceived": "Application received.",
   "label.adv.applyAgain": "Apply again",
   "label.adv.yourData": "Your data",

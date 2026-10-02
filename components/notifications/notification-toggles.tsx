@@ -98,6 +98,7 @@ export function GroupToggle({ group }: { group: NotificationGroupForRole }) {
             if (todo.length === 0) return;
             setGroup.mutate({ types: todo, enabled: next });
           }}
+          aria-pressed={!isError && !isLoading && anyOn}
           aria-label={tx(group.label)}
         />
       </div>
@@ -172,6 +173,7 @@ export function Toggle({
         className={`sw${isError || isLoading ? "" : on ? " on" : ""}`}
         disabled={setPreference.isPending || isError || isLoading}
         onClick={() => setPreference.mutate({ type: notifType, enabled: !on })}
+        aria-pressed={!isError && !isLoading && on}
         aria-label={label}
       />
     </div>

@@ -371,7 +371,7 @@ export const nl: Record<Key, string> = {
   "adv.weCouldnTReadYour5": "We konden je bedrijfsgegevens niet lezen, dus nu bewaren zou ze overschrijven met dit lege formulier. Herlaad eerst.",
   "adv.loadingYourCompanyDetails": "Je bedrijfsgegevens laden…",
   "label.adv.saveCompany": "Bewaar bedrijf",
-  "adv.pickWhatSWorthA": "Kies waarvoor je een melding wilt.",
+  "adv.pickWhatSWorthA": "Kies waarvoor je telefoon een melding krijgt. Alles blijft onder de bel staan.",
   "adv.applicationReceived": "Aanvraag ontvangen.",
   "label.adv.applyAgain": "Opnieuw",
   "label.adv.yourData": "Je gegevens",
