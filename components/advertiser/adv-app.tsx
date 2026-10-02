@@ -7295,14 +7295,17 @@ export default function AdvertiserApp() {
                             one up. Walked on production with PSM0011
                             right after the fix went live. A plan that
                             stopped is restarted, not set up. */}
-                        <p className="cap" style={{ margin: 0 }}>
-                          {stoppedSub
-                            ? tr("adv.yourPlanIsNotRunning")
-                            : tr("adv.youHaveNoPlanYet")}
-                        </p>
+                        {/* No plan at all: the hero above already says "No
+                            plan yet" -- once is enough (de eigenaar, 02-10).
+                            A STOPPED plan still says so here. */}
+                        {stoppedSub ? (
+                          <p className="cap" style={{ margin: 0 }}>
+                            {tr("adv.yourPlanIsNotRunning")}
+                          </p>
+                        ) : null}
                         <p
                           className="cap"
-                          style={{ marginTop: 14, display: "flex", gap: 8, alignItems: "center" }}
+                          style={{ marginTop: stoppedSub ? 14 : 0, display: "flex", gap: 8, alignItems: "center" }}
                         >
                           <WhatsappIcon />{" "}
                           {stoppedSub
