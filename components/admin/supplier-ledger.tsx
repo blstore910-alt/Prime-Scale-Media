@@ -19,7 +19,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, Loader2, Plus, Scale, Search, Trash2, X } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Check, Landmark, Loader2, Percent, Plus, Scale, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 import {
   addSupplierLine,
   decideSupplierLine,
@@ -45,6 +45,15 @@ const SOORTEN: Soort[] = [
   { kind: "adjustment_out", label: "Correction −", sign: -1, cls: "bg-amber-100 text-amber-800", dot: "bg-amber-500" },
 ];
 const SOORT = Object.fromEntries(SOORTEN.map((s) => [s.kind, s])) as Record<LineKind, Soort>;
+/** The icon on a row on the phone: money in, money out, a fee, a tax, a correction. */
+const SOORT_ICON: Record<LineKind, typeof Plus> = {
+  deposit: ArrowDownLeft,
+  customer_topup: ArrowUpRight,
+  fee: Percent,
+  dst: Landmark,
+  adjustment: SlidersHorizontal,
+  adjustment_out: SlidersHorizontal,
+};
 
 const FILTERS: { key: string; label: string; kinds: LineKind[] | null }[] = [
   { key: "all", label: "All", kinds: null },
@@ -211,16 +220,17 @@ export default function SupplierLedger() {
                   ) : null}
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
+              {/* One row on the phone too (eigenaar 03-10). */}
+              <div className="grid grid-cols-2 gap-2 sm:flex">
                 <button
                   onClick={() => setPaneel(paneel === "add" ? null : "add")}
-                  className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-extrabold text-[#0a0f2e] shadow-md hover:bg-white/90"
+                  className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-white px-4 text-sm font-extrabold text-[#0a0f2e] shadow-md hover:bg-white/90 sm:px-5"
                 >
                   <Plus className="h-4 w-4" /> Add entry
                 </button>
                 <button
                   onClick={() => setPaneel(paneel === "end" ? null : "end")}
-                  className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/40 bg-white/10 px-4 text-sm font-bold text-white hover:bg-white/20"
+                  className="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-white/40 bg-white/10 px-4 text-sm font-bold text-white hover:bg-white/20"
                 >
                   <Scale className="h-4 w-4" /> End balance
                 </button>
@@ -450,64 +460,109 @@ function Regel({
   const s = SOORT[l.kind];
   const telt = (l.status ?? "approved") === "approved";
   const g = depositGap(l, eurToUsd);
+  const Icon = SOORT_ICON[l.kind];
+  const wie = l.source === "app" ? "App" : l.addedBy ?? null;
+  const status =
+    l.status === "pending" ? (
+      <span className="rounded bg-amber-100 px-1.5 font-bold text-amber-800">waiting for approval</span>
+    ) : l.status === "rejected" ? (
+      <span className="rounded bg-red-100 px-1.5 font-bold text-red-700">rejected{l.rejectReason ? `: ${l.rejectReason}` : ""}</span>
+    ) : null;
+  const gap = g ? (
+    <span className="block">
+      Sent €{l.sentAmount?.toLocaleString("en-US", { minimumFractionDigits: 2 })} · their rate {g.theirRate}
+      {g.gapUsd !== null ? (
+        <b className={g.gapUsd < 0 ? "text-red-600" : "text-emerald-600"}> · gap {signed(g.gapUsd)} vs our rate</b>
+      ) : null}
+    </span>
+  ) : null;
+  const weg =
+    l.source !== "app" ? (
+      <button
+        aria-label="Remove entry"
+        disabled={deleting}
+        onClick={onDelete}
+        className="rounded p-1 text-muted-foreground hover:text-destructive"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    ) : null;
   return (
-    <div className={`grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 border-b px-4 py-3 text-sm last:border-b-0 md:grid-cols-[80px_130px_minmax(0,1.3fr)_minmax(0,1.5fr)_110px_120px_32px] md:items-center ${telt ? "" : "opacity-60"}`}>
-      <span className="text-xs font-semibold text-muted-foreground md:text-sm md:text-foreground">{kortDag(l.day)}</span>
-      <span className="justify-self-end md:justify-self-start">
-        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${s.cls}`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-          {s.label}
+    <>
+      {/* ── THE PHONE: ONE TIDY CARD PER ENTRY ──────────────────────
+          De eigenaar, 03-10: "10x beter design, geordend, netjes". The
+          old row put date, pill, client, note and who on five loose
+          lines with a dash for every blank. Now: the kind as a coloured
+          icon, one title (the client, or what it is), one grey line
+          under it, the amount on the right. And a delete button -- the
+          phone had none. */}
+      <div className={`flex items-start gap-3 border-b px-4 py-3 text-sm last:border-b-0 md:hidden ${telt ? "" : "opacity-60"}`}>
+        <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl ${s.cls}`}>
+          <Icon className="h-4 w-4" />
         </span>
-      </span>
-      <span className="min-w-0 truncate">
-        {l.clientRef ? (
-          <>
-            <b className="font-mono text-xs">{l.clientRef}</b>
-            {l.clientName ? <span className="ml-1.5">{l.clientName}</span> : null}
-          </>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-      </span>
-      <span className="col-span-2 min-w-0 text-xs text-muted-foreground md:col-span-1">
-        {l.note || ""}
-        {l.ourFee ? <span className="ml-1 font-semibold text-emerald-700">· our fee {l.ourFee}</span> : null}
-        {l.status === "pending" ? <span className="ml-1 rounded bg-amber-100 px-1.5 font-bold text-amber-800">waiting for approval</span> : null}
-        {l.status === "rejected" ? (
-          <span className="ml-1 rounded bg-red-100 px-1.5 font-bold text-red-700">rejected{l.rejectReason ? `: ${l.rejectReason}` : ""}</span>
-        ) : null}
-        {g ? (
-          <span className="block">
-            Sent €{l.sentAmount?.toLocaleString("en-US", { minimumFractionDigits: 2 })} · their rate {g.theirRate}
-            {g.gapUsd !== null ? (
-              <b className={g.gapUsd < 0 ? "text-red-600" : "text-emerald-600"}> · gap {signed(g.gapUsd)} vs our rate</b>
-            ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="min-w-0 truncate font-bold">
+              {l.clientRef ? <b className="font-mono text-xs">{l.clientRef}</b> : s.label}
+              {l.clientRef && l.clientName ? <span className="ml-1.5 font-semibold">{l.clientName}</span> : null}
+            </span>
+            <span className={`shrink-0 font-extrabold tabular-nums ${s.sign > 0 ? "text-emerald-600" : ""}`}>
+              {signed(s.sign * l.amount)}
+            </span>
+          </div>
+          <div className="mt-0.5 flex items-start justify-between gap-2 text-xs text-muted-foreground">
+            <span className="min-w-0">
+              {kortDag(l.day)}
+              {l.clientRef ? <> · {s.label}</> : null}
+              {wie ? <> · {wie}</> : null}
+              {l.note ? <> · {l.note}</> : null}
+              {l.ourFee ? <span className="font-semibold text-emerald-700"> · our fee {l.ourFee}</span> : null}
+              {status ? <> {status}</> : null}
+              {gap}
+            </span>
+            {weg ? <span className="-mr-1 -mt-0.5 shrink-0">{weg}</span> : null}
+          </div>
+        </div>
+      </div>
+
+      {/* ── THE DESKTOP: THE COLUMNS AS BEFORE ─────────────────────── */}
+      <div className={`hidden border-b px-4 py-3 text-sm last:border-b-0 md:grid md:grid-cols-[80px_130px_minmax(0,1.3fr)_minmax(0,1.5fr)_110px_120px_32px] md:items-center md:gap-x-3 ${telt ? "" : "opacity-60"}`}>
+        <span className="font-semibold">{kortDag(l.day)}</span>
+        <span>
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${s.cls}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+            {s.label}
           </span>
-        ) : null}
-      </span>
-      <span className="text-xs">
-        {l.source === "app" ? (
-          <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-700">App</span>
-        ) : (
-          l.addedBy ?? "—"
-        )}
-      </span>
-      <span className={`justify-self-end text-right font-extrabold tabular-nums ${s.sign > 0 ? "text-emerald-600" : ""}`}>
-        {signed(s.sign * l.amount)}
-      </span>
-      <span className="hidden justify-self-end md:block">
-        {l.source !== "app" ? (
-          <button
-            aria-label="Remove entry"
-            disabled={deleting}
-            onClick={onDelete}
-            className="rounded p-1 text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        ) : null}
-      </span>
-    </div>
+        </span>
+        <span className="min-w-0 truncate">
+          {l.clientRef ? (
+            <>
+              <b className="font-mono text-xs">{l.clientRef}</b>
+              {l.clientName ? <span className="ml-1.5">{l.clientName}</span> : null}
+            </>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </span>
+        <span className="min-w-0 text-xs text-muted-foreground">
+          {l.note || ""}
+          {l.ourFee ? <span className="ml-1 font-semibold text-emerald-700">· our fee {l.ourFee}</span> : null}
+          {status ? <span className="ml-1">{status}</span> : null}
+          {gap}
+        </span>
+        <span className="text-xs">
+          {l.source === "app" ? (
+            <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-700">App</span>
+          ) : (
+            l.addedBy ?? "—"
+          )}
+        </span>
+        <span className={`justify-self-end text-right font-extrabold tabular-nums ${s.sign > 0 ? "text-emerald-600" : ""}`}>
+          {signed(s.sign * l.amount)}
+        </span>
+        <span className="justify-self-end">{weg}</span>
+      </div>
+    </>
   );
 }
 

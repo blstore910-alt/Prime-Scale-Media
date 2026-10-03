@@ -50,6 +50,12 @@ export const PSM_APP_CSS = `
 .psmapp .navlink:hover{background:var(--panel-2);color:var(--ink)}
 .psmapp .navlink.on{background:var(--primary-tint);color:var(--primary-600)}
 .psmapp .navlink svg{width:19px;height:19px}
+/* One line per link (eigenaar 03-10): "Account Requests" wrapped onto two
+   lines beside its badge in the phone menu. Tighter gap, no wrap; icon and
+   badge never shrink. */
+.psmapp .navlink{white-space:nowrap;gap:10px}
+.psmapp .navlink svg{flex:none}
+.psmapp .navlink .n{flex:none}
 .psmapp .navlink .n{margin-left:auto;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:var(--primary);color:#fff;font-size:.66rem;font-weight:700;display:grid;place-items:center;line-height:1;font-variant-numeric:tabular-nums}
 .psmapp .navlink .n.unknown{background:var(--panel-2);color:var(--faint);border:1px solid var(--line-2);font-weight:800}
 .psmapp .navlink.aff{color:var(--purple)}.psmapp .navlink.aff svg{color:var(--purple)}.psmapp .navlink .n.new{background:var(--purple)}

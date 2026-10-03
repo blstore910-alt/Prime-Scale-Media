@@ -29,7 +29,7 @@
 // met een bevestiging in het scherm, want dat is niet terug te draaien.
 // Een partner is geen geld; er hangt niets aan vast.
 
-import { resolveAdminContext, versionMatches } from "./_shared";
+import { resolveAdminContext, resolveOwnerContext, versionMatches } from "./_shared";
 import { safeErrorMessage } from "@/lib/pure-error";
 import { createAdminClient } from "@/lib/supabase/server";
 import { PARTNER_ICON_KEYS } from "@/lib/partner-icons";
@@ -143,7 +143,8 @@ export async function savePartner(
   | { ok: true; data: { id: string; ingekort?: boolean; plakNodig?: boolean } }
   | { ok: false; error: string }
 > {
-  const res0 = await resolveAdminContext();
+  // Owners only (eigenaar 03-10: "admin mag partners zien maar niks verder doen").
+  const res0 = await resolveOwnerContext();
   if (!res0.ok) return { ok: false, error: res0.error };
   const { profile } = res0.ctx;
 
@@ -304,7 +305,8 @@ export async function deletePartner(input: {
   id: string;
   ifUpdatedAt?: string | null;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const res0 = await resolveAdminContext();
+  // Owners only (eigenaar 03-10: "admin mag partners zien maar niks verder doen").
+  const res0 = await resolveOwnerContext();
   if (!res0.ok) return { ok: false, error: res0.error };
   const { profile } = res0.ctx;
   const supabase = await createAdminClient();

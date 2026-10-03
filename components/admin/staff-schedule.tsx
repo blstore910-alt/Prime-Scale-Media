@@ -500,14 +500,16 @@ function MijnVoorkeuren({ d, onDone }: { d: ScheduleData; onDone: () => void }) 
         <div className="text-base font-extrabold">My preferences</div>
         <p className="text-xs text-muted-foreground">When you can work. Auto-fill never puts you on a day you did not tick.</p>
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      {/* Seven in one row (eigenaar 03-10): Sat and Sun wrapped onto a
+          line of their own at phone width. */}
+      <div className="grid grid-cols-7 gap-1">
         {DAGEN.map((n, i) => {
           const on = days.includes(i + 1);
           return (
             <button
               key={n}
               onClick={() => setDays(on ? days.filter((x) => x !== i + 1) : [...days, i + 1])}
-              className={`h-9 w-12 rounded-lg text-xs font-bold ${on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+              className={`h-9 w-full min-w-0 rounded-lg text-[11px] font-bold ${on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
             >
               {n}
             </button>
