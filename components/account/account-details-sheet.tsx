@@ -23,7 +23,11 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { AdAccount } from "@/lib/types/account";
 import { platformGroupFromSlug } from "@/lib/types/ad-account-type";
-import SupplierLinkPanel from "@/components/account/supplier-link-panel";
+// Admin-only, so its own chunk (lekcontrole Test 4 R20, 03-10): with a
+// plain import its server-action names and "at the supplier" texts sat in
+// every CUSTOMER's JavaScript, although only an admin ever renders it.
+import dynamic from "next/dynamic";
+const SupplierLinkPanel = dynamic(() => import("@/components/account/supplier-link-panel"), { ssr: false });
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import {
