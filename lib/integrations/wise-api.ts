@@ -889,3 +889,80 @@ export async function findProfileForBalance(
   const miss = { profileId: null, seen };
   return miss;
 }
+
+// ── OUTGOING TRANSFERS (wat WIJ betaalden) ──────────────────────────
+//
+// De eigenaar, 03-10: "alle Wise betalingen naar MUXUE moeten als
+// wallet-balance top-up bij Bestads". Alles hierboven leest wat er
+// BINNENKOMT; dit leest wat er UITGAAT: /v1/transfers per profiel, met
+// de naam van de ontvanger erbij (/v1/accounts/{id}), want de transfer
+// zelf noemt alleen een id.
+//
+// Alleen lezen. Nooit een rekeningnummer terug -- de aanroeper krijgt de
+// naam van de ontvanger, bedragen, valuta, datum en status.
+
+export type WiseOutgoingTransfer = {
+  id: string;
+  created: string;
+  status: string;
+  sourceCurrency: string;
+  sourceValue: number;
+  targetCurrency: string;
+  targetValue: number;
+  rate: number | null;
+  recipientName: string | null;
+  reference: string | null;
+};
+
+export async function fetchWiseOutgoingTransfers(args: {
+  sinceIso: string;
+  limit?: number;
+}): Promise<{ ok: true; transfers: WiseOutgoingTransfer[] } | { ok: false; error: string }> {
+  const token = process.env.WISE_API_TOKEN;
+  if (!token) return { ok: false, error: "WISE_API_TOKEN is not set" };
+  const profiles = await fetchWiseProfileIds();
+  if (!profiles.length) return { ok: false, error: "No Wise profile readable with this token" };
+
+  const out: WiseOutgoingTransfer[] = [];
+  const names = new Map<string, string | null>();
+  for (const pid of profiles) {
+    const url =
+      `${wiseApiBase()}/v1/transfers?profile=${encodeURIComponent(String(pid))}` +
+      `&createdDateStart=${encodeURIComponent(args.sinceIso)}&limit=${args.limit ?? 200}&offset=0`;
+    let rows: Array<Record<string, unknown>> = [];
+    try {
+      const { res } = await wiseFetch(url, token);
+      if (!res.ok) return { ok: false, error: `Wise /v1/transfers answered ${res.status}` };
+      const json = await res.json();
+      rows = Array.isArray(json) ? json : [];
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : "Wise could not be reached" };
+    }
+    for (const t of rows) {
+      const acc = t.targetAccount != null ? String(t.targetAccount) : null;
+      if (acc && !names.has(acc)) {
+        try {
+          const { res } = await wiseFetch(`${wiseApiBase()}/v1/accounts/${encodeURIComponent(acc)}`, token);
+          const j = res.ok ? ((await res.json()) as { accountHolderName?: string; name?: { fullName?: string } }) : null;
+          names.set(acc, j?.accountHolderName ?? j?.name?.fullName ?? null);
+        } catch {
+          names.set(acc, null);
+        }
+      }
+      const details = (t.details ?? {}) as { reference?: string };
+      out.push({
+        id: String(t.id),
+        created: String(t.created ?? ""),
+        status: String(t.status ?? ""),
+        sourceCurrency: String(t.sourceCurrency ?? ""),
+        sourceValue: Number(t.sourceValue ?? 0),
+        targetCurrency: String(t.targetCurrency ?? ""),
+        targetValue: Number(t.targetValue ?? 0),
+        rate: t.rate != null ? Number(t.rate) : null,
+        recipientName: acc ? names.get(acc) ?? null : null,
+        reference: details.reference ?? null,
+      });
+    }
+  }
+  return { ok: true, transfers: out };
+}
