@@ -972,12 +972,15 @@ function TopupHistory({ account }: { account: AdAccount }) {
             const tile = (label: string, value: string) => (
               <div
                 key={label}
-                className="rounded-xl border bg-gradient-to-b from-muted/40 to-transparent p-3"
+                className="flex flex-col rounded-xl border bg-gradient-to-b from-muted/40 to-transparent p-3"
               >
-                <p className="text-[0.62rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                {/* Amounts on one line (eigenaar 03-10): a label that wrapped
+                    to two lines pushed its amount below the other two. The
+                    amount sits at the bottom of every tile now. */}
+                <p className="truncate text-[0.62rem] font-semibold uppercase tracking-wide text-muted-foreground">
                   {label}
                 </p>
-                <p className="mt-1 font-semibold tabular-nums leading-tight">
+                <p className="mt-auto pt-1 font-semibold tabular-nums leading-tight">
                   {value}
                 </p>
               </div>
@@ -1006,7 +1009,7 @@ function TopupHistory({ account }: { account: AdAccount }) {
                     our fee. What is left is the dialog's business, and
                     it says so there. */}
                 {tile(
-                  "Funded, after fees",
+                  "After fees",
                   mixed
                     ? currencies
                         .map((c) => formatCurrency(landedBy[c] ?? 0, c))

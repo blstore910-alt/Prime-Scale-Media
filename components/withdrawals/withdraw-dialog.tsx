@@ -511,7 +511,10 @@ export default function WithdrawDialog({
             </div>
             {overCeiling ? (
               <p className="text-destructive text-xs font-medium">
-                {tr("wd.thatIsMoreThanIs", { v: String(currency === "EUR" ? "€" : "$"), v2: String((ceiling as number).toFixed(2)) })}</p>
+                {/* Only say "on this account" when we READ what is on it. A manual
+                    account: we know what was funded, not what is live (eigenaar
+                    03-10). */}
+                {tr(liveIsBinding ? "wd.thatIsMoreThanIs" : "wd.moreThanFunded", { v: String(currency === "EUR" ? "€" : "$"), v2: String((ceiling as number).toFixed(2)) })}</p>
             ) : null}
             {reasonMissing && amount.trim() ? (
               <p className="text-destructive text-xs font-medium">

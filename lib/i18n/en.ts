@@ -1052,6 +1052,7 @@ export const en = {
   "wtop.tapToCopyThenPaste": "Tap to copy, then paste it into the description field.",
   "wd.upTo": "Up to {v}{v2}",
   "wd.thatIsMoreThanIs": "That is more than is on this account. The most you can ask back is {v}{v2}.",
+  "wd.moreThanFunded": "That is more than you funded, after fees and earlier withdrawals. The most you can ask back is {v}{v2}.",
   "wd.thisAccountHasMoreTop": "This account has more top-ups than we can add up at once — ask us and we will work the figure out by hand.",
   "wd.thisAccountHasMoreWithdrawals": "This account has more withdrawals than we can add up at once — ask us and we will work the figure out by hand.",
   "wd.sayWhyThisMovesSomeone": "Say why — this moves someone else's money, so it needs a note.",

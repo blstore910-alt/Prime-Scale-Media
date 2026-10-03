@@ -113,5 +113,19 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
+  // ── PROOF THAT IT RAN ─────────────────────────────────────────────
+  // A night with nothing due writes nothing, so "it worked" and "it never
+  // ran" looked the same from the database (eigenaar 03-10: "is de
+  // nachtrun goed gegaan?"). One audit row per run, with the summary.
+  try {
+    await supabase.from("audit_events").insert({
+      table_name: "cron_run",
+      action: "INSERT",
+      row_id: "subscription-billing",
+      after_data: { summary: data, reminders },
+    });
+  } catch {
+    // A missing log line must not turn a good run into a failed one.
+  }
   return NextResponse.json({ ok: true, summary: data, reminders });
 }

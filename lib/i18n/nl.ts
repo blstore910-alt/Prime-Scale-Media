@@ -1060,6 +1060,7 @@ export const nl: Record<Key, string> = {
   "wtop.tapToCopyThenPaste": "Tik om te kopiëren, en plak het in het omschrijvingsveld.",
   "wd.upTo": "Tot {v}{v2}",
   "wd.thatIsMoreThanIs": "Dat is meer dan er op dit account staat. Je kunt maximaal {v}{v2} terugvragen.",
+  "wd.moreThanFunded": "Dat is meer dan je hebt gefund, na fees en eerdere opnames. Je kunt maximaal {v}{v2} terugvragen.",
   "wd.thisAccountHasMoreTop": "Dit account heeft meer top-ups dan we in één keer kunnen optellen — vraag het ons, dan rekenen we het met de hand uit.",
   "wd.thisAccountHasMoreWithdrawals": "Dit account heeft meer terugboekingen dan we in één keer kunnen optellen — vraag het ons, dan rekenen we het met de hand uit.",
   "wd.sayWhyThisMovesSomeone": "Zeg waarom — dit verplaatst geld van iemand anders, dus er hoort een notitie bij.",
