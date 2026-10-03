@@ -1088,13 +1088,14 @@ export async function readOwnAdAccountLiveBalance(adAccountId: string): Promise<
   // (tenant, provider, external_id) en niet op ad_account_id -- bij twee
   // rijen gooit maybeSingle, en dan valt het plafond weg op het scherm
   // waar de klant zijn geld terugvraagt. Zie tests/lib/maybe-single.test.ts.
-  const { data: advRows, error: advError } = await supabase
-    .from("advertisers")
-    .select("id")
-    .eq("profile_id", profile.id)
-    .limit(1);
+  // Own advertiser, or the team this person is in (NEXT_SESSION_FIRST
+  // #3): the same rule as ad_account_withdrawal_request itself, so the
+  // ceiling a team member sees is the one the request is held to.
+  const { data: actingId, error: advError } = await supabase.rpc("_psm_acting_advertiser", {
+    p_tenant: (profile as { tenant_id?: string | null }).tenant_id ?? null,
+  });
   if (advError) return { ok: false, error: safeErrorMessage(advError) };
-  const adv = (advRows ?? [])[0] ?? null;
+  const adv = actingId ? { id: String(actingId) } : null;
   if (!adv?.id) return { ok: false, error: "Forbidden" };
 
   const { data: acctRows, error: acctError } = await supabase

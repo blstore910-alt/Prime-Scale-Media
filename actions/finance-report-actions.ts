@@ -144,12 +144,29 @@ export async function financeReportForMe(): Promise<
   //
   // Genuinely having no advertiser row is a different thing and still
   // returns the empty report, because that IS the answer.
-  const { data: adv, error: advErr } = await supabase
-    .from("advertisers")
-    .select("id, tenant_client_code")
-    .eq("user_id", profile.user_id)
-    .eq("tenant_id", profile.tenant_id)
-    .maybeSingle();
+  // ── OWN ADVERTISER, OR THE TEAM THIS PERSON IS IN ────────────────
+  //
+  // A team member (subject_members) has no advertiser row of their own,
+  // so the lookup on user_id found nothing and their report read "Nothing
+  // has moved yet" on an account with real money (NEXT_SESSION_FIRST #3).
+  // _psm_acting_advertiser is the same rule every money RPC uses: the
+  // caller's own advertiser first, else the team, in this tenant. The row
+  // itself is then read through RLS (advertisers_team_read, plak 179).
+  const { data: actingId, error: actingErr } = await supabase.rpc("_psm_acting_advertiser", {
+    p_tenant: profile.tenant_id,
+  });
+  type ActingAdv = { id: string; tenant_client_code: string | null };
+  let adv: ActingAdv | null = null as ActingAdv | null;
+  let advErr: unknown = actingErr;
+  if (!actingErr && actingId) {
+    const { data: advRows, error: rowErr } = await supabase
+      .from("advertisers")
+      .select("id, tenant_client_code")
+      .eq("id", actingId as string)
+      .limit(1);
+    advErr = rowErr;
+    adv = ((advRows ?? [])[0] as ActingAdv | undefined) ?? null;
+  }
 
   if (advErr) {
     return {
