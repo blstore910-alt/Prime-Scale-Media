@@ -65,3 +65,12 @@ describe("extractTopupReference", () => {
     assert.equal(extractTopupReference("12 34"), null);
   });
 });
+
+it("the short reference of plak 205 (6 digits) is read like the long one", () => {
+  assert.equal(formatPaymentReference("PSM0031", "482913"), "0031-482913");
+  assert.equal(extractTopupReference("0031-482913"), "482913");
+  assert.equal(extractTopupReference("ref 0031 - 482913 thanks"), "482913");
+  assert.equal(extractTopupReference("482913"), "482913");
+  // an old 10-digit one still works
+  assert.equal(extractTopupReference("0031-0306369451"), "0306369451");
+});
