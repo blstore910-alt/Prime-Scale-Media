@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isMaintenanceMode } from "@/actions/_shared";
 import { isCronAuthorised } from "@/lib/cron-auth";
 import { refreshExchangeRates } from "@/lib/refresh-exchange-rates";
+import { syncWiseToSupplier } from "@/lib/supplier-wise-sync";
 
 // ── THE HOURLY RATE ─────────────────────────────────────────────────
 //
@@ -65,5 +66,16 @@ export async function GET(req: NextRequest) {
   });
 
   const out = await refreshExchangeRates(supabase);
-  return NextResponse.json(out, { status: out.ok ? 200 : 502 });
+
+  // ── AND THE WISE PAYMENTS TO MUXUE (eigenaar 03-10) ────────────────
+  // Rides on this 15-minute job rather than adding a cron of its own.
+  // Its own try: a Wise hiccup must never turn a good rate refresh into
+  // a 502, and a failed rate must not stop the payments either.
+  let supplierWise: unknown = null;
+  try {
+    supplierWise = await syncWiseToSupplier(supabase);
+  } catch (e) {
+    supplierWise = { ok: false, error: e instanceof Error ? e.message : "unknown" };
+  }
+  return NextResponse.json({ ...out, supplierWise }, { status: out.ok ? 200 : 502 });
 }

@@ -19,6 +19,7 @@ import { safeErrorMessage } from "@/lib/pure-error";
 import { amsterdamYmd } from "@/lib/pure-backup";
 import { isTenantOwner } from "@/lib/auth/is-tenant-owner";
 import type { DayBalance, LedgerLine, LineKind } from "@/lib/pure-supplier-ledger";
+import { syncWiseToSupplier } from "@/lib/supplier-wise-sync";
 
 const SOORTEN: LineKind[] = ["deposit", "customer_topup", "fee", "dst", "adjustment", "adjustment_out"];
 const CORRECTIES: LineKind[] = ["adjustment", "adjustment_out"];
@@ -110,9 +111,16 @@ export async function getSupplierLedger(
       .eq("supplier", naam)
       .order("day", { ascending: true })
       .order("created_at", { ascending: true });
+  // Plak 202 adds external_ref + usd_confirmed (Wise payments to Muxue).
+  // Without it: the 186 columns, and nothing reads as a Wise line.
   let { data: lijn, error: lErr } = await leesRegels(
-    "id, day, kind, amount, client_ref, note, status, reject_reason, sent_amount, sent_currency, created_at, created_by",
+    "id, day, kind, amount, client_ref, note, status, reject_reason, sent_amount, sent_currency, created_at, created_by, external_ref, usd_confirmed",
   );
+  if (lErr && ontbreekt(lErr)) {
+    ({ data: lijn, error: lErr } = await leesRegels(
+      "id, day, kind, amount, client_ref, note, status, reject_reason, sent_amount, sent_currency, created_at, created_by",
+    ));
+  }
   if (lErr && ontbreekt(lErr)) {
     plakNodig = true;
     ({ data: lijn, error: lErr } = await leesRegels("id, day, kind, amount, client_ref, note, created_at, created_by"));
@@ -141,6 +149,8 @@ export async function getSupplierLedger(
     sent_currency?: "EUR" | "USD" | null;
     created_at?: string | null;
     created_by?: string | null;
+    external_ref?: string | null;
+    usd_confirmed?: boolean | null;
   }[]);
   // Wie voerde het in: de namen in een keer.
   const ids = Array.from(new Set(ruw.map((l) => l.created_by).filter(Boolean))) as string[];
@@ -166,6 +176,8 @@ export async function getSupplierLedger(
     clientName: l.client_ref ? (naamVanKlant.get(l.client_ref) ?? null) : null,
     addedBy: l.created_by ? (wie.get(l.created_by) ?? null) : null,
     createdAt: l.created_at ?? null,
+    wise: !!l.external_ref && l.external_ref.startsWith("wise:"),
+    usdConfirmed: l.usd_confirmed !== false,
   }));
 
   // De top-ups uit de app zelf, op accounts van deze leverancier.
@@ -380,5 +392,47 @@ export async function setSupplierDayBalance(input: {
     { onConflict: "tenant_id,supplier,day" },
   );
   if (error) return { ok: false, error: ontbreekt(error) ? "Run plak 185 first." : safeErrorMessage(error) };
+  return { ok: true };
+}
+
+// ── WISE PAYMENTS TO MUXUE ────────────────────────────────────────────
+// "Sync now" on the page. The same run the 15-minute cron does; see
+// lib/supplier-wise-sync.ts. Any admin: it only books what Wise says went out.
+export async function syncSupplierFromWise(): Promise<
+  { ok: true; data: { imported: number; seen: number; skipped?: string } } | { ok: false; error: string }
+> {
+  const res0 = await resolveAdminContext();
+  if (!res0.ok) return { ok: false, error: res0.error };
+  const db = await createAdminClient();
+  const r = await syncWiseToSupplier(db);
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, data: { imported: r.imported, seen: r.seen, skipped: r.skipped } };
+}
+
+/**
+ * What Bestads actually credited for a payment that arrived in EUR.
+ * Replaces the estimate at our rate; only on an UNCONFIRMED Wise line, so
+ * it can never quietly rewrite a hand-entered deposit or a correction.
+ */
+export async function confirmSupplierUsd(input: {
+  id: string;
+  usd: number | string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res0 = await resolveAdminContext();
+  if (!res0.ok) return { ok: false, error: res0.error };
+  const tenantId = res0.ctx.profile.tenant_id as string;
+  const usd = Math.round(Number(input?.usd) * 100) / 100;
+  if (!(usd > 0)) return { ok: false, error: "Type the dollars their dashboard shows for this payment." };
+  const db = await createAdminClient();
+  const { data, error } = await db
+    .from("supplier_ledger_lines")
+    .update({ amount: usd, usd_confirmed: true })
+    .eq("id", String(input?.id ?? ""))
+    .eq("tenant_id", tenantId)
+    .eq("usd_confirmed", false)
+    .like("external_ref", "wise:%")
+    .select("id");
+  if (error) return { ok: false, error: ontbreekt(error) ? "Run plak 202 first." : safeErrorMessage(error) };
+  if (!(data ?? []).length) return { ok: false, error: "That payment is already confirmed." };
   return { ok: true };
 }

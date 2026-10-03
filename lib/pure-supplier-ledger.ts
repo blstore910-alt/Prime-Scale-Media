@@ -38,6 +38,11 @@ export type LedgerLine = {
   addedBy?: string | null;
   createdAt?: string | null;
   ourFee?: string | null;
+  /** Plak 202: booked automatically from a Wise payment to the supplier. */
+  wise?: boolean;
+  /** False while a payment that arrived in EUR still carries our estimate
+   *  instead of what the supplier actually credited. */
+  usdConfirmed?: boolean;
 };
 
 export type DayBalance = { day: string; actualEnd: number; note?: string | null };

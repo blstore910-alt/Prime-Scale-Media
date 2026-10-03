@@ -26,6 +26,8 @@ import {
   deleteSupplierLine,
   getSupplierLedger,
   setSupplierDayBalance,
+  confirmSupplierUsd,
+  syncSupplierFromWise,
 } from "@/actions/supplier-ledger-actions";
 import { buildLedgerDays, depositGap, latestBalance, type LedgerDay, type LedgerLine, type LineKind } from "@/lib/pure-supplier-ledger";
 import { useUsdToEur } from "@/hooks/use-usd-to-eur";
@@ -152,6 +154,35 @@ export default function SupplierLedger() {
     },
     onError: (e) => toast.error((e as Error).message),
   });
+
+  // ── WISE PAYMENTS TO MUXUE (plak 202) ─────────────────────────────
+  // They arrive by themselves every 15 minutes; this is for "now".
+  const sync = useMutation({
+    mutationFn: async () => {
+      const r = await syncSupplierFromWise();
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    onSuccess: (d) => {
+      toast.success(d.imported ? `${d.imported} Wise payment${d.imported > 1 ? "s" : ""} booked` : "No new Wise payments", {
+        description: d.skipped,
+      });
+      vernieuw();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+  const bevestig = useMutation({
+    mutationFn: async (v: { id: string; usd: string }) => {
+      const r = await confirmSupplierUsd(v);
+      if (!r.ok) throw new Error(r.error);
+    },
+    onSuccess: () => {
+      toast.success("Confirmed — the gap against our rate shows on the line");
+      vernieuw();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+  const openWise = alle.filter((l) => l.wise && l.usdConfirmed === false).length;
 
   const laatsteDag = days[days.length - 1];
 
@@ -291,6 +322,28 @@ export default function SupplierLedger() {
           ) : null}
 
           {/* ── ALLE REGELS ────────────────────────────────────────── */}
+          {/* Wise payments to Muxue book themselves; say so, and say when
+              one still needs its dollars typed in. */}
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card px-4 py-2.5 text-xs text-muted-foreground">
+            <span>
+              Wise payments to Muxue are booked automatically.
+              {openWise ? (
+                <b className="ml-1 text-amber-700">
+                  {openWise} in EUR {openWise > 1 ? "need" : "needs"} the USD Bestads credited.
+                </b>
+              ) : null}
+            </span>
+            <button
+              type="button"
+              disabled={sync.isPending}
+              onClick={() => sync.mutate()}
+              className="inline-flex items-center gap-1 font-bold text-primary disabled:opacity-50"
+            >
+              {sync.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              Sync now
+            </button>
+          </div>
+
           <div className="overflow-hidden rounded-2xl border bg-card">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
               {/* One row of chips, scrolling sideways on a phone rather than
@@ -335,6 +388,8 @@ export default function SupplierLedger() {
                     if (window.confirm("Remove this entry?")) del.mutate(l.id);
                   }}
                   deleting={del.isPending}
+                  onConfirmUsd={(usd) => bevestig.mutate({ id: l.id, usd })}
+                  confirming={bevestig.isPending}
                 />
               ))
             ) : (
@@ -453,17 +508,46 @@ function Regel({
   eurToUsd,
   onDelete,
   deleting,
+  onConfirmUsd,
+  confirming,
 }: {
   l: LedgerLine;
   eurToUsd: number | null;
   onDelete: () => void;
   deleting: boolean;
+  onConfirmUsd: (usd: string) => void;
+  confirming: boolean;
 }) {
+  const [usd, setUsd] = useState("");
   const s = SOORT[l.kind];
   const telt = (l.status ?? "approved") === "approved";
   const g = depositGap(l, eurToUsd);
   const Icon = SOORT_ICON[l.kind];
-  const wie = l.source === "app" ? "App" : l.addedBy ?? null;
+  const wie = l.source === "app" ? "App" : l.wise ? "Wise" : l.addedBy ?? null;
+  // A payment that arrived in EUR: our estimate until somebody types what
+  // Bestads actually credited.
+  const teBevestigen = l.wise && l.usdConfirmed === false;
+  const bevestigVak = teBevestigen ? (
+    <span className="mt-1.5 flex flex-wrap items-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1.5 text-amber-900">
+      <b className="text-[11px]">Estimate · Bestads credited $</b>
+      <input
+        value={usd}
+        onChange={(e) => setUsd(e.target.value)}
+        inputMode="decimal"
+        placeholder={l.amount ? l.amount.toFixed(2) : "0.00"}
+        aria-label="What Bestads credited in USD"
+        className="h-7 w-24 rounded-md border border-amber-300 bg-white px-2 text-xs text-foreground"
+      />
+      <button
+        type="button"
+        disabled={confirming || !(Number(usd) > 0)}
+        onClick={() => onConfirmUsd(usd)}
+        className="h-7 rounded-md bg-amber-500 px-2.5 text-[11px] font-bold text-white disabled:opacity-50"
+      >
+        Confirm
+      </button>
+    </span>
+  ) : null;
   const status =
     l.status === "pending" ? (
       <span className="rounded bg-amber-100 px-1.5 font-bold text-amber-800">waiting for approval</span>
@@ -478,8 +562,10 @@ function Regel({
       ) : null}
     </span>
   ) : null;
+  // Not on a Wise line: it would only come back on the next sync -- the
+  // payment did go out. Its dollars are corrected with Confirm instead.
   const weg =
-    l.source !== "app" ? (
+    l.source !== "app" && !l.wise ? (
       <button
         aria-label="Remove entry"
         disabled={deleting}
@@ -521,6 +607,7 @@ function Regel({
               {l.ourFee ? <span className="font-semibold text-emerald-700"> · our fee {l.ourFee}</span> : null}
               {status ? <> {status}</> : null}
               {gap}
+              {bevestigVak}
             </span>
             {weg ? <span className="-mr-1 -mt-0.5 shrink-0">{weg}</span> : null}
           </div>
@@ -551,10 +638,11 @@ function Regel({
           {l.ourFee ? <span className="ml-1 font-semibold text-emerald-700">· our fee {l.ourFee}</span> : null}
           {status ? <span className="ml-1">{status}</span> : null}
           {gap}
+          {bevestigVak}
         </span>
         <span className="text-xs">
-          {l.source === "app" ? (
-            <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-700">App</span>
+          {l.source === "app" || l.wise ? (
+            <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-700">{l.wise ? "Wise" : "App"}</span>
           ) : (
             l.addedBy ?? "—"
           )}
