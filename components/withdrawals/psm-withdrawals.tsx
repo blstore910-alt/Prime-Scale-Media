@@ -593,7 +593,11 @@ function WithdrawalsSection() {
   // label for that slug is "Meta-EU-PSM-RA", and it is already read by
   // the create and update forms.
   const { bySlug: adTypes } = useAdAccountTypes();
-  const { profile } = useAppContext();
+  const { profile, user } = useAppContext();
+  // Four eyes (eigenaar 28-09): whoever RAISED a withdrawal for a customer
+  // cannot approve it -- the RPC refuses. Say so on the button instead of
+  // letting them press it and read "Approve failed" (Test 4, 03-10).
+  const raisedByMe = (w: { requested_by?: string | null }) => !!user?.id && w.requested_by === user.id;
   const tenantId = profile?.tenant_id ?? null;
   const queryClient = useQueryClient();
   const [actingId, setActingId] = useState<string | null>(null);
@@ -958,7 +962,8 @@ function WithdrawalsSection() {
                                 </button>
                                 <button
                                   className="btn sm"
-                                  disabled={actingId === w.id}
+                                  disabled={actingId === w.id || raisedByMe(w)}
+                                  title={raisedByMe(w) ? "You raised this one, so another admin approves it." : undefined}
                                   onClick={() =>
                                     setAsk({
                                       title: "Approve this withdrawal?",
@@ -1003,7 +1008,7 @@ function WithdrawalsSection() {
                                     })
                                   }
                                 >
-                                  {actingId === w.id ? "…" : "Approve"}
+                                  {actingId === w.id ? "…" : raisedByMe(w) ? "Another admin approves" : "Approve"}
                                 </button>
                               </div>
                             ) : (

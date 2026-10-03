@@ -418,7 +418,7 @@ export default function WithdrawDialog({
                     {adAccountName ?? tr("label.wd.thisAdAccount")}
                   </span>
                 </span>
-                <span>{tr("wd.toYourWallet")}</span>
+                <span>{tr(onBehalf ? "wd.toTheirWallet" : "wd.toYourWallet")}</span>
               </div>
             )}
           </DialogDescription>
@@ -439,7 +439,7 @@ export default function WithdrawDialog({
               </div>
               <div className="flex items-baseline justify-between gap-4 px-3 py-2.5">
                 <dt className="text-muted-foreground">{tr("label.wd.returnsTo")}</dt>
-                <dd className="font-semibold">{tr("label.wd.yourWallet")}</dd>
+                <dd className="font-semibold">{tr(onBehalf ? "label.wd.theirWallet" : "label.wd.yourWallet")}</dd>
               </div>
               {reason.trim() && (
                 <div className="flex items-baseline justify-between gap-4 px-3 py-2.5">
@@ -580,7 +580,7 @@ export default function WithdrawDialog({
                   the account's own currency, into the matching wallet —
                   that sentence belonged to the assumption this dialog
                   has just stopped making. */}
-              {` ${tr("label.wd.itLandsInYour")} `}
+              {` ${tr(onBehalf ? "label.wd.itLandsInTheir" : "label.wd.itLandsInYour")} `}
               {currency}
               {" wallet."}
             </p>
