@@ -208,7 +208,10 @@ export const bankInstructions: Record<Exclude<BankGroup, "muxue">, BankGroupConf
                 copyable: true,
               },
               { label: "Account Number", value: "940045169143500", copyable: true },
-              { label: "IBAN", value: "940045169143500", copyable: true },
+              // No "IBAN" line. A US account at Column has no IBAN; the
+              // account number was printed a second time under that label,
+              // which reads as a second, different number (eigenaar 02-10:
+              // weghalen).
               { label: "Account Type", value: "Checking" },
               {
                 label: "Beneficiary Address",
