@@ -293,24 +293,26 @@ export default function SupplierLedger() {
           {/* ── ALLE REGELS ────────────────────────────────────────── */}
           <div className="overflow-hidden rounded-2xl border bg-card">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
-              <div className="flex flex-wrap gap-1">
+              {/* One row of chips, scrolling sideways on a phone rather than
+                  wrapping "Corrections" onto a line of its own. */}
+              <div className="-mx-1 flex w-full gap-1 overflow-x-auto px-1 sm:w-auto [scrollbar-width:none]">
                 {FILTERS.map((f) => (
                   <button
                     key={f.key}
                     onClick={() => setFilter(f.key)}
-                    className={`rounded-full px-3 py-1 text-xs font-bold ${filter === f.key ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+                    className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold ${filter === f.key ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
                   >
                     {f.label}
                   </button>
                 ))}
               </div>
-              <label className="relative">
+              <label className="relative w-full sm:w-auto">
                 <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <input
                   value={zoek}
                   onChange={(e) => setZoek(e.target.value)}
                   placeholder="Search client, note, name"
-                  className="h-9 w-56 rounded-lg border bg-background pl-8 pr-3 text-sm"
+                  className="h-9 w-full rounded-lg border bg-background pl-8 pr-3 text-sm sm:w-56"
                 />
               </label>
             </div>
