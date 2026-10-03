@@ -218,10 +218,10 @@ async function ensureWalletAndReferral(
   if (walletReadError) return safeErrorMessage(walletReadError);
   const walletExisted = !!wallets?.length;
   if (!walletExisted) {
-    // Six digits (plak 205, eigenaar 03-10: shorter for customers). The
+    // Five digits (plak 206, eigenaar 03-10: shorter for customers). The
     // wallets trigger makes it unique either way; this just asks for the
     // right length to begin with.
-    const generatedRef = String(Math.floor(100000 + Math.random() * 900000));
+    const generatedRef = String(Math.floor(10000 + Math.random() * 90000));
     const { error: walletError } = await admin.from("wallets").insert({
       advertiser_id: advertiser.id,
       tenant_id: tenantId,
