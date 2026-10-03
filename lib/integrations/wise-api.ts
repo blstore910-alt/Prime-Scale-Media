@@ -917,6 +917,7 @@ export type WiseOutgoingTransfer = {
 export async function fetchWiseOutgoingTransfers(args: {
   sinceIso: string;
   limit?: number;
+  recipientMatch?: RegExp;
 }): Promise<{ ok: true; transfers: WiseOutgoingTransfer[] } | { ok: false; error: string }> {
   const token = process.env.WISE_API_TOKEN;
   if (!token) return { ok: false, error: "WISE_API_TOKEN is not set" };
@@ -926,17 +927,25 @@ export async function fetchWiseOutgoingTransfers(args: {
   const out: WiseOutgoingTransfer[] = [];
   const names = new Map<string, string | null>();
   for (const pid of profiles) {
-    const url =
-      `${wiseApiBase()}/v1/transfers?profile=${encodeURIComponent(String(pid))}` +
-      `&createdDateStart=${encodeURIComponent(args.sinceIso)}&limit=${args.limit ?? 200}&offset=0`;
+    // PAGE BY PAGE. One call returns at most `limit` rows, oldest first:
+    // measured 03-10, 90 days came back as 200 rows ending in mid-July.
+    const page = 200;
     let rows: Array<Record<string, unknown>> = [];
-    try {
-      const { res } = await wiseFetch(url, token);
-      if (!res.ok) return { ok: false, error: `Wise /v1/transfers answered ${res.status}` };
-      const json = await res.json();
-      rows = Array.isArray(json) ? json : [];
-    } catch (e) {
-      return { ok: false, error: e instanceof Error ? e.message : "Wise could not be reached" };
+    for (let offset = 0; offset < 5000; offset += page) {
+      const url =
+        `${wiseApiBase()}/v1/transfers?profile=${encodeURIComponent(String(pid))}` +
+        `&createdDateStart=${encodeURIComponent(args.sinceIso)}&limit=${page}&offset=${offset}`;
+      let batch: Array<Record<string, unknown>> = [];
+      try {
+        const { res } = await wiseFetch(url, token);
+        if (!res.ok) return { ok: false, error: `Wise /v1/transfers answered ${res.status}` };
+        const json = await res.json();
+        batch = Array.isArray(json) ? json : [];
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : "Wise could not be reached" };
+      }
+      rows = rows.concat(batch);
+      if (batch.length < page) break;
     }
     for (const t of rows) {
       const acc = t.targetAccount != null ? String(t.targetAccount) : null;
@@ -964,5 +973,8 @@ export async function fetchWiseOutgoingTransfers(args: {
       });
     }
   }
-  return { ok: true, transfers: out };
+  return {
+    ok: true,
+    transfers: args.recipientMatch ? out.filter((t) => args.recipientMatch!.test(t.recipientName ?? "")) : out,
+  };
 }

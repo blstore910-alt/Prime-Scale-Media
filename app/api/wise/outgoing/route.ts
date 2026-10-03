@@ -22,6 +22,21 @@ export async function GET(req: Request) {
   const r = await fetchWiseOutgoingTransfers({ sinceIso: since });
   if (!r.ok) return NextResponse.json({ ok: false, error: r.error }, { status: 502 });
 
+  // ?muxue=1: every payment to Muxue one by one (date, status, amounts),
+  // to hold against the hand-entered lines before importing anything.
+  if (new URL(req.url).searchParams.get("muxue") === "1") {
+    return NextResponse.json(
+      {
+        ok: true,
+        days,
+        muxue: r.transfers
+          .filter((t) => /muxue/i.test(t.recipientName ?? ""))
+          .map((t) => ({ id: t.id, created: t.created, status: t.status, paid: `${t.sourceValue} ${t.sourceCurrency}`, received: `${t.targetValue} ${t.targetCurrency}`, rate: t.rate })),
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   const groups = new Map<string, { recipient: string; pair: string; count: number; source: number; target: number; statuses: Record<string, number>; last: string }>();
   for (const t of r.transfers) {
     const recipient = t.recipientName ?? "(unknown)";
